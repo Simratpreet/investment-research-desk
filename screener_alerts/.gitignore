@@ -1,0 +1,12 @@
+cookie.txt
+openrouter_key.txt
+seen.json
+pending.json
+announcements_store.json
+announcements_store.json.tmp
+annual_reports_seen.json
+digest.md
+annual_reports_digest.md
+run.log
+__pycache__/
+scan.log

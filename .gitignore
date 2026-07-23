@@ -1,0 +1,44 @@
+# ─── Secrets — NEVER commit ───────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+screener_alerts/cookie.txt
+*.pem
+*.key
+
+# ─── Runtime-mutable state (belongs on a volume, not in the repo/image) ────
+alert_log.json
+news_alerts/news_store.json
+news_alerts/data/names_cache.json
+screener_alerts/announcements_store.json
+screener_alerts/annual_reports_seen.json
+screener_alerts/seen.json
+
+# ─── Duplicate/staging tree — pending review verdict on which is canonical ─
+.fixed-staging/
+
+# ─── Python ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+build/
+dist/
+
+# ─── Backups / scratch ────────────────────────────────────────────────────
+*.bak
+*.orig
+
+# ─── Editor / OS ──────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+*.swp
+*~
+
+# Keep VS Code launch config out unless intentionally shared
+.claude/

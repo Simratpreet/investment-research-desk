@@ -1,0 +1,2424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signalbook — Market Watchlist</title>
+    <meta name="description" content="A focused workspace for market monitoring, alerts, news, and investment research.">
+    <meta name="theme-color" content="#153e2e">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #f8f7f4;
+            --surface: #ffffff;
+            --surface-warm: #faf9f6;
+            --border: #e8e5df;
+            --border-light: #f0ede8;
+            --text: #1a1a1a;
+            --text-secondary: #6b6560;
+            --text-muted: #9b958e;
+            --accent: #e85d26;
+            --accent-light: rgba(232, 93, 38, 0.08);
+            --accent-hover: #d14f1c;
+            --green: #1a8754;
+            --green-bg: rgba(26, 135, 84, 0.08);
+            --red: #dc3545;
+            --red-bg: rgba(220, 53, 69, 0.06);
+            --blue: #4a6cf7;
+            --blue-bg: rgba(74, 108, 247, 0.08);
+            --amber: #c27803;
+            --amber-bg: rgba(194, 120, 3, 0.08);
+            --purple: #7c3aed;
+            --purple-bg: rgba(124, 58, 237, 0.08);
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+            --radius: 10px;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* --- Header --- */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            border-left: 1px solid var(--border);
+            padding-left: 1.2rem;
+            margin-left: 0.4rem;
+        }
+
+        .header-nav a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            padding: 0.35rem 0.8rem;
+            border-radius: 6px;
+            transition: all 0.12s;
+        }
+
+        .header-nav a:hover { color: var(--text); background: var(--bg); }
+        .header-nav a.active { color: var(--accent); background: var(--accent-light); }
+
+        .logo-mark {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            color: white;
+            font-weight: 700;
+        }
+
+        .header h1 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.72rem;
+            color: var(--green);
+            background: var(--green-bg);
+            padding: 0.3rem 0.65rem;
+            border-radius: 100px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .status-pill .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* --- Layout --- */
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 1.5rem 1.5rem;
+        }
+
+        /* --- Add Stock Form --- */
+        .add-form {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            gap: 0.6rem;
+            align-items: flex-end;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .add-form:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .form-group label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .form-group input, .form-group select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 7px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--accent);
+        }
+
+        .form-group input::placeholder { color: var(--text-muted); }
+
+        #ticker-input {
+            width: 120px;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+        #notes-input { flex: 1; min-width: 180px; }
+
+        /* --- Buttons --- */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 7px;
+            border: none;
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.12s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(232, 93, 38, 0.25);
+        }
+
+        .btn-check {
+            background: var(--text);
+            color: #fff;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.75rem;
+            border-radius: 6px;
+        }
+
+        .btn-check:hover {
+            background: #333;
+        }
+
+        .btn-check:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-ghost {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 0.3rem 0.7rem;
+            font-size: 0.72rem;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--red);
+            color: var(--red);
+            background: var(--red-bg);
+        }
+
+        /* --- Stats --- */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.85rem 1rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-card .value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .stat-card .label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+            font-weight: 500;
+        }
+
+        /* --- Tabs --- */
+        .tab-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px;
+        }
+
+        .tab {
+            padding: 0.45rem 1rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.12s;
+        }
+
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            color: var(--text);
+            background: var(--bg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* --- Table --- */
+        .table-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            padding: 0.65rem 1rem;
+            text-align: left;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-warm);
+        }
+
+        tbody td {
+            padding: 0.65rem 1rem;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--border-light);
+            vertical-align: middle;
+        }
+
+        tbody tr { transition: background 0.08s; }
+        tbody tr:hover { background: var(--surface-warm); }
+        tbody tr:last-child td { border-bottom: none; }
+
+        .ticker-cell {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+
+        .company-name {
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 400;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 0.1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        .exchange-badge {
+            display: inline-block;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            background: var(--blue-bg);
+            color: var(--blue);
+        }
+
+        .exchange-badge.nse { background: var(--green-bg); color: var(--green); }
+        .exchange-badge.tsx { background: var(--amber-bg); color: var(--amber); }
+        .exchange-badge.lse, .exchange-badge.aim { background: var(--purple-bg); color: var(--purple); }
+        .exchange-badge.xetra { background: var(--amber-bg); color: var(--amber); }
+        .exchange-badge.sgx { background: var(--blue-bg); color: var(--blue); }
+
+        .notes-cell {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            max-width: 220px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .track-cell {
+            white-space: nowrap;
+        }
+        .track-toggle {
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 3px 9px;
+            margin-right: 5px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.12s ease;
+            user-select: none;
+        }
+        .track-toggle.on {
+            background: var(--green-bg);
+            color: var(--green);
+            border-color: var(--green);
+        }
+        .track-toggle.off {
+            background: transparent;
+            color: var(--text-muted);
+            opacity: 0.6;
+            text-decoration: line-through;
+        }
+        .track-toggle:hover { filter: brightness(1.08); opacity: 1; }
+
+        /* News tab */
+        .news-meta {
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            margin-bottom: 14px;
+        }
+        .news-meta .scanning { color: var(--accent); font-weight: 600; }
+        .news-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
+        }
+        /* Announcements (screener.in) */
+        .ann-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
+        }
+        .ann-head {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 8px; padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .ann-time { font-weight: 600; font-size: 0.85rem; }
+        .ann-count {
+            font-size: 0.7rem; font-weight: 700; color: var(--accent);
+            background: var(--accent-light, var(--border-light));
+            padding: 2px 9px; border-radius: 999px;
+        }
+        .ann-digest { line-height: 1.55; font-size: 0.9rem; }
+        .ann-digest p { margin: 0 0 8px; }
+        .ann-digest strong { font-weight: 700; }
+        .ann-digest ul { margin: 6px 0 10px; padding-left: 18px; }
+        .ann-sources { margin-top: 10px; }
+        .ann-sources summary {
+            cursor: pointer; color: var(--text-secondary);
+            font-size: 0.78rem; font-weight: 600;
+        }
+        .ann-sources summary:hover { color: var(--accent); }
+        .ann-sources ul { list-style: none; padding: 8px 0 0; margin: 0; }
+        .ann-sources li {
+            font-size: 0.82rem; padding: 4px 0;
+            border-top: 1px solid var(--border-light);
+        }
+        .ann-sources a { color: var(--accent); text-decoration: none; }
+        .ann-sources a:hover { text-decoration: underline; }
+        .ann-blurb { color: var(--text-muted); }
+        .ann-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            padding: 12px 14px;
+            border-radius: 10px;
+            max-height: 320px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0 0 14px;
+        }
+        .news-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .news-card-right { display: flex; align-items: center; gap: 10px; }
+        .news-ticker {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-right: 6px;
+        }
+        .news-company { color: var(--text-secondary); font-size: 0.82rem; margin-left: 6px; }
+        .news-time { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+        .sig-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 9px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .sig-high { background: var(--red-bg); color: var(--red); }
+        .sig-medium { background: var(--blue-bg); color: var(--blue); }
+        .sig-low { background: var(--green-bg); color: var(--green); }
+        .sig-reason {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-style: italic;
+            margin-top: 6px;
+        }
+        .news-summary { margin: 10px 0; line-height: 1.5; font-size: 0.9rem; }
+        .news-summary.muted { color: var(--text-muted); }
+        .news-articles { list-style: none; padding: 0; margin: 8px 0 0; }
+        .news-articles li {
+            font-size: 0.83rem;
+            padding: 4px 0;
+            border-top: 1px solid var(--border-light);
+        }
+        .news-articles a { color: var(--accent); text-decoration: none; }
+        .news-articles a:hover { text-decoration: underline; }
+        .art-src { color: var(--text-muted); font-size: 0.74rem; margin-left: 7px; }
+        .ir-tag {
+            background: var(--accent); color: #fff;
+            font-size: 0.62rem; font-weight: 700;
+            padding: 1px 6px; border-radius: 4px; margin-right: 7px;
+            vertical-align: middle;
+        }
+
+        .date-cell {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+        }
+
+        .btn-icon {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            transition: all 0.12s;
+            opacity: 0.4;
+        }
+
+        tbody tr:hover .btn-icon { opacity: 1; }
+
+        .btn-icon:hover {
+            border-color: var(--red);
+            color: var(--red);
+            background: var(--red-bg);
+        }
+
+        /* --- Alert List --- */
+        .alert-item {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .alert-item:last-child { border-bottom: none; }
+
+        .alert-msg {
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
+        .alert-time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            margin-left: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.4;
+        }
+
+        .empty-state p {
+            font-size: 0.85rem;
+        }
+
+        /* --- Toast --- */
+        .toast-container {
+            position: fixed;
+            bottom: 1.25rem;
+            right: 1.25rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background: var(--text);
+            color: #fff;
+            border-radius: 8px;
+            padding: 0.65rem 1rem;
+            font-size: 0.8rem;
+            animation: slideUp 0.25s ease;
+            max-width: 300px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .toast.error {
+            background: var(--red);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 0.35rem;
+            vertical-align: middle;
+        }
+
+        @media (max-width: 768px) {
+            .add-form { flex-wrap: wrap; }
+            #notes-input { min-width: 100%; }
+            .header { padding: 0 1rem; }
+            .container { padding: 1rem; }
+            .stats { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        /* --- Research Tab --- */
+        .research-controls {
+            display: flex;
+            gap: 0.6rem;
+            margin-bottom: 1rem;
+        }
+
+        .research-controls input {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 7px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .research-controls input:focus { border-color: var(--accent); }
+        .research-controls input::placeholder { color: var(--text-muted); }
+
+        .research-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .research-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            transition: all 0.12s;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .research-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .research-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.35rem;
+        }
+
+        .research-card-ticker {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--accent);
+        }
+
+        .research-card-date {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .research-card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.3rem;
+        }
+
+        .research-card-preview {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Detail view */
+        .research-detail {
+            display: none;
+        }
+
+        .research-detail.active {
+            display: block;
+        }
+
+        .research-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            margin-bottom: 0.8rem;
+            padding: 0.3rem 0;
+            border: none;
+            background: none;
+            font-family: inherit;
+            font-weight: 600;
+            transition: color 0.12s;
+        }
+
+        .research-back:hover { color: var(--accent); }
+
+        .research-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .research-detail-header h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .research-detail-header h2 span {
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .research-detail-actions {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .research-rendered {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem 1.75rem;
+            box-shadow: var(--shadow-sm);
+            line-height: 1.65;
+            font-size: 0.88rem;
+        }
+
+        .research-rendered h1 { font-size: 1.3rem; margin: 1.2rem 0 0.5rem; font-weight: 700; }
+        .research-rendered h2 { font-size: 1.1rem; margin: 1.1rem 0 0.4rem; font-weight: 700; }
+        .research-rendered h3 { font-size: 0.95rem; margin: 1rem 0 0.35rem; font-weight: 700; color: var(--accent); }
+        .research-rendered p { margin-bottom: 0.6rem; }
+        .research-rendered ul, .research-rendered ol { padding-left: 1.3rem; margin-bottom: 0.6rem; }
+        .research-rendered li { margin-bottom: 0.25rem; }
+        .research-rendered strong { font-weight: 700; color: var(--text); }
+        .research-rendered hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+        .research-rendered blockquote {
+            border-left: 3px solid var(--accent);
+            background: var(--surface-warm);
+            margin: 1rem 0;
+            padding: 0.75rem 1.1rem;
+            border-radius: 0 var(--radius) var(--radius) 0;
+            color: var(--text-secondary);
+            font-style: italic;
+            line-height: 1.7;
+        }
+        .research-rendered blockquote p { margin-bottom: 0; }
+        .research-rendered blockquote strong { color: var(--text); }
+        .research-rendered code {
+            background: var(--bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .research-rendered table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.8rem 0;
+            font-size: 0.82rem;
+        }
+        .research-rendered th, .research-rendered td {
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--border);
+        }
+        .research-rendered th {
+            background: var(--surface-warm);
+            font-weight: 600;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .research-editor {
+            display: none;
+        }
+
+        .research-editor.active {
+            display: block;
+        }
+
+        .md-toolbar {
+            display: flex;
+            gap: 2px;
+            padding: 0.4rem 0.5rem;
+            background: var(--surface-warm);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            border-radius: var(--radius) var(--radius) 0 0;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .md-toolbar .sep {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+            margin: 0 0.3rem;
+        }
+
+        .md-toolbar button {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.1s;
+            white-space: nowrap;
+        }
+
+        .md-toolbar button:hover {
+            background: var(--bg);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .md-toolbar button:active {
+            background: var(--accent-light);
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .research-editor textarea {
+            width: 100%;
+            min-height: 400px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 0 0 var(--radius) var(--radius);
+            padding: 1.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--text);
+            resize: vertical;
+            outline: none;
+            tab-size: 2;
+        }
+
+        .research-editor textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .research-editor-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.6rem;
+            justify-content: flex-end;
+        }
+
+        /* New note modal */
+        .new-note-form {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.8rem;
+            box-shadow: var(--shadow-sm);
+            display: none;
+        }
+
+        .new-note-form.active { display: block; }
+
+        .new-note-row {
+            display: flex;
+            gap: 0.6rem;
+            align-items: flex-end;
+        }
+
+        .new-note-row .form-group { flex: 0 0 auto; }
+        .new-note-row .form-group:last-of-type { flex: 1; }
+
+        .new-note-row #new-research-ticker {
+            width: 140px;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        .new-note-row input {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 7px;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .new-note-row input:focus { border-color: var(--accent); }
+
+        /* --- 2026 workspace refresh --- */
+        :root {
+            --bg: #f1f4ef;
+            --surface: #ffffff;
+            --surface-warm: #f7f8f5;
+            --border: #dfe5dc;
+            --border-light: #edf0eb;
+            --text: #14221b;
+            --text-secondary: #5f6d65;
+            --text-muted: #8b978f;
+            --accent: #1f6a4a;
+            --accent-light: rgba(31, 106, 74, 0.09);
+            --accent-hover: #17563c;
+            --green: #1f7a52;
+            --green-bg: #e8f6ee;
+            --red: #c73a49;
+            --red-bg: #fff0f1;
+            --blue: #4263c7;
+            --blue-bg: #eef2ff;
+            --amber: #a76608;
+            --amber-bg: #fff6e3;
+            --purple: #7251aa;
+            --purple-bg: #f3edff;
+            --lime: #dcf879;
+            --ink: #11271d;
+            --shadow-sm: 0 1px 2px rgba(20, 34, 27, 0.04);
+            --shadow-md: 0 12px 30px rgba(20, 34, 27, 0.07);
+            --shadow-lg: 0 20px 50px rgba(20, 34, 27, 0.12);
+            --radius: 16px;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background:
+                radial-gradient(circle at 12% 5%, rgba(220, 248, 121, 0.15), transparent 26rem),
+                var(--bg);
+            color: var(--text);
+        }
+
+        button, input, select { font: inherit; }
+        .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+        button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+            outline: 3px solid rgba(31, 106, 74, 0.22);
+            outline-offset: 2px;
+        }
+
+        .header {
+            height: 72px;
+            padding: 0;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: none;
+        }
+
+        .header-inner {
+            width: 100%;
+            max-width: 1240px;
+            height: 100%;
+            padding: 0 28px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left { gap: 14px; }
+        .brand { display:flex; align-items:center; gap:11px; text-decoration:none; color:var(--text); }
+        .logo-mark {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: var(--ink);
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09);
+        }
+        .logo-mark::before, .logo-mark::after {
+            content: '';
+            position: absolute;
+            bottom: 10px;
+            width: 5px;
+            border-radius: 999px;
+            background: var(--lime);
+        }
+        .logo-mark::before { left: 11px; height: 10px; }
+        .logo-mark::after { left: 21px; height: 18px; }
+        .brand-copy { display:flex; flex-direction:column; line-height:1.05; }
+        .header h1 {
+            font-family: 'Manrope', sans-serif;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.035em;
+        }
+        .brand-subtitle { color: var(--text-muted); font-size: .66rem; margin-top: 4px; }
+        .header-nav { display: none; }
+        .header-right { gap: 10px; }
+
+        .status-pill {
+            color: var(--text-secondary);
+            background: var(--surface-warm);
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            font-size: .67rem;
+            letter-spacing: .08em;
+        }
+        .status-pill .dot { width: 7px; height: 7px; box-shadow: 0 0 0 4px var(--green-bg); }
+
+        .btn {
+            min-height: 40px;
+            border-radius: 10px;
+            padding: 9px 15px;
+            font-size: .78rem;
+            transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+        }
+        .btn:disabled { cursor: not-allowed; opacity: .55; transform: none; }
+        .btn-primary { background: var(--accent); }
+        .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 8px 18px rgba(31,106,74,.18); }
+        .btn-check {
+            background: var(--ink);
+            min-height: 40px;
+            padding: 9px 15px;
+            border-radius: 10px;
+            font-size: .76rem;
+        }
+        .btn-check:hover { background: #1d3a2d; transform: translateY(-1px); }
+        .btn-ghost {
+            background: var(--surface);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            min-height: 38px;
+            padding: 8px 13px;
+            font-size: .74rem;
+        }
+        .btn-ghost:hover { border-color: #c9d2c6; color: var(--text); background: var(--surface-warm); }
+        .btn-symbol { color: var(--lime); margin-right: 6px; }
+
+        .container { max-width: 1240px; padding: 40px 28px 64px; }
+        .page-heading {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 26px;
+        }
+        .eyebrow {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--accent);
+            font-size: .68rem;
+            font-weight: 800;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            margin-bottom: 9px;
+        }
+        .eyebrow::before { content:''; width:24px; height:2px; background:var(--accent); border-radius:99px; }
+        .page-heading h2 {
+            font-family: 'Manrope', sans-serif;
+            color: var(--ink);
+            font-size: clamp(2rem, 4vw, 3.15rem);
+            line-height: 1.02;
+            letter-spacing: -.055em;
+            max-width: 680px;
+        }
+        .page-heading p { max-width: 420px; color:var(--text-secondary); line-height:1.6; font-size:.9rem; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.55fr) minmax(330px, .75fr);
+            gap: 16px;
+            align-items: stretch;
+            margin-bottom: 30px;
+        }
+
+        .add-form {
+            border-radius: 20px;
+            padding: 22px;
+            margin: 0;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+            align-items: initial;
+            box-shadow: var(--shadow-md);
+        }
+        .add-form:focus-within { border-color: #cbd7c8; box-shadow: var(--shadow-md); }
+        .panel-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+        .panel-heading h3 { font-family:'Manrope',sans-serif; font-size:1rem; letter-spacing:-.025em; }
+        .panel-heading p { color:var(--text-muted); font-size:.75rem; margin-top:4px; }
+        .form-fields { display:grid; grid-template-columns:130px 150px minmax(220px, 1fr) auto; gap:10px; align-items:end; }
+        .form-group { gap: 7px; }
+        .form-group label { color:var(--text-secondary); font-size:.64rem; letter-spacing:.09em; }
+        .form-group input, .form-group select, .research-controls input, .new-note-row input {
+            min-height: 44px;
+            background: var(--surface-warm);
+            border-color: transparent;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: .82rem;
+        }
+        .form-group input:hover, .form-group select:hover, .research-controls input:hover { border-color:var(--border); }
+        .form-group input:focus, .form-group select:focus, .research-controls input:focus {
+            background:var(--surface); border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-light);
+        }
+        #ticker-input { width:100%; }
+        #notes-input { min-width:0; width:100%; }
+        .add-submit { min-width: 96px; min-height:44px; }
+
+        .stats {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 0;
+        }
+        .stat-card {
+            border-radius: 16px;
+            padding: 17px;
+            box-shadow: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card.primary { background: var(--ink); border-color:var(--ink); color:white; }
+        .stat-card.primary::after {
+            content:''; position:absolute; width:80px; height:80px; border-radius:50%;
+            background:var(--lime); opacity:.12; right:-25px; top:-25px;
+        }
+        .stat-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .stat-card .value { font-size:1.55rem; letter-spacing:-.06em; }
+        .stat-card.primary .value { color:white; }
+        .stat-card .label { font-size:.62rem; letter-spacing:.1em; margin-top:8px; }
+        .stat-card.primary .label { color:#a9baaf; }
+        .stat-glyph {
+            width:27px; height:27px; border-radius:8px; display:grid; place-items:center;
+            background:var(--surface-warm); color:var(--accent); font-size:.64rem; font-weight:800;
+            font-family:'JetBrains Mono', monospace;
+        }
+        .stat-card.primary .stat-glyph { background:rgba(220,248,121,.12); color:var(--lime); }
+
+        .workspace-section { background:rgba(255,255,255,.42); border:1px solid rgba(223,229,220,.8); border-radius:22px; padding:10px; }
+        .tab-header { margin:0; padding:4px 4px 12px; gap:14px; }
+        .tabs { background:transparent; border:none; border-radius:0; padding:0; gap:4px; }
+        .tab { min-height:40px; padding:9px 14px; border-radius:10px; font-size:.76rem; color:var(--text-secondary); }
+        .tab:hover { background:rgba(255,255,255,.65); }
+        .tab.active { color:white; background:var(--ink); box-shadow:0 5px 12px rgba(17,39,29,.14); }
+        .tab-count { opacity:.62; margin-left:5px; font-family:'JetBrains Mono',monospace; font-size:.64rem; }
+        .view-actions { display:flex; align-items:center; gap:8px; margin-left:auto; }
+        .search-wrap { position:relative; min-width:260px; }
+        .search-wrap::before { content:'⌕'; position:absolute; left:12px; top:50%; transform:translateY(-52%); color:var(--text-muted); font-size:1rem; pointer-events:none; }
+        .search-wrap input {
+            width:100%; min-height:38px; border:1px solid var(--border); background:var(--surface); border-radius:10px;
+            padding:8px 12px 8px 35px; color:var(--text); font-size:.76rem; outline:none;
+        }
+        .search-wrap input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-light); }
+        .result-count { color:var(--text-muted); font-size:.7rem; white-space:nowrap; }
+
+        .table-container { border-radius:15px; box-shadow:none; overflow:auto; max-height:640px; }
+        table { min-width:800px; }
+        thead { position:sticky; top:0; z-index:2; }
+        thead th { background:#f7f9f6; padding:12px 16px; font-size:.62rem; }
+        tbody td { padding:13px 16px; }
+        tbody tr:hover { background:#f7faf6; }
+        .ticker-cell { font-size:.82rem; }
+        .company-name { max-width:240px; font-size:.7rem; margin-top:4px; }
+        .exchange-badge { border-radius:7px; padding:4px 7px; font-size:.61rem; }
+        .notes-cell { font-size:.77rem; max-width:310px; }
+        .track-toggle {
+            position:relative; border-color:var(--border); background:var(--surface); color:var(--text-secondary);
+            padding:5px 9px 5px 20px; font-size:.67rem; text-decoration:none; opacity:1;
+        }
+        .track-toggle::before { content:''; position:absolute; left:8px; top:50%; width:6px; height:6px; transform:translateY(-50%); border-radius:50%; background:#bec8c0; }
+        .track-toggle.on { background:var(--green-bg); color:var(--green); border-color:#b9dcc7; }
+        .track-toggle.on::before { background:var(--green); box-shadow:0 0 0 3px rgba(31,122,82,.1); }
+        .track-toggle.off { text-decoration:none; background:#f8f9f7; color:var(--text-muted); opacity:.72; }
+        .btn-icon { opacity:.25; }
+
+        .news-meta { padding:8px 8px 2px; }
+        .news-card { border-radius:15px; box-shadow:none; margin-bottom:10px; }
+        .news-articles a { color:var(--accent); }
+        .alert-item { padding:15px 18px; }
+        .empty-state { padding:56px 20px; }
+        .empty-state .icon { width:42px; height:42px; margin:0 auto 12px; display:grid; place-items:center; background:var(--surface-warm); border-radius:12px; font-size:1.2rem; }
+
+        .research-controls { padding:4px 4px 12px; margin:0; }
+        .research-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .research-card { border-radius:15px; padding:18px; box-shadow:none; }
+        .research-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:#cbd8c8; }
+        .research-card-ticker { color:var(--accent); }
+        .research-rendered { border-radius:16px; box-shadow:none; padding:30px clamp(20px,4vw,48px); }
+        .new-note-form { border-radius:15px; box-shadow:none; }
+
+        .toast-container { bottom:24px; right:24px; }
+        .toast { border-radius:12px; padding:11px 15px; font-weight:600; }
+
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns:1fr; }
+            .stats { grid-template-columns:repeat(4,1fr); }
+            .form-fields { grid-template-columns:120px 140px 1fr auto; }
+            .page-heading { align-items:flex-start; flex-direction:column; }
+            .page-heading p { max-width:620px; }
+        }
+
+        @media (max-width: 720px) {
+            .header { height:64px; }
+            .header-inner { padding:0 16px; }
+            .brand-subtitle, .status-pill { display:none; }
+            .container { padding:28px 14px 44px; }
+            .page-heading { margin-bottom:20px; }
+            .page-heading h2 { font-size:2.15rem; }
+            .page-heading p { font-size:.84rem; }
+            .form-fields { grid-template-columns:1fr 1fr; }
+            .form-fields .form-group:nth-child(3), .add-submit { grid-column:1 / -1; }
+            .add-form { padding:18px; }
+            .stats { grid-template-columns:repeat(2,1fr); }
+            .tab-header { flex-wrap:wrap; }
+            .tabs { width:100%; overflow-x:auto; }
+            .tab { flex:1; padding:8px 9px; min-width:max-content; }
+            .view-actions { width:100%; }
+            .search-wrap { min-width:0; flex:1; }
+            .result-count { display:none; }
+            .workspace-section { padding:7px; border-radius:18px; }
+            .table-container { border-radius:12px; }
+            .research-grid { grid-template-columns:1fr; }
+            .new-note-row, .research-detail-header { align-items:stretch; flex-direction:column; }
+            .research-detail-actions { flex-wrap:wrap; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-inner">
+            <div class="header-left">
+                <a href="/" class="brand" aria-label="Signalbook home">
+                    <span class="logo-mark" aria-hidden="true"></span>
+                    <span class="brand-copy">
+                        <h1>Signalbook</h1>
+                        <span class="brand-subtitle">Private market workspace</span>
+                    </span>
+                </a>
+            </div>
+            <div class="header-right">
+                <div class="status-pill" title="Background monitor is active">
+                    <span class="dot"></span>
+                    Monitoring
+                </div>
+                <button class="btn btn-check" id="check-now-btn" onclick="checkNow()"><span class="btn-symbol">↗</span>Run check</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="page-heading" aria-labelledby="page-title">
+            <div>
+                <div class="eyebrow">Market intelligence</div>
+                <h2 id="page-title">Your investment desk,<br>kept in focus.</h2>
+            </div>
+            <p>Follow the names that matter, route them to the right monitors, and keep news, alerts, and research together.</p>
+        </section>
+
+        <section class="dashboard-grid" id="dashboard-summary" aria-label="Watchlist overview">
+            <form class="add-form" id="add-form">
+                <div class="panel-heading">
+                    <div>
+                        <h3>Add to watchlist</h3>
+                        <p>We’ll verify the listing before adding it.</p>
+                    </div>
+                </div>
+                <div class="form-fields">
+                    <div class="form-group">
+                        <label for="ticker-input">Ticker</label>
+                        <input type="text" id="ticker-input" placeholder="AAPL" autocomplete="off" autocapitalize="characters" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="exchange-input">Exchange</label>
+                        <select id="exchange-input">
+                            {% for ex in exchanges %}
+                            <option value="{{ ex }}">{{ ex }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes-input">Reason for watching <span style="font-weight:500;color:var(--text-muted)">· optional</span></label>
+                        <input type="text" id="notes-input" placeholder="Breakout setup, sector theme, upcoming catalyst…">
+                    </div>
+                    <button type="submit" class="btn btn-primary add-submit">Add stock</button>
+                </div>
+            </form>
+
+            <div class="stats" id="stats" aria-label="Watchlist statistics"></div>
+        </section>
+
+        <section class="workspace-section">
+            <div class="tab-header">
+                <div class="tabs" role="tablist" aria-label="Workspace views">
+                    <button class="tab active" role="tab" aria-selected="true" data-tab="watchlist" onclick="switchTab('watchlist')">Watchlist <span class="tab-count" id="tab-watchlist-count">0</span></button>
+                    <button class="tab" role="tab" aria-selected="false" data-tab="news" onclick="switchTab('news')">News</button>
+                    <button class="tab" role="tab" aria-selected="false" data-tab="announcements" onclick="switchTab('announcements')">Announcements</button>
+                    <button class="tab" role="tab" aria-selected="false" data-tab="alerts" onclick="switchTab('alerts')">Alerts <span class="tab-count" id="tab-alerts-count">0</span></button>
+                    <button class="tab" role="tab" aria-selected="false" data-tab="research" onclick="switchTab('research')">Research</button>
+                </div>
+                <div class="view-actions" id="watchlist-actions">
+                    <label class="search-wrap" for="watchlist-search">
+                        <input type="search" id="watchlist-search" aria-label="Search watchlist" placeholder="Search ticker, company, note…" oninput="filterWatchlist()">
+                    </label>
+                    <span class="result-count" id="watchlist-result-count"></span>
+                </div>
+                <button class="btn btn-ghost" id="clear-alerts-btn" style="display:none;" onclick="clearAlerts()">Clear history</button>
+                <div class="view-actions" id="news-actions" style="display:none;">
+                    <button class="btn btn-ghost" id="clear-news-btn" onclick="clearNews()">Clear news</button>
+                    <button class="btn btn-primary" id="scan-news-btn" onclick="scanNews()">Scan news</button>
+                </div>
+                <div class="view-actions" id="announcements-actions" style="display:none;">
+                    <button class="btn btn-ghost" id="ann-log-btn" onclick="toggleAnnLog()">View log</button>
+                    <button class="btn btn-ghost" id="clear-ann-btn" onclick="clearAnnouncements()">Clear</button>
+                    <button class="btn btn-primary" id="scan-ann-btn" onclick="scanAnnouncements()">Scan announcements</button>
+                </div>
+            </div>
+
+            <div class="table-container" id="watchlist-view" role="tabpanel">
+                <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Company</th>
+                        <th scope="col">Exchange</th>
+                        <th scope="col">Watch note</th>
+                        <th scope="col">Monitoring</th>
+                        <th scope="col">Added</th>
+                        <th scope="col"><span class="sr-only">Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody id="watchlist-body">
+                </tbody>
+                </table>
+            </div>
+
+            <div class="table-container" id="alerts-view" role="tabpanel" style="display: none;">
+                <div id="alerts-list"></div>
+            </div>
+
+            <div id="news-view" role="tabpanel" style="display: none;">
+                <div id="news-meta" class="news-meta"></div>
+                <div id="news-list"></div>
+            </div>
+
+            <div id="announcements-view" role="tabpanel" style="display: none;">
+                <div id="announcements-meta" class="news-meta"></div>
+                <pre id="announcements-log" class="ann-log" style="display:none;"></pre>
+                <div id="announcements-list"></div>
+            </div>
+
+            <div id="research-view" role="tabpanel" style="display: none;">
+            <!-- Level 1: Ticker list -->
+            <div id="research-list-view">
+                <div class="research-controls">
+                    <input type="search" id="research-search" aria-label="Search research notes" placeholder="Search notes…" oninput="filterResearch()">
+                    <button class="btn btn-primary" onclick="toggleNewNoteForm()">+ New Note</button>
+                </div>
+
+                <div class="new-note-form" id="new-note-form">
+                    <div class="new-note-row">
+                        <div class="form-group">
+                            <label>Ticker</label>
+                            <input type="text" id="new-research-ticker" placeholder="INOXINDIA">
+                        </div>
+                        <div class="form-group">
+                            <label>Note Title</label>
+                            <input type="text" id="new-research-slug" placeholder="concall_q4_fy25" style="width:200px; font-family:'JetBrains Mono',monospace; font-size:0.82rem;">
+                        </div>
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-primary" onclick="createResearchNote()">Create</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="research-grid" id="research-grid"></div>
+            </div>
+
+            <!-- Level 2: Ticker detail (list of notes) -->
+            <div class="research-detail" id="research-ticker-view">
+                <button class="research-back" onclick="backToTickerList()">← All Tickers</button>
+                <div class="research-detail-header">
+                    <h2><span id="research-ticker-title"></span> <span style="font-size:0.75rem; color:var(--text-muted); font-family:'DM Sans',sans-serif; font-weight:500;" id="research-ticker-count"></span></h2>
+                    <div class="research-detail-actions">
+                        <button class="btn btn-primary" style="font-size:0.75rem; padding:0.35rem 0.85rem;" onclick="addNoteToTicker()">+ Add Note</button>
+                        <button class="btn btn-primary" style="font-size:0.75rem; padding:0.35rem 0.85rem; background: var(--text);" onclick="window.open('/share/' + currentTicker, '_blank')">📄 PDF</button>
+                        <button class="btn btn-ghost" onclick="deleteTickerNotes()">✕ Delete All</button>
+                    </div>
+                </div>
+                <div class="research-grid" id="research-notes-grid"></div>
+            </div>
+
+            <!-- Level 3: Note reader/editor -->
+            <div class="research-detail" id="research-note-view">
+                <button class="research-back" id="research-note-back">← Back</button>
+                <div class="research-detail-header">
+                    <h2><span id="research-note-title"></span></h2>
+                    <div class="research-detail-actions">
+                        <button class="btn btn-primary" style="font-size:0.75rem; padding:0.35rem 0.85rem;" onclick="shareNote()">🔗 Share</button>
+                        <button class="btn btn-ghost" id="research-edit-btn" onclick="toggleResearchEdit()">✎ Edit</button>
+                        <button class="btn btn-ghost" onclick="deleteCurrentNote()">✕ Delete</button>
+                    </div>
+                </div>
+                <div class="research-rendered" id="research-rendered"></div>
+                <div class="research-editor" id="research-editor">
+                    <div class="md-toolbar">
+                        <button onclick="insertMd('heading1')" title="Heading 1">H1</button>
+                        <button onclick="insertMd('heading2')" title="Heading 2">H2</button>
+                        <button onclick="insertMd('heading3')" title="Heading 3">H3</button>
+                        <div class="sep"></div>
+                        <button onclick="insertMd('bold')" title="Bold"><b>B</b></button>
+                        <button onclick="insertMd('italic')" title="Italic"><i>I</i></button>
+                        <div class="sep"></div>
+                        <button onclick="insertMd('bullet')" title="Bullet List">• List</button>
+                        <button onclick="insertMd('numbered')" title="Numbered List">1. List</button>
+                        <button onclick="insertMd('checklist')" title="Checklist">☑ Check</button>
+                        <div class="sep"></div>
+                        <button onclick="insertMd('quote')" title="Quote">❝ Quote</button>
+                        <button onclick="insertMd('hr')" title="Horizontal Rule">— Rule</button>
+                        <button onclick="insertMd('link')" title="Link">🔗 Link</button>
+                        <button onclick="insertMd('table')" title="Table">⊞ Table</button>
+                    </div>
+                    <textarea id="research-textarea"></textarea>
+                    <div class="research-editor-actions">
+                        <button class="btn btn-ghost" onclick="cancelResearchEdit()">Cancel</button>
+                        <button class="btn btn-primary" onclick="saveResearchNote()">Save</button>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <script>
+        let watchlist = [];
+        let alerts = [];
+        let watchlistQuery = '';
+
+        // --- API ---
+        async function fetchWatchlist() {
+            const res = await fetch('/api/watchlist');
+            watchlist = await res.json();
+            renderWatchlist();
+            renderStats();
+        }
+
+        async function fetchAlerts() {
+            const res = await fetch('/api/alerts');
+            alerts = await res.json();
+            renderAlerts();
+            renderStats();
+        }
+
+        async function addStock(ticker, exchange, notes) {
+            const btn = document.querySelector('#add-form .btn-primary');
+            btn.disabled = true;
+            btn.textContent = 'Verifying…';
+            try {
+                const res = await fetch('/api/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker, exchange, notes }),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    const name = data.company ? ` — ${data.company}` : '';
+                    showToast(`✓ ${ticker} (${exchange})${name}`);
+                    fetchWatchlist();
+                } else {
+                    showToast(data.error || 'Error adding stock', 'error');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Add stock';
+            }
+        }
+
+        async function removeStock(ticker, exchange) {
+            if (!confirm(`Remove ${ticker} (${exchange})?`)) return;
+            const res = await fetch(`/api/watchlist/${ticker}/${exchange}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast(`Removed ${ticker}`);
+                fetchWatchlist();
+            }
+        }
+
+        async function toggleTrack(ticker, exchange, kind, enable) {
+            try {
+                const res = await fetch(
+                    `/api/watchlist/${encodeURIComponent(ticker)}/${encodeURIComponent(exchange)}/track`,
+                    {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ [kind]: enable }),
+                    });
+                if (!res.ok) throw new Error('request failed');
+                const updated = await res.json();
+                // Update local state in place and re-render (no full refetch).
+                const row = watchlist.find(s =>
+                    s.ticker === updated.ticker && s.exchange === updated.exchange);
+                if (row) row.track = updated.track;
+                renderWatchlist();
+                renderStats();
+                const label = kind === 'news' ? 'News' : 'Alerts';
+                showToast(`${label} ${enable ? 'enabled' : 'disabled'} for ${ticker}`);
+            } catch (e) {
+                showToast('Could not update tracking', 'error');
+            }
+        }
+
+        async function checkNow() {
+            const btn = document.getElementById('check-now-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Checking…';
+            try {
+                const res = await fetch('/api/check-now', { method: 'POST' });
+                const data = await res.json();
+                showToast(`Check complete — ${data.alerts} alert(s)`);
+                fetchAlerts();
+                renderStats();
+            } catch (e) {
+                showToast('Check failed', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span class="btn-symbol">↗</span>Run check';
+            }
+        }
+
+        async function clearAlerts() {
+            if (!confirm('Clear all alert history?')) return;
+            const res = await fetch('/api/alerts', { method: 'DELETE' });
+            if (res.ok) {
+                alerts = [];
+                renderAlerts();
+                renderStats();
+                showToast('History cleared');
+            }
+        }
+
+        // --- Render ---
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>'"]/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            })[char]);
+        }
+
+        function filterWatchlist() {
+            watchlistQuery = document.getElementById('watchlist-search').value.trim().toLowerCase();
+            renderWatchlist();
+        }
+
+        function renderWatchlist() {
+            const tbody = document.getElementById('watchlist-body');
+            const filtered = watchlist.filter(s => {
+                if (!watchlistQuery) return true;
+                return [s.ticker, s.company, s.exchange, s.notes]
+                    .some(value => String(value || '').toLowerCase().includes(watchlistQuery));
+            });
+            const resultCount = document.getElementById('watchlist-result-count');
+            resultCount.textContent = watchlistQuery
+                ? `${filtered.length} of ${watchlist.length}`
+                : `${watchlist.length} names`;
+
+            if (watchlist.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="6">
+                        <div class="empty-state">
+                            <div class="icon">＋</div>
+                            <p>Your watchlist is ready for its first stock.</p>
+                        </div>
+                    </td></tr>`;
+                return;
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="6">
+                        <div class="empty-state">
+                            <div class="icon">⌕</div>
+                            <p>No watchlist names match “${escapeHtml(watchlistQuery)}”.</p>
+                        </div>
+                    </td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(s => {
+                const exClass = s.exchange.toLowerCase();
+                const added = new Date(s.added_date).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'short', year: 'numeric'
+                });
+                const ticker = escapeHtml(s.ticker);
+                const exchange = escapeHtml(s.exchange);
+                const companyName = escapeHtml(s.company || '');
+                const notes = escapeHtml(s.notes || '');
+                const company = companyName ? `<div class="company-name" title="${companyName}">${companyName}</div>` : '';
+                const track = s.track || ['news', 'ta'];
+                const newsOn = track.includes('news');
+                const taOn = track.includes('ta');
+                const esc = t => (t || '').replace(/'/g, "\\'");
+                const toggle = (kind, on, label, title) => `
+                    <button class="track-toggle ${on ? 'on' : 'off'}"
+                        title="${title}: ${on ? 'on' : 'off'} — click to ${on ? 'disable' : 'enable'}"
+                        aria-pressed="${on}"
+                        onclick="toggleTrack('${esc(s.ticker)}', '${esc(s.exchange)}', '${kind}', ${!on})">
+                        ${label}</button>`;
+                return `
+                    <tr>
+                        <td class="ticker-cell">${ticker}${company}</td>
+                        <td><span class="exchange-badge ${exClass}">${exchange}</span></td>
+                        <td class="notes-cell" title="${notes}">${notes || '—'}</td>
+                        <td class="track-cell">
+                            ${toggle('news', newsOn, 'News', 'News scanning')}
+                            ${toggle('ta', taOn, 'Alerts', 'Telegram alerts')}
+                        </td>
+                        <td class="date-cell">${added}</td>
+                        <td>
+                            <button class="btn-icon" onclick="removeStock('${esc(s.ticker)}', '${esc(s.exchange)}')" title="Remove ${ticker}" aria-label="Remove ${ticker}">✕</button>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function renderAlerts() {
+            const container = document.getElementById('alerts-list');
+            if (alerts.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🔔</div>
+                        <p>No alerts yet. They'll show up here when triggered.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = alerts.map(a => {
+                const time = new Date(a.timestamp).toLocaleString('en-GB', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                });
+                return `
+                    <div class="alert-item">
+                        <span class="alert-msg">${a.message}</span>
+                        <span class="alert-time">${time}</span>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderStats() {
+            const exchanges = {};
+            let newsTracked = 0;
+            let alertTracked = 0;
+            watchlist.forEach(s => {
+                exchanges[s.exchange] = (exchanges[s.exchange] || 0) + 1;
+                const track = s.track || ['news', 'ta'];
+                if (track.includes('news')) newsTracked += 1;
+                if (track.includes('ta')) alertTracked += 1;
+            });
+
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card primary">
+                    <div class="stat-top"><div class="value">${watchlist.length}</div><span class="stat-glyph">WL</span></div>
+                    <div class="label">Total names</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-top"><div class="value">${newsTracked}</div><span class="stat-glyph">N</span></div>
+                    <div class="label">News tracked</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-top"><div class="value">${alertTracked}</div><span class="stat-glyph">A</span></div>
+                    <div class="label">Alert enabled</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-top"><div class="value">${Object.keys(exchanges).length}</div><span class="stat-glyph">EX</span></div>
+                    <div class="label">Exchanges</div>
+                </div>`;
+
+            document.getElementById('tab-watchlist-count').textContent = watchlist.length;
+            document.getElementById('tab-alerts-count').textContent = alerts.length;
+        }
+
+        // --- Markdown Toolbar ---
+        function insertMd(type) {
+            const ta = document.getElementById('research-textarea');
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            const selected = ta.value.substring(start, end);
+            const before = ta.value.substring(0, start);
+            const after = ta.value.substring(end);
+
+            // Ensure we're on a new line for block elements
+            const needsNewline = before.length > 0 && before[before.length - 1] !== '\n';
+            const nl = needsNewline ? '\n' : '';
+
+            let insert = '';
+            let cursorOffset = 0;
+
+            switch (type) {
+                case 'heading1':
+                    insert = `${nl}# ${selected || 'Heading'}`;
+                    cursorOffset = selected ? insert.length : nl.length + 2;
+                    break;
+                case 'heading2':
+                    insert = `${nl}## ${selected || 'Heading'}`;
+                    cursorOffset = selected ? insert.length : nl.length + 3;
+                    break;
+                case 'heading3':
+                    insert = `${nl}### ${selected || 'Heading'}`;
+                    cursorOffset = selected ? insert.length : nl.length + 4;
+                    break;
+                case 'bold':
+                    insert = `**${selected || 'bold text'}**`;
+                    cursorOffset = selected ? insert.length : 2;
+                    break;
+                case 'italic':
+                    insert = `*${selected || 'italic text'}*`;
+                    cursorOffset = selected ? insert.length : 1;
+                    break;
+                case 'bullet':
+                    if (selected) {
+                        insert = selected.split('\n').map(l => `- ${l}`).join('\n');
+                    } else {
+                        insert = `${nl}- `;
+                    }
+                    cursorOffset = insert.length;
+                    break;
+                case 'numbered':
+                    if (selected) {
+                        insert = selected.split('\n').map((l, i) => `${i + 1}. ${l}`).join('\n');
+                    } else {
+                        insert = `${nl}1. `;
+                    }
+                    cursorOffset = insert.length;
+                    break;
+                case 'checklist':
+                    if (selected) {
+                        insert = selected.split('\n').map(l => `- [ ] ${l}`).join('\n');
+                    } else {
+                        insert = `${nl}- [ ] `;
+                    }
+                    cursorOffset = insert.length;
+                    break;
+                case 'quote':
+                    if (selected) {
+                        insert = selected.split('\n').map(l => `> ${l}`).join('\n');
+                    } else {
+                        insert = `${nl}> `;
+                    }
+                    cursorOffset = insert.length;
+                    break;
+                case 'hr':
+                    insert = `${nl}\n---\n`;
+                    cursorOffset = insert.length;
+                    break;
+                case 'link':
+                    insert = `[${selected || 'link text'}](url)`;
+                    cursorOffset = selected ? insert.length - 4 : 1;
+                    break;
+                case 'table':
+                    insert = `${nl}\n| Column 1 | Column 2 | Column 3 |\n|---|---|---|\n| | | |\n`;
+                    cursorOffset = insert.length - 7;
+                    break;
+            }
+
+            ta.value = before + insert + after;
+            ta.focus();
+            const newPos = start + cursorOffset;
+            ta.selectionStart = selected ? start : newPos;
+            ta.selectionEnd = selected ? start + insert.length : newPos + (type === 'bold' ? 9 : type === 'italic' ? 11 : type === 'link' ? 9 : type.startsWith('heading') ? 7 : 0);
+        }
+
+        // Tab key support in textarea
+        document.addEventListener('keydown', function(e) {
+            if (e.target.id === 'research-textarea' && e.key === 'Tab') {
+                e.preventDefault();
+                const ta = e.target;
+                const start = ta.selectionStart;
+                ta.value = ta.value.substring(0, start) + '  ' + ta.value.substring(ta.selectionEnd);
+                ta.selectionStart = ta.selectionEnd = start + 2;
+            }
+        });
+
+        // --- Research (folder-per-ticker) ---
+        let researchData = [];
+        let currentTicker = null;
+        let currentSlug = null;
+
+        async function fetchResearch() {
+            const res = await fetch('/api/research');
+            researchData = await res.json();
+            renderResearchList();
+        }
+
+        function renderResearchList() {
+            const grid = document.getElementById('research-grid');
+            const query = (document.getElementById('research-search').value || '').toLowerCase();
+            const filtered = researchData.filter(t => {
+                if (!query) return true;
+                if (t.ticker.toLowerCase().includes(query)) return true;
+                return t.notes.some(n =>
+                    n.title.toLowerCase().includes(query) ||
+                    n.preview.toLowerCase().includes(query)
+                );
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📝</div>
+                        <p>${query ? 'No notes match your search.' : 'No research notes yet. Click + New Note to start.'}</p>
+                    </div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(t => {
+                const date = new Date(t.updated_at).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'short', year: 'numeric'
+                });
+                const noteNames = t.notes.map(n => n.title).join(' · ');
+                return `
+                    <div class="research-card" onclick="openTicker('${t.ticker}')">
+                        <div class="research-card-header">
+                            <span class="research-card-ticker">${t.ticker}</span>
+                            <span class="research-card-date">${date}</span>
+                        </div>
+                        <div class="research-card-title">${t.note_count} note${t.note_count > 1 ? 's' : ''}</div>
+                        <div class="research-card-preview">${noteNames}</div>
+                    </div>`;
+            }).join('');
+        }
+
+        function filterResearch() { renderResearchList(); }
+
+        // Level 2: Open a ticker → show its notes
+        function openTicker(ticker) {
+            currentTicker = ticker;
+            const tickerData = researchData.find(t => t.ticker === ticker);
+            if (!tickerData) return;
+
+            document.getElementById('research-list-view').style.display = 'none';
+            document.getElementById('research-ticker-view').classList.add('active');
+            document.getElementById('research-ticker-title').textContent = ticker;
+            document.getElementById('research-ticker-count').textContent = `(${tickerData.note_count} note${tickerData.note_count > 1 ? 's' : ''})`;
+
+            const grid = document.getElementById('research-notes-grid');
+            grid.innerHTML = tickerData.notes.map(n => {
+                const date = new Date(n.updated_at).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'short', year: 'numeric'
+                });
+                return `
+                    <div class="research-card" onclick="openNote('${ticker}', '${n.slug}')">
+                        <div class="research-card-header">
+                            <span class="research-card-ticker" style="font-size:0.82rem;">${n.slug}</span>
+                            <span class="research-card-date">${date}</span>
+                        </div>
+                        <div class="research-card-title">${n.title}</div>
+                        <div class="research-card-preview">${n.preview}</div>
+                    </div>`;
+            }).join('');
+        }
+
+        function backToTickerList() {
+            document.getElementById('research-ticker-view').classList.remove('active');
+            document.getElementById('research-list-view').style.display = '';
+            currentTicker = null;
+            fetchResearch();
+        }
+
+        // Level 3: Open a specific note
+        async function openNote(ticker, slug) {
+            const res = await fetch(`/api/research/${ticker}/${slug}`);
+            if (!res.ok) { showToast('Failed to load note', 'error'); return; }
+            const data = await res.json();
+            currentTicker = ticker;
+            currentSlug = slug;
+
+            document.getElementById('research-ticker-view').classList.remove('active');
+            document.getElementById('research-note-view').classList.add('active');
+            document.getElementById('research-note-title').innerHTML = `<span style="color:var(--accent);font-family:'JetBrains Mono',monospace;">${ticker}</span> / ${slug}`;
+
+            const backBtn = document.getElementById('research-note-back');
+            backBtn.textContent = `← ${ticker}`;
+            backBtn.onclick = () => backToTickerFromNote();
+
+            document.getElementById('research-rendered').innerHTML = marked.parse(data.content);
+            document.getElementById('research-textarea').value = data.content;
+            document.getElementById('research-rendered').style.display = '';
+            document.getElementById('research-editor').classList.remove('active');
+            document.getElementById('research-edit-btn').textContent = '✎ Edit';
+        }
+
+        function backToTickerFromNote() {
+            document.getElementById('research-note-view').classList.remove('active');
+            document.getElementById('research-ticker-view').classList.add('active');
+            currentSlug = null;
+            fetchResearch().then(() => {
+                if (currentTicker) openTicker(currentTicker);
+            });
+        }
+
+        function toggleResearchEdit() {
+            const editor = document.getElementById('research-editor');
+            const rendered = document.getElementById('research-rendered');
+            const btn = document.getElementById('research-edit-btn');
+            if (editor.classList.contains('active')) {
+                editor.classList.remove('active');
+                rendered.style.display = '';
+                btn.textContent = '✎ Edit';
+            } else {
+                editor.classList.add('active');
+                rendered.style.display = 'none';
+                btn.textContent = '👁 Preview';
+                document.getElementById('research-textarea').focus();
+            }
+        }
+
+        function cancelResearchEdit() {
+            document.getElementById('research-editor').classList.remove('active');
+            document.getElementById('research-rendered').style.display = '';
+            document.getElementById('research-edit-btn').textContent = '✎ Edit';
+        }
+
+        async function saveResearchNote() {
+            const content = document.getElementById('research-textarea').value;
+            if (!content.trim()) { showToast('Content cannot be empty', 'error'); return; }
+            const res = await fetch(`/api/research/${currentTicker}/${currentSlug}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content }),
+            });
+            if (res.ok) {
+                showToast(`Saved ${currentSlug}`);
+                document.getElementById('research-rendered').innerHTML = marked.parse(content);
+                cancelResearchEdit();
+            } else {
+                showToast('Failed to save', 'error');
+            }
+        }
+
+        function shareNote() {
+            const url = `${window.location.origin}/share/${currentTicker}/${currentSlug}`;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('Share link copied!');
+            }).catch(() => {
+                prompt('Copy this share link:', url);
+            });
+        }
+
+        async function deleteCurrentNote() {
+            if (!confirm(`Delete "${currentSlug}" from ${currentTicker}?`)) return;
+            const res = await fetch(`/api/research/${currentTicker}/${currentSlug}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast(`Deleted ${currentSlug}`);
+                // Go back to ticker view or list
+                document.getElementById('research-note-view').classList.remove('active');
+                await fetchResearch();
+                const remaining = researchData.find(t => t.ticker === currentTicker);
+                if (remaining) {
+                    document.getElementById('research-ticker-view').classList.add('active');
+                    openTicker(currentTicker);
+                } else {
+                    document.getElementById('research-list-view').style.display = '';
+                    currentTicker = null;
+                }
+                currentSlug = null;
+            }
+        }
+
+        async function deleteTickerNotes() {
+            if (!confirm(`Delete ALL notes for ${currentTicker}?`)) return;
+            const res = await fetch(`/api/research/${currentTicker}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast(`Deleted all notes for ${currentTicker}`);
+                backToTickerList();
+            }
+        }
+
+        function addNoteToTicker() {
+            const slug = prompt('Note name (e.g. concall_q4_fy25, thesis, valuation):');
+            if (!slug) return;
+            const cleanSlug = slug.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+            if (!cleanSlug) { showToast('Invalid note name', 'error'); return; }
+            const content = `# ${cleanSlug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}\n\nAdd your notes here.\n`;
+            fetch(`/api/research/${currentTicker}/${cleanSlug}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content }),
+            }).then(res => {
+                if (res.ok) {
+                    showToast(`Created ${cleanSlug}`);
+                    fetchResearch().then(() => openNote(currentTicker, cleanSlug));
+                }
+            });
+        }
+
+        function toggleNewNoteForm() {
+            document.getElementById('new-note-form').classList.toggle('active');
+            document.getElementById('new-research-ticker').focus();
+        }
+
+        async function createResearchNote() {
+            const ticker = document.getElementById('new-research-ticker').value.trim().toUpperCase();
+            const slug = document.getElementById('new-research-slug').value.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || 'overview';
+            if (!ticker) { showToast('Enter a ticker', 'error'); return; }
+            const content = `# ${ticker} — ${slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}\n\nAdd your notes here.\n`;
+            const res = await fetch(`/api/research/${ticker}/${slug}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content }),
+            });
+            if (res.ok) {
+                document.getElementById('new-research-ticker').value = '';
+                document.getElementById('new-research-slug').value = '';
+                document.getElementById('new-note-form').classList.remove('active');
+                showToast(`Created ${ticker}/${slug}`);
+                await fetchResearch();
+                openTicker(ticker);
+            } else {
+                showToast('Failed to create', 'error');
+            }
+        }
+
+        // --- Tabs ---
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => {
+                const isActive = t.dataset.tab === tab;
+                t.classList.toggle('active', isActive);
+                t.setAttribute('aria-selected', String(isActive));
+            });
+
+            document.getElementById('watchlist-view').style.display = tab === 'watchlist' ? '' : 'none';
+            document.getElementById('dashboard-summary').style.display = tab === 'watchlist' ? '' : 'none';
+            document.getElementById('watchlist-actions').style.display = tab === 'watchlist' ? '' : 'none';
+            document.getElementById('alerts-view').style.display = tab === 'alerts' ? '' : 'none';
+            document.getElementById('clear-alerts-btn').style.display = tab === 'alerts' ? '' : 'none';
+            document.getElementById('news-view').style.display = tab === 'news' ? '' : 'none';
+            document.getElementById('news-actions').style.display = tab === 'news' ? 'flex' : 'none';
+            document.getElementById('announcements-view').style.display = tab === 'announcements' ? '' : 'none';
+            document.getElementById('announcements-actions').style.display = tab === 'announcements' ? 'flex' : 'none';
+            document.getElementById('research-view').style.display = tab === 'research' ? '' : 'none';
+
+            // Reset research to list view when switching tabs
+            if (tab === 'research') {
+                document.getElementById('research-list-view').style.display = '';
+                document.getElementById('research-ticker-view').classList.remove('active');
+                document.getElementById('research-note-view').classList.remove('active');
+                currentTicker = null;
+                currentSlug = null;
+                fetchResearch();
+            }
+            if (tab === 'alerts') fetchAlerts();
+            if (tab === 'news') fetchNews();
+            if (tab === 'announcements') fetchAnnouncements();
+        }
+
+        // --- Announcements (screener.in, India) ---
+        let annScanPoll = null;
+
+        async function fetchAnnouncements() {
+            try {
+                const res = await fetch('/api/announcements');
+                const data = await res.json();
+                renderAnnouncements(data);
+                if (annLogOpen) fetchAnnLog();   // keep the log live while polling
+                if (data.scan && data.scan.running) {
+                    if (!annScanPoll) annScanPoll = setInterval(fetchAnnouncements, 5000);
+                } else if (annScanPoll) {
+                    clearInterval(annScanPoll); annScanPoll = null;
+                }
+            } catch (e) {
+                document.getElementById('announcements-list').innerHTML =
+                    '<div class="empty-state"><div class="icon">⚠️</div><p>Could not load announcements.</p></div>';
+            }
+        }
+
+        function renderAnnouncements(data) {
+            const meta = document.getElementById('announcements-meta');
+            const list = document.getElementById('announcements-list');
+            const scanning = data.scan && data.scan.running;
+            const gen = data.generated_at
+                ? new Date(data.generated_at).toLocaleString('en-GB',
+                    { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                : 'never';
+            const total = (data.runs || []).reduce((n, r) => n + (r.count || 0), 0);
+            meta.innerHTML = `Last scan: <strong>${gen}</strong> · ${total} announcement(s) across ${(data.runs || []).length} run(s)`
+                + (scanning ? ' · <span class="scanning">⏳ scanning…</span>' : '');
+
+            if (!(data.runs || []).length) {
+                list.innerHTML = `<div class="empty-state"><div class="icon">📢</div>
+                    <p>No announcements yet. Hit “Scan announcements” to pull your screener.in watchlist.</p></div>`;
+                return;
+            }
+
+            list.innerHTML = data.runs.map(run => {
+                const when = run.ts
+                    ? new Date(run.ts).toLocaleString('en-GB',
+                        { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                    : '';
+                const digestHtml = run.digest ? marked.parse(run.digest) : '<em>No summary.</em>';
+                const items = (run.items || []).map(it => {
+                    const blurb = it.blurb ? ` — <span class="ann-blurb">${it.blurb}</span>` : '';
+                    return `<li><a href="${it.url}" target="_blank" rel="noopener">${it.company}: ${it.title}</a>${blurb}</li>`;
+                }).join('');
+                const sources = items
+                    ? `<details class="ann-sources"><summary>${run.items.length} source filing${run.items.length === 1 ? '' : 's'}</summary><ul>${items}</ul></details>`
+                    : '';
+                return `
+                    <div class="ann-card">
+                        <div class="ann-head">
+                            <span class="ann-time">${when}</span>
+                            <span class="ann-count">${run.count} filing${run.count === 1 ? '' : 's'}</span>
+                        </div>
+                        <div class="ann-digest">${digestHtml}</div>
+                        ${sources}
+                    </div>`;
+            }).join('');
+        }
+
+        async function scanAnnouncements() {
+            const btn = document.getElementById('scan-ann-btn');
+            btn.disabled = true;
+            btn.textContent = 'Scanning…';
+            try {
+                const res = await fetch('/api/announcements/scan', { method: 'POST' });
+                if (res.status === 409) {
+                    showToast('A scan is already running', 'error');
+                } else if (res.ok) {
+                    showToast('Announcement scan started — this can take several minutes');
+                }
+                if (!annScanPoll) annScanPoll = setInterval(fetchAnnouncements, 5000);
+                fetchAnnouncements();
+            } catch (e) {
+                showToast('Could not start scan', 'error');
+            } finally {
+                setTimeout(() => { btn.disabled = false; btn.textContent = 'Scan announcements'; }, 1500);
+            }
+        }
+
+        let annLogOpen = false;
+        async function toggleAnnLog() {
+            annLogOpen = !annLogOpen;
+            const panel = document.getElementById('announcements-log');
+            const btn = document.getElementById('ann-log-btn');
+            panel.style.display = annLogOpen ? 'block' : 'none';
+            btn.textContent = annLogOpen ? 'Hide log' : 'View log';
+            if (annLogOpen) await fetchAnnLog();
+        }
+        async function fetchAnnLog() {
+            const panel = document.getElementById('announcements-log');
+            try {
+                const res = await fetch('/api/announcements/log');
+                const data = await res.json();
+                panel.textContent = data.exists
+                    ? (data.lines.join('\n') || '(log is empty)')
+                    : '(no scan.log yet — run a scan first)';
+                panel.scrollTop = panel.scrollHeight;   // stick to newest
+            } catch (e) {
+                panel.textContent = 'Could not load log.';
+            }
+        }
+
+        async function clearAnnouncements() {
+            if (!confirm('Clear all announcements? (The digest.md history file is kept.)')) return;
+            try {
+                const res = await fetch('/api/announcements', { method: 'DELETE' });
+                if (res.status === 409) {
+                    showToast('A scan is running — try again after it finishes', 'error');
+                    return;
+                }
+                if (!res.ok) throw new Error();
+                showToast('Announcements cleared');
+                fetchAnnouncements();
+            } catch (e) {
+                showToast('Could not clear announcements', 'error');
+            }
+        }
+
+        // --- News ---
+        let newsScanPoll = null;
+
+        async function fetchNews() {
+            try {
+                const res = await fetch('/api/news');
+                const data = await res.json();
+                renderNews(data);
+                // If a scan is running, keep polling until it finishes.
+                if (data.scan && data.scan.running) {
+                    if (!newsScanPoll) newsScanPoll = setInterval(fetchNews, 5000);
+                } else if (newsScanPoll) {
+                    clearInterval(newsScanPoll); newsScanPoll = null;
+                }
+            } catch (e) {
+                document.getElementById('news-list').innerHTML =
+                    '<div class="empty-state"><div class="icon">⚠️</div><p>Could not load news.</p></div>';
+            }
+        }
+
+        function sigBadge(level) {
+            if (!level) return '';
+            return `<span class="sig-badge sig-${level.toLowerCase()}">${level}</span>`;
+        }
+
+        function renderNews(data) {
+            const meta = document.getElementById('news-meta');
+            const list = document.getElementById('news-list');
+            const scanning = data.scan && data.scan.running;
+            const gen = data.generated_at
+                ? new Date(data.generated_at).toLocaleString('en-GB',
+                    { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                : 'never';
+            meta.innerHTML = `Last scan: <strong>${gen}</strong> · ${data.items.length} name(s) with news`
+                + (scanning ? ' · <span class="scanning">⏳ scanning…</span>' : '');
+
+            if (!data.items.length) {
+                list.innerHTML = `<div class="empty-state"><div class="icon">📰</div>
+                    <p>No news yet. Hit “Scan news” to fetch the latest.</p></div>`;
+                return;
+            }
+
+            list.innerHTML = data.items.map(it => {
+                const when = it.scanned_at
+                    ? new Date(it.scanned_at).toLocaleString('en-GB',
+                        { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                    : '';
+                const articles = (it.articles || []).map(a => {
+                    const ir = a.ir ? '<span class="ir-tag">IR</span>' : '';
+                    const src = a.source ? `<span class="art-src">${a.source}</span>` : '';
+                    return `<li>${ir}<a href="${a.link}" target="_blank" rel="noopener">${a.title}</a>${src}</li>`;
+                }).join('');
+                const summary = it.summary
+                    ? `<p class="news-summary">${it.summary}</p>`
+                    : `<p class="news-summary muted">⚠ ${it.summary_error || 'No summary'} — headlines below.</p>`;
+                const reason = it.significance_reason
+                    ? `<div class="sig-reason">${it.significance_reason}</div>` : '';
+                return `
+                    <div class="news-card">
+                        <div class="news-card-head">
+                            <div>
+                                <span class="news-ticker">${it.ticker}</span>
+                                <span class="exchange-badge ${it.exchange.toLowerCase()}">${it.exchange}</span>
+                                ${it.company ? `<span class="news-company">${it.company}</span>` : ''}
+                            </div>
+                            <div class="news-card-right">
+                                ${sigBadge(it.significance)}
+                                <span class="news-time">${when}</span>
+                            </div>
+                        </div>
+                        ${reason}
+                        ${summary}
+                        <ul class="news-articles">${articles}</ul>
+                    </div>`;
+            }).join('');
+        }
+
+        async function clearNews() {
+            if (!confirm('Clear all news? (The reports.md history file is kept.)')) return;
+            try {
+                const res = await fetch('/api/news', { method: 'DELETE' });
+                if (res.status === 409) {
+                    showToast('A scan is running — try again after it finishes', 'error');
+                    return;
+                }
+                if (!res.ok) throw new Error();
+                showToast('News cleared');
+                fetchNews();
+            } catch (e) {
+                showToast('Could not clear news', 'error');
+            }
+        }
+
+        async function scanNews() {
+            const btn = document.getElementById('scan-news-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Scanning…';
+            try {
+                const res = await fetch('/api/news/scan', { method: 'POST' });
+                if (res.status === 409) {
+                    showToast('A scan is already running', 'error');
+                } else if (res.ok) {
+                    showToast('News scan started — this can take a few minutes');
+                }
+                if (!newsScanPoll) newsScanPoll = setInterval(fetchNews, 5000);
+                fetchNews();
+            } catch (e) {
+                showToast('Could not start scan', 'error');
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = 'Scan news';
+                }, 1500);
+            }
+        }
+
+        // --- Toast ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // --- Form ---
+        document.getElementById('add-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const ticker = document.getElementById('ticker-input').value.trim();
+            const exchange = document.getElementById('exchange-input').value;
+            const notes = document.getElementById('notes-input').value.trim();
+            if (ticker) {
+                addStock(ticker, exchange, notes);
+                document.getElementById('ticker-input').value = '';
+                document.getElementById('notes-input').value = '';
+                document.getElementById('ticker-input').focus();
+            }
+        });
+
+        // --- Init ---
+        fetchWatchlist();
+        fetchAlerts();
+        setInterval(() => {
+            fetchWatchlist();
+            fetchAlerts();
+        }, 30000);
+    </script>
+</body>
+</html>

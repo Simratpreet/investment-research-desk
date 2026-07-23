@@ -1,0 +1,4 @@
+yfinance>=0.2.36
+requests>=2.31.0
+flask>=3.0.0
+apscheduler>=3.10.4

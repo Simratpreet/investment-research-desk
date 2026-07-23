@@ -1,0 +1,2840 @@
+{
+ "AMEX:BKTI": {
+  "checked_at": "2026-07-13T19:36:01+00:00",
+  "company": "BK Technologies Corporation",
+  "feed_titles": [
+   "BK Technologies",
+   "BK Technologies"
+  ],
+  "feeds": [
+   "https://www.bktechnologies.com/feed/",
+   "https://www.bktechnologies.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.bktechnologies.com"
+ },
+ "AMEX:ELMD": {
+  "checked_at": "2026-07-13T19:33:54+00:00",
+  "company": "Electromed, Inc.",
+  "feed_titles": [
+   "SmartVest Airway Clearance System",
+   "SmartVest Airway Clearance System"
+  ],
+  "feeds": [
+   "https://www.smartvest.com/feed/",
+   "https://smartvest.com/feed"
+  ],
+  "source": "discovered",
+  "website": "https://smartvest.com"
+ },
+ "AMEX:EQX": {
+  "checked_at": "2026-07-13T19:36:58+00:00",
+  "company": "Equinox Gold Corp.",
+  "feed_titles": [
+   "Equinox Gold",
+   "Equinox Gold"
+  ],
+  "feeds": [
+   "https://www.equinoxgold.com/feed/",
+   "https://www.equinoxgold.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.equinoxgold.com"
+ },
+ "AMEX:SIF": {
+  "checked_at": "2026-07-13T19:34:20+00:00",
+  "company": "SIFCO Industries, Inc.",
+  "feed_titles": [
+   "SIFCO Industries Inc.",
+   "SIFCO Industries Inc."
+  ],
+  "feeds": [
+   "https://sifco.com/feed/",
+   "https://sifco.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://sifco.com"
+ },
+ "ASX:ACE": {
+  "checked_at": "2026-07-13T19:36:25+00:00",
+  "company": "Acusensus Limited",
+  "feed_titles": [
+   "Acusensus",
+   "Acusensus"
+  ],
+  "feeds": [
+   "https://www.acusensus.com/feed",
+   "https://www.acusensus.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.acusensus.com"
+ },
+ "ASX:AD8": {
+  "checked_at": "2026-07-13T19:36:42+00:00",
+  "company": "Audinate Group Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.audinate.com"
+ },
+ "ASX:AHC": {
+  "checked_at": "2026-07-13T19:35:48+00:00",
+  "company": "Austco Healthcare Limited",
+  "feed_titles": [
+   "austcohealthcare.com",
+   "austcohealthcare.com"
+  ],
+  "feeds": [
+   "https://austcohealthcare.com/feed/",
+   "https://austcohealthcare.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://austcohealthcare.com"
+ },
+ "ASX:BLG": {
+  "checked_at": "2026-07-13T19:36:41+00:00",
+  "company": "BluGlass Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://bluglass.com"
+ },
+ "ASX:CAT": {
+  "checked_at": "2026-07-13T19:36:08+00:00",
+  "company": "Catapult Sports Ltd",
+  "feed_titles": [
+   "Catapult",
+   "Catapult"
+  ],
+  "feeds": [
+   "https://www.catapult.com/feed",
+   "https://www.catapult.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.catapult.com"
+ },
+ "ASX:CDA": {
+  "checked_at": "2026-07-13T19:36:32+00:00",
+  "company": "Codan Limited",
+  "feed_titles": [
+   "CODAN",
+   "CODAN"
+  ],
+  "feeds": [
+   "https://codan.com.au/feed/",
+   "https://www.codan.com.au/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.codan.com.au"
+ },
+ "ASX:CUP": {
+  "checked_at": "2026-07-13T19:35:04+00:00",
+  "company": "Count Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.count.au"
+ },
+ "ASX:DRO": {
+  "checked_at": "2026-07-13T19:35:46+00:00",
+  "company": "DroneShield Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.droneshield.com"
+ },
+ "ASX:DUR": {
+  "checked_at": "2026-07-13T19:36:41+00:00",
+  "company": "Duratec Limited",
+  "feed_titles": [
+   "Media Archive - Duratec Limited",
+   "Duratec Limited"
+  ],
+  "feeds": [
+   "https://www.duratec.com.au/news/rss",
+   "https://www.duratec.com.au/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.duratec.com.au"
+ },
+ "ASX:ELS": {
+  "checked_at": "2026-07-13T19:37:04+00:00",
+  "company": "Elsight Limited",
+  "feed_titles": [
+   "News Archive - elsight"
+  ],
+  "feeds": [
+   "https://elsight.com/news/rss"
+  ],
+  "source": "discovered",
+  "website": "https://elsight.com"
+ },
+ "ASX:EOL": {
+  "checked_at": "2026-07-13T19:36:00+00:00",
+  "company": "Energy One Limited",
+  "feed_titles": [
+   "Energy One",
+   "Energy One"
+  ],
+  "feeds": [
+   "https://www.energyone.com/feed",
+   "https://www.energyone.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.energyone.com"
+ },
+ "ASX:HUB": {
+  "checked_at": "2026-07-13T19:36:12+00:00",
+  "company": "HUB24 Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.hub24.com.au"
+ },
+ "ASX:KPG": {
+  "checked_at": "2026-07-13T19:36:28+00:00",
+  "company": "Kelly Partners Group Holdings Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://kellypartnersgroup.com.au"
+ },
+ "ASX:PWH": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "PWR Holdings Limited",
+  "feed_titles": [
+   "PWR Corporate",
+   "PWR Corporate"
+  ],
+  "feeds": [
+   "https://www.pwr.com.au/feed/",
+   "https://www.pwr.com.au/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.pwr.com.au"
+ },
+ "ASX:SDR": {
+  "checked_at": "2026-07-13T19:37:04+00:00",
+  "company": "SiteMinder Limited",
+  "feed_titles": [
+   "SiteMinder",
+   "SiteMinder"
+  ],
+  "feeds": [
+   "https://www.siteminder.com/feed/",
+   "https://www.siteminder.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.siteminder.com"
+ },
+ "ASX:SHA": {
+  "checked_at": "2026-07-13T19:34:05+00:00",
+  "company": "SHAPE Australia Corporation Limited",
+  "feed_titles": [
+   "SHAPE Investor",
+   "News Archive - SHAPE"
+  ],
+  "feeds": [
+   "https://investor.shape.com.au/feed/",
+   "https://shape.com.au/news/rss"
+  ],
+  "source": "discovered",
+  "website": "https://shape.com.au"
+ },
+ "ASX:SKO": {
+  "checked_at": "2026-07-13T19:35:05+00:00",
+  "company": "Serko Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.serko.com"
+ },
+ "ASX:SPZ": {
+  "checked_at": "2026-07-13T19:36:17+00:00",
+  "company": "Smart Parking Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.smartparking.com"
+ },
+ "ASX:SRG": {
+  "checked_at": "2026-07-13T19:36:34+00:00",
+  "company": "SRG Global Limited",
+  "feed_titles": [
+   "SRG Global",
+   "SRG Global"
+  ],
+  "feeds": [
+   "https://srgglobal.com.au/feed/",
+   "https://srgglobal.com.au/rss"
+  ],
+  "source": "discovered",
+  "website": "https://srgglobal.com.au"
+ },
+ "ASX:TEA": {
+  "checked_at": "2026-07-13T19:33:42+00:00",
+  "company": "TASMEA FPO [TEA]",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://tasmea.com.au"
+ },
+ "ASX:UNI": {
+  "checked_at": "2026-07-13T19:36:02+00:00",
+  "company": "Universal Store Holdings Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.universalstore.com"
+ },
+ "ASX:WTC": {
+  "checked_at": "2026-07-13T19:31:27+00:00",
+  "company": "WiseTech Global Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.wisetechglobal.com"
+ },
+ "BIST:TAVHL": {
+  "checked_at": "2026-07-13T19:36:55+00:00",
+  "company": "TAV Havalimanlari Holding A.S.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.tavhavalimanlari.com.tr"
+ },
+ "BME:GSJ": {
+  "checked_at": "2026-07-13T19:36:13+00:00",
+  "company": "Grupo Empresarial San José, S.A.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.gruposanjose.biz"
+ },
+ "BME:PUIG": {
+  "checked_at": "2026-07-13T19:35:02+00:00",
+  "company": "PUIG BRANDS, S.A. CLASE B",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.puig.com"
+ },
+ "BMFBOVESPA:MLAS3": {
+  "checked_at": "2026-07-13T19:34:45+00:00",
+  "company": "Grupo Multi S.A.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.multilaser.com.br"
+ },
+ "BMV:BOLSA/A": {
+  "checked_at": "2026-07-13T19:35:24+00:00",
+  "company": "Bolsa Mexicana de Valores, S.A.B. de C.V.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.bmv.com.mx"
+ },
+ "EURONEXT:ADYEN": {
+  "checked_at": "2026-07-13T19:35:22+00:00",
+  "company": "Adyen N.V.",
+  "feeds": [],
+  "source": "discovered",
+  "website": null
+ },
+ "EURONEXT:ALWEC": {
+  "checked_at": "2026-07-13T19:35:53+00:00",
+  "company": "We.Connect SA",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.connect-we.fr"
+ },
+ "EURONEXT:EXENS": {
+  "checked_at": "2026-07-13T19:36:28+00:00",
+  "company": "Exosens",
+  "feed_titles": [
+   ""
+  ],
+  "feeds": [
+   "https://www.exosens.com/news/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.exosens.com"
+ },
+ "FWB:OX0": {
+  "checked_at": "2026-07-13T19:37:54+00:00",
+  "company": "BeammWave AB (publ)",
+  "feed_titles": [
+   "BeammWave",
+   "BeammWave"
+  ],
+  "feeds": [
+   "https://beammwave.com/feed/",
+   "https://beammwave.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://beammwave.com"
+ },
+ "GETTEX:1INN": {
+  "checked_at": "2026-07-13T19:34:05+00:00",
+  "company": "innoscripta SE",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://innoscripta.com"
+ },
+ "GETTEX:9CN": {
+  "checked_at": "2026-07-13T19:36:58+00:00",
+  "company": "Cenergy Holdings SA",
+  "feeds": [],
+  "source": "discovered",
+  "website": null
+ },
+ "GETTEX:AIXA": {
+  "checked_at": "2026-07-13T19:37:02+00:00",
+  "company": "AIXTRON SE",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.aixtron.com"
+ },
+ "GETTEX:DEZ": {
+  "checked_at": "2026-07-13T19:34:20+00:00",
+  "company": "DEUTZ Aktiengesellschaft",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.deutz.com"
+ },
+ "GETTEX:DR0": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "Deutsche Rohstoff AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.rohstoff.de"
+ },
+ "GETTEX:KCN": {
+  "checked_at": "2026-07-13T19:38:05+00:00",
+  "company": "Kingsgate Consolidated Ltd",
+  "feeds": [],
+  "source": "discovered",
+  "website": null
+ },
+ "GETTEX:LHL": {
+  "checked_at": "2026-07-13T19:37:23+00:00",
+  "company": "Lenovo Group Ltd",
+  "feeds": [],
+  "source": "discovered",
+  "website": null
+ },
+ "GETTEX:R3NK": {
+  "checked_at": "2026-07-13T19:36:12+00:00",
+  "company": "RENK Group AG",
+  "feed_titles": [
+   "Renk Group AG News Releases"
+  ],
+  "feeds": [
+   "https://ir.renk.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.renk.com"
+ },
+ "GETTEX:TPE": {
+  "checked_at": "2026-07-13T19:37:21+00:00",
+  "company": "PVA TePla AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.pvatepla.com"
+ },
+ "GPW:BFT": {
+  "checked_at": "2026-07-13T19:34:32+00:00",
+  "company": "Benefit Systems S.A.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.benefitsystems.pl"
+ },
+ "GPW:DNP": {
+  "checked_at": "2026-07-13T19:35:46+00:00",
+  "company": "Dino Polska S.A.",
+  "feed_titles": [
+   "DINO POLSKA S.A.",
+   "DINO POLSKA S.A."
+  ],
+  "feeds": [
+   "https://www.grupadino.pl/feed",
+   "https://www.grupadino.pl/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.grupadino.pl"
+ },
+ "GPW:LBW": {
+  "checked_at": "2026-07-13T19:36:37+00:00",
+  "company": "Lubawa S.A.",
+  "feed_titles": [
+   "News – Lubawa S.A.",
+   "Lubawa S.A."
+  ],
+  "feeds": [
+   "https://www.lubawa.com.pl/news/rss",
+   "https://lubawa.com.pl/feed/"
+  ],
+  "source": "discovered",
+  "website": "https://www.lubawa.com.pl"
+ },
+ "GPW:SHO": {
+  "checked_at": "2026-07-13T19:35:20+00:00",
+  "company": "Shoper S.A.",
+  "feed_titles": [
+   "Shoper",
+   "Shoper"
+  ],
+  "feeds": [
+   "https://www.shoper.pl/feed",
+   "https://www.shoper.pl/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.shoper.pl"
+ },
+ "GPW:VGO": {
+  "checked_at": "2026-07-13T19:35:37+00:00",
+  "company": "VIGO Photonics S.A.",
+  "feed_titles": [
+   "VIGO Photonics",
+   "VIGO Photonics"
+  ],
+  "feeds": [
+   "https://vigophotonics.com/feed/",
+   "https://vigophotonics.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://vigophotonics.com"
+ },
+ "HKEX:1357": {
+  "checked_at": "2026-07-13T19:36:19+00:00",
+  "company": "Meitu, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.meitu.com"
+ },
+ "HKEX:6618": {
+  "checked_at": "2026-07-13T19:36:09+00:00",
+  "company": "JD Health International Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://ir.jdhealth.com"
+ },
+ "HOSE:SCS": {
+  "checked_at": "2026-07-13T19:35:18+00:00",
+  "company": "Saigon Cargo Service Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://scsc.vn"
+ },
+ "JSE:WBC": {
+  "checked_at": "2026-07-13T19:35:10+00:00",
+  "company": "We Buy Cars Hlds Ltd",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.webuycars.co.za"
+ },
+ "KRX:009150": {
+  "checked_at": "2026-07-13T19:38:06+00:00",
+  "company": "Samsung Electro-Mechanics Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.samsungsem.com/global"
+ },
+ "KRX:011070": {
+  "checked_at": "2026-07-13T19:38:03+00:00",
+  "company": "LG Innotek Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.lginnotek.com"
+ },
+ "KRX:011790": {
+  "checked_at": "2026-07-13T19:37:51+00:00",
+  "company": "SKC Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.skc.co.kr"
+ },
+ "KRX:042660": {
+  "checked_at": "2026-07-13T19:36:44+00:00",
+  "company": "Hanwha Ocean Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.hanwhaocean.com"
+ },
+ "KRX:222080": {
+  "checked_at": "2026-07-13T19:37:46+00:00",
+  "company": "SFA NEXEL Co., Ltd.",
+  "feeds": [],
+  "source": "discovered",
+  "website": null
+ },
+ "KRX:353200": {
+  "checked_at": "2026-07-13T19:37:32+00:00",
+  "company": "DAEDUCK ELECTRONICS Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.daeduck.com"
+ },
+ "LSE:0GSS": {
+  "checked_at": "2026-07-13T19:37:27+00:00",
+  "company": "NOTE AB (publ)",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.note-ems.com"
+ },
+ "LSE:0OHC": {
+  "checked_at": "2026-07-13T19:35:16+00:00",
+  "company": "Exail Technologies",
+  "feed_titles": [
+   "Press releases - Exail Technologies",
+   "Exail Technologies"
+  ],
+  "feeds": [
+   "https://www.exail-technologies.com/news/rss",
+   "https://www.exail-technologies.com/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.exail-technologies.com"
+ },
+ "LSE:0R1E": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "Nintendo Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.nintendo.co.jp"
+ },
+ "LSE:AT.": {
+  "checked_at": "2026-07-13T19:34:14+00:00",
+  "company": "Ashtead Technology Holdings Plc",
+  "feed_titles": [
+   "Ashtead Technology",
+   "Ashtead Technology"
+  ],
+  "feeds": [
+   "https://www.ashtead-technology.com/feed/",
+   "https://www.ashtead-technology.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.ashtead-technology.com"
+ },
+ "LSE:CHRT": {
+  "checked_at": "2026-07-13T19:36:36+00:00",
+  "company": "Cohort plc",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.cohortplc.com"
+ },
+ "LSE:DSCV": {
+  "checked_at": "2026-07-13T19:34:53+00:00",
+  "company": "discoverIE Group plc",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.discoverieplc.com"
+ },
+ "LSE:FEVR": {
+  "checked_at": "2026-07-13T19:35:25+00:00",
+  "company": "Fevertree Drinks PLC",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://fever-tree.com"
+ },
+ "LSE:GRG": {
+  "checked_at": "2026-07-13T19:34:47+00:00",
+  "company": "Greggs plc",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://corporate.greggs.co.uk"
+ },
+ "LSE:KMR": {
+  "checked_at": "2026-07-13T19:36:09+00:00",
+  "company": "Kenmare Resources plc",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.kenmareresources.com"
+ },
+ "LSE:QTX": {
+  "checked_at": "2026-07-13T19:35:08+00:00",
+  "company": "Quartix Technologies plc",
+  "feed_titles": [
+   "- US",
+   "- US"
+  ],
+  "feeds": [
+   "https://www.quartix.com/feed/",
+   "https://www.quartix.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.quartix.com"
+ },
+ "LSE:SGLN": {
+  "checked_at": "2026-07-13T19:36:13+00:00",
+  "company": "iShares Physical Gold ETC",
+  "feeds": [],
+  "source": "discovered",
+  "website": null
+ },
+ "LSE:SLP": {
+  "checked_at": "2026-07-13T19:35:31+00:00",
+  "company": "Sylvania Platinum Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.sylvaniaplatinum.com"
+ },
+ "LSE:SPSY": {
+  "checked_at": "2026-07-13T19:35:39+00:00",
+  "company": "Spectra Systems Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.spsy.com"
+ },
+ "LSE:SQZ": {
+  "checked_at": "2026-07-13T19:33:52+00:00",
+  "company": "Serica Energy plc",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.serica-energy.com"
+ },
+ "LSE:TUN": {
+  "checked_at": "2026-07-13T19:35:09+00:00",
+  "company": "Tungsten West PLC",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.tungstenwest.com"
+ },
+ "LSE:WISE": {
+  "checked_at": "2026-07-13T19:34:51+00:00",
+  "company": "Wise Group plc",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://wise.com"
+ },
+ "LSE:WOSG": {
+  "checked_at": "2026-07-13T19:31:27+00:00",
+  "company": "Watches of Switzerland Group PLC",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.thewosgroupplc.com"
+ },
+ "LSIN:0ACC": {
+  "checked_at": "2026-07-13T19:34:44+00:00",
+  "company": "Accelleron Industries AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://accelleron-industries.com"
+ },
+ "LSIN:0HA9": {
+  "checked_at": "2026-07-13T19:36:08+00:00",
+  "company": "Indra Sistemas, S.A.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.indracompany.com"
+ },
+ "MIL:1LPK": {
+  "checked_at": "2026-07-13T19:36:05+00:00",
+  "company": "LPKF LASER & ELECTRONICS",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.lpkf.com"
+ },
+ "MIL:ADB": {
+  "checked_at": "2026-07-13T19:34:34+00:00",
+  "company": "Aeroporto Guglielmo Marconi di Bologna S.p.A.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.bologna-airport.it"
+ },
+ "MIL:EQUI": {
+  "checked_at": "2026-07-13T19:33:59+00:00",
+  "company": "Equita Group S.p.A.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.equita.eu"
+ },
+ "MIL:LDB": {
+  "checked_at": "2026-07-13T19:37:02+00:00",
+  "company": "Lindbergh S.p.A.",
+  "feed_titles": [
+   "Lindbergh",
+   "Lindbergh"
+  ],
+  "feeds": [
+   "https://lindberghspa.it/it/feed/",
+   "https://www.lindberghspa.it/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.lindberghspa.it"
+ },
+ "MIL:PHN": {
+  "checked_at": "2026-07-13T19:35:11+00:00",
+  "company": "Pharmanutra S.p.A.",
+  "feed_titles": [
+   "pharmanutra.it",
+   "pharmanutra.it"
+  ],
+  "feeds": [
+   "https://www.pharmanutra.it/news/rss",
+   "https://www.pharmanutra.it/it/feed/"
+  ],
+  "source": "discovered",
+  "website": "https://www.pharmanutra.it"
+ },
+ "MIL:SPM": {
+  "checked_at": "2026-07-13T19:35:46+00:00",
+  "company": "Saipem SpA",
+  "feed_titles": [
+   "Saipem"
+  ],
+  "feeds": [
+   "https://www.saipem.com/rss.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.saipem.com"
+ },
+ "NASDAQ:AAOI": {
+  "checked_at": "2026-07-13T19:38:01+00:00",
+  "company": "Applied Optoelectronics, Inc.",
+  "feed_titles": [
+   "Applied Optoelectronics, Inc. News Releases"
+  ],
+  "feeds": [
+   "https://investors.ao-inc.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.ao-inc.com"
+ },
+ "NASDAQ:ABNB": {
+  "checked_at": "2026-07-13T19:36:28+00:00",
+  "company": "Airbnb, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.airbnb.com"
+ },
+ "NASDAQ:ADBE": {
+  "checked_at": "2026-07-13T19:33:44+00:00",
+  "company": "Adobe Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.adobe.com"
+ },
+ "NASDAQ:ADTN": {
+  "checked_at": "2026-07-13T19:37:51+00:00",
+  "company": "ADTRAN Holdings, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.adtran.com"
+ },
+ "NASDAQ:AIRO": {
+  "checked_at": "2026-07-13T19:37:09+00:00",
+  "company": "AIRO Group Holdings, Inc.",
+  "feed_titles": [
+   "The AIRO Group",
+   "The AIRO Group"
+  ],
+  "feeds": [
+   "https://theairogroup.com/feed/",
+   "https://www.theairogroup.com/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.theairogroup.com"
+ },
+ "NASDAQ:AMAT": {
+  "checked_at": "2026-07-13T19:37:18+00:00",
+  "company": "Applied Materials, Inc.",
+  "feed_titles": [
+   "Applied Materials News Releases",
+   "Applied Materials News Releases"
+  ],
+  "feeds": [
+   "https://investors.appliedmaterials.com/rss/news-releases.xml",
+   "https://investor.appliedmaterials.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.appliedmaterials.com"
+ },
+ "NASDAQ:AMD": {
+  "checked_at": "2026-07-13T19:37:05+00:00",
+  "company": "Advanced Micro Devices, Inc.",
+  "feed_titles": [
+   "Advanced Micro Devices, Inc. (AMD) Press Releases"
+  ],
+  "feeds": [
+   "https://ir.amd.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.amd.com"
+ },
+ "NASDAQ:AMKR": {
+  "checked_at": "2026-07-13T19:37:49+00:00",
+  "company": "Amkor Technology, Inc.",
+  "feed_titles": [
+   "Amkor Technology News Releases"
+  ],
+  "feeds": [
+   "https://ir.amkor.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://amkor.com"
+ },
+ "NASDAQ:AMZN": {
+  "checked_at": "2026-07-13T19:34:08+00:00",
+  "company": "Amazon.com, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.amazon.com"
+ },
+ "NASDAQ:AOUT": {
+  "checked_at": "2026-07-13T19:36:16+00:00",
+  "company": "American Outdoor Brands, Inc.",
+  "feed_titles": [
+   "American Outdoor Brands Inc. News Releases"
+  ],
+  "feeds": [
+   "https://ir.aob.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.aob.com"
+ },
+ "NASDAQ:APP": {
+  "checked_at": "2026-07-13T19:38:04+00:00",
+  "company": "AppLovin Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.applovin.com"
+ },
+ "NASDAQ:ARM": {
+  "checked_at": "2026-07-13T19:37:59+00:00",
+  "company": "Arm Holdings plc",
+  "feed_titles": [
+   "Arm Holdings plc News Releases"
+  ],
+  "feeds": [
+   "https://investors.arm.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.arm.com"
+ },
+ "NASDAQ:ASTS": {
+  "checked_at": "2026-07-13T19:37:59+00:00",
+  "company": "AST SpaceMobile, Inc.",
+  "feed_titles": [
+   "AST SpaceMobile",
+   "AST SpaceMobile"
+  ],
+  "feeds": [
+   "https://ast-science.com/feed/",
+   "https://ast-science.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://ast-science.com"
+ },
+ "NASDAQ:ASYS": {
+  "checked_at": "2026-07-13T19:36:56+00:00",
+  "company": "Amtech Systems, Inc.",
+  "feed_titles": [
+   "Amtech Systems, Inc. (ASYS) Press Releases"
+  ],
+  "feeds": [
+   "https://www.amtechsystems.com/news-media/press-releases/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.amtechsystems.com"
+ },
+ "NASDAQ:AVAV": {
+  "checked_at": "2026-07-13T19:36:17+00:00",
+  "company": "AeroVironment, Inc.",
+  "feed_titles": [
+   "AeroVironment, Inc. News Releases",
+   "Browse News + Insights - AeroVironment"
+  ],
+  "feeds": [
+   "https://investor.avinc.com/rss/news-releases.xml",
+   "https://www.avinc.com/news/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.avinc.com"
+ },
+ "NASDAQ:AXON": {
+  "checked_at": "2026-07-13T19:31:27+00:00",
+  "company": "Axon Enterprise, Inc.",
+  "feed_titles": [
+   "Axon Blogs"
+  ],
+  "feeds": [
+   "https://www.axon.com/feed.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.axon.com"
+ },
+ "NASDAQ:BKNG": {
+  "checked_at": "2026-07-13T19:36:12+00:00",
+  "company": "Booking Holdings Inc.",
+  "feed_titles": [
+   "Booking Holdings"
+  ],
+  "feeds": [
+   "https://www.bookingholdings.com/rss.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.bookingholdings.com"
+ },
+ "NASDAQ:BSY": {
+  "checked_at": "2026-07-13T19:34:53+00:00",
+  "company": "Bentley Systems, Incorporated",
+  "feed_titles": [
+   "Bentley Systems, Incorporated News Releases",
+   "Bentley Systems | Infrastructure Engineering Software Company"
+  ],
+  "feeds": [
+   "https://investors.bentley.com/rss/news-releases.xml",
+   "https://www.bentley.com/rss.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.bentley.com"
+ },
+ "NASDAQ:BVS": {
+  "checked_at": "2026-07-13T19:34:39+00:00",
+  "company": "Bioventus Inc.",
+  "feed_titles": [
+   "Bioventus Inc News Releases",
+   "Bioventus"
+  ],
+  "feeds": [
+   "https://ir.bioventus.com/rss/news-releases.xml",
+   "https://www.bioventus.com/feed/"
+  ],
+  "source": "discovered",
+  "website": "https://www.bioventus.com"
+ },
+ "NASDAQ:BWAY": {
+  "checked_at": "2026-07-13T19:37:41+00:00",
+  "company": "BrainsWay Ltd.",
+  "feed_titles": [
+   "BrainsWay News Releases",
+   "BrainsWay"
+  ],
+  "feeds": [
+   "https://investors.brainsway.com/rss/news-releases.xml",
+   "https://www.brainsway.com/feed/"
+  ],
+  "source": "discovered",
+  "website": "https://www.brainsway.com"
+ },
+ "NASDAQ:CDNS": {
+  "checked_at": "2026-07-13T19:35:51+00:00",
+  "company": "Cadence Design Systems, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.cadence.com"
+ },
+ "NASDAQ:CLBT": {
+  "checked_at": "2026-07-13T19:33:51+00:00",
+  "company": "Cellebrite DI Ltd.",
+  "feed_titles": [
+   "Cellebrite News Releases"
+  ],
+  "feeds": [
+   "https://investors.cellebrite.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.cellebrite.com"
+ },
+ "NASDAQ:CLPT": {
+  "checked_at": "2026-07-13T19:37:40+00:00",
+  "company": "ClearPoint Neuro, Inc.",
+  "feed_titles": [
+   "ClearPoint Neuro",
+   "ClearPoint Neuro"
+  ],
+  "feeds": [
+   "https://www.clearpointneuro.com/feed/",
+   "https://www.clearpointneuro.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.clearpointneuro.com"
+ },
+ "NASDAQ:COCO": {
+  "checked_at": "2026-07-13T19:33:55+00:00",
+  "company": "The Vita Coco Company, Inc.",
+  "feed_titles": [
+   "The Vita Coco Company News Releases"
+  ],
+  "feeds": [
+   "https://investors.thevitacococompany.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://thevitacococompany.com"
+ },
+ "NASDAQ:DLO": {
+  "checked_at": "2026-07-13T19:36:23+00:00",
+  "company": "DLocal Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.dlocal.com"
+ },
+ "NASDAQ:DXCM": {
+  "checked_at": "2026-07-13T19:34:01+00:00",
+  "company": "DexCom, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.dexcom.com"
+ },
+ "NASDAQ:ETON": {
+  "checked_at": "2026-07-13T19:34:46+00:00",
+  "company": "Eton Pharmaceuticals, Inc.",
+  "feed_titles": [
+   "Eton Pharmaceuticals, Inc.  News Releases",
+   "Eton Pharmaceuticals"
+  ],
+  "feeds": [
+   "https://ir.etonpharma.com/rss/news-releases.xml",
+   "https://www.etonpharma.com/feed/"
+  ],
+  "source": "discovered",
+  "website": "https://www.etonpharma.com"
+ },
+ "NASDAQ:FLYW": {
+  "checked_at": "2026-07-13T19:34:10+00:00",
+  "company": "Flywire Corporation",
+  "feed_titles": [
+   "Flywire Corporation News Releases"
+  ],
+  "feeds": [
+   "https://ir.flywire.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.flywire.com"
+ },
+ "NASDAQ:FROG": {
+  "checked_at": "2026-07-13T19:34:17+00:00",
+  "company": "JFrog Ltd.",
+  "feed_titles": [
+   "JFrog",
+   "JFrog"
+  ],
+  "feeds": [
+   "https://www.jfrog.com/feed",
+   "https://www.jfrog.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.jfrog.com"
+ },
+ "NASDAQ:FTAI": {
+  "checked_at": "2026-07-13T19:37:46+00:00",
+  "company": "FTAI Aviation Ltd.",
+  "feed_titles": [
+   "FTAI Aviation News Releases"
+  ],
+  "feeds": [
+   "https://ir.ftaiaviation.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.ftaiaviation.com"
+ },
+ "NASDAQ:GLBE": {
+  "checked_at": "2026-07-13T19:35:10+00:00",
+  "company": "Global-E Online Ltd.",
+  "feed_titles": [
+   "Global-E online Ltd News Releases"
+  ],
+  "feeds": [
+   "https://investors.global-e.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.global-e.com"
+ },
+ "NASDAQ:GLXY": {
+  "checked_at": "2026-07-13T19:37:45+00:00",
+  "company": "Galaxy Digital",
+  "feed_titles": [
+   "Galaxy Digital Inc. News Releases"
+  ],
+  "feeds": [
+   "https://investor.galaxy.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.galaxy.com"
+ },
+ "NASDAQ:GOOGL": {
+  "checked_at": "2026-07-13T19:35:36+00:00",
+  "company": "Alphabet Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://abc.xyz"
+ },
+ "NASDAQ:GRAB": {
+  "checked_at": "2026-07-13T19:34:15+00:00",
+  "company": "Grab Holdings Limited",
+  "feed_titles": [
+   "Grab",
+   "Grab SG"
+  ],
+  "feeds": [
+   "https://www.grab.com/feed",
+   "https://www.grab.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.grab.com/sg"
+ },
+ "NASDAQ:GTLB": {
+  "checked_at": "2026-07-13T19:31:27+00:00",
+  "company": "GitLab Inc.",
+  "feed_titles": [
+   "GitLab Monthly Releases"
+  ],
+  "feeds": [
+   "https://about.gitlab.com/releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://about.gitlab.com"
+ },
+ "NASDAQ:HURC": {
+  "checked_at": "2026-07-13T19:36:30+00:00",
+  "company": "Hurco Companies, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.hurco.com"
+ },
+ "NASDAQ:IESC": {
+  "checked_at": "2026-07-13T19:36:48+00:00",
+  "company": "IES Holdings, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.ies-co.com"
+ },
+ "NASDAQ:INTC": {
+  "checked_at": "2026-07-13T19:37:50+00:00",
+  "company": "Intel Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.intel.com"
+ },
+ "NASDAQ:ISSC": {
+  "checked_at": "2026-07-13T19:36:48+00:00",
+  "company": "Innovative Aerosystems, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.iascorp.com"
+ },
+ "NASDAQ:KEQU": {
+  "checked_at": "2026-07-13T19:33:54+00:00",
+  "company": "Kewaunee Scientific Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://kewaunee.com"
+ },
+ "NASDAQ:KSPI": {
+  "checked_at": "2026-07-13T19:35:28+00:00",
+  "company": "Joint Stock Company Kaspi.kz",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://ir.kaspi.kz"
+ },
+ "NASDAQ:KTOS": {
+  "checked_at": "2026-07-13T19:36:55+00:00",
+  "company": "Kratos Defense & Security Solutions, Inc.",
+  "feed_titles": [
+   "Kratos Defense & Security Solutions, Inc News Releases"
+  ],
+  "feeds": [
+   "https://ir.kratosdefense.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.kratosdefense.com"
+ },
+ "NASDAQ:LFCR": {
+  "checked_at": "2026-07-13T19:35:24+00:00",
+  "company": "Lifecore Biomedical, Inc.",
+  "feed_titles": [
+   "Lifecore Biomedical News Releases"
+  ],
+  "feeds": [
+   "https://ir.lifecore.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.lifecore.com"
+ },
+ "NASDAQ:LITE": {
+  "checked_at": "2026-07-13T19:37:17+00:00",
+  "company": "Lumentum Holdings Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.lumentum.com"
+ },
+ "NASDAQ:LNSR": {
+  "checked_at": "2026-07-13T19:36:42+00:00",
+  "company": "LENSAR, Inc.",
+  "feed_titles": [
+   "Lensar, Inc. News Releases"
+  ],
+  "feeds": [
+   "https://ir.lensar.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.lensar.com"
+ },
+ "NASDAQ:MELI": {
+  "checked_at": "2026-07-13T19:34:26+00:00",
+  "company": "MercadoLibre, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.mercadolibre.com"
+ },
+ "NASDAQ:META": {
+  "checked_at": "2026-07-13T19:35:54+00:00",
+  "company": "Meta Platforms, Inc.",
+  "feed_titles": [
+   "The Meta.com Blog"
+  ],
+  "feeds": [
+   "https://www.meta.com/blog/rss/"
+  ],
+  "source": "discovered",
+  "website": "https://www.meta.com"
+ },
+ "NASDAQ:MKSI": {
+  "checked_at": "2026-07-13T19:37:24+00:00",
+  "company": "MKS Inc.",
+  "feed_titles": [
+   "MKS Inc. News Releases"
+  ],
+  "feeds": [
+   "https://investor.mks.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.mks.com"
+ },
+ "NASDAQ:MRX": {
+  "checked_at": "2026-07-13T19:36:02+00:00",
+  "company": "Marex Group Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.marex.com"
+ },
+ "NASDAQ:MSFT": {
+  "checked_at": "2026-07-13T19:31:27+00:00",
+  "company": "Microsoft Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.microsoft.com"
+ },
+ "NASDAQ:MU": {
+  "checked_at": "2026-07-13T19:37:21+00:00",
+  "company": "Micron Technology, Inc.",
+  "feed_titles": [
+   "Micron Technology  News Releases"
+  ],
+  "feeds": [
+   "https://investors.micron.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.micron.com"
+ },
+ "NASDAQ:NFLX": {
+  "checked_at": "2026-07-13T19:34:22+00:00",
+  "company": "Netflix, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.netflix.com"
+ },
+ "NASDAQ:NPCE": {
+  "checked_at": "2026-07-13T19:35:33+00:00",
+  "company": "NeuroPace, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.neuropace.com"
+ },
+ "NASDAQ:NVDA": {
+  "checked_at": "2026-07-13T19:36:52+00:00",
+  "company": "NVIDIA Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.nvidia.com"
+ },
+ "NASDAQ:OMAB": {
+  "checked_at": "2026-07-13T19:36:10+00:00",
+  "company": "Grupo Aeroportuario del Centro Norte, S.A.B. de C.V.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.oma.aero"
+ },
+ "NASDAQ:ON": {
+  "checked_at": "2026-07-13T19:37:27+00:00",
+  "company": "ON Semiconductor Corporation",
+  "feed_titles": [
+   "onsemi News Releases"
+  ],
+  "feeds": [
+   "https://investor.onsemi.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.onsemi.com"
+ },
+ "NASDAQ:ONDS": {
+  "checked_at": "2026-07-13T19:36:45+00:00",
+  "company": "Ondas Inc.",
+  "feed_titles": [
+   "Ondas Inc. (ONDS) News",
+   "Ondas Inc."
+  ],
+  "feeds": [
+   "https://ir.ondas.com/rss",
+   "https://www.ondas.com/blog-feed.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.ondas.com"
+ },
+ "NASDAQ:PENG": {
+  "checked_at": "2026-07-13T19:36:30+00:00",
+  "company": "Penguin Solutions, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.penguinsolutions.com"
+ },
+ "NASDAQ:QCOM": {
+  "checked_at": "2026-07-13T19:36:35+00:00",
+  "company": "QUALCOMM Incorporated",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.qualcomm.com"
+ },
+ "NASDAQ:RAVE": {
+  "checked_at": "2026-07-13T19:34:53+00:00",
+  "company": "Rave Restaurant Group, Inc.",
+  "feed_titles": [
+   "Rave Restaurant Group, Inc. (RAVE) Press Releases"
+  ],
+  "feeds": [
+   "https://investors.raverg.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.raverg.com"
+ },
+ "NASDAQ:REAX": {
+  "checked_at": "2026-07-13T19:36:33+00:00",
+  "company": "The Real Brokerage Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.onereal.com"
+ },
+ "NASDAQ:RELY": {
+  "checked_at": "2026-07-13T19:34:29+00:00",
+  "company": "Remitly Global, Inc.",
+  "feed_titles": [
+   "Remitly Global, Inc News Releases"
+  ],
+  "feeds": [
+   "https://ir.remitly.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.remitly.com"
+ },
+ "NASDAQ:RFIL": {
+  "checked_at": "2026-07-13T19:38:00+00:00",
+  "company": "RF Industries, Ltd.",
+  "feed_titles": [
+   "RF Industries",
+   "RF Industries"
+  ],
+  "feeds": [
+   "https://rfindustries.com/feed/",
+   "https://rfindustries.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://rfindustries.com"
+ },
+ "NASDAQ:RMBS": {
+  "checked_at": "2026-07-13T19:38:01+00:00",
+  "company": "Rambus Inc.",
+  "feed_titles": [
+   "Rambus",
+   "Rambus"
+  ],
+  "feeds": [
+   "https://www.rambus.com/feed/",
+   "https://www.rambus.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.rambus.com"
+ },
+ "NASDAQ:SLAB": {
+  "checked_at": "2026-07-13T19:34:57+00:00",
+  "company": "Silicon Laboratories Inc.",
+  "feed_titles": [
+   "Silicon Laboratories News Releases"
+  ],
+  "feeds": [
+   "https://investor.silabs.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.silabs.com"
+ },
+ "NASDAQ:SMTC": {
+  "checked_at": "2026-07-13T19:36:53+00:00",
+  "company": "Semtech Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.semtech.com"
+ },
+ "NASDAQ:SNDK": {
+  "checked_at": "2026-07-13T19:38:05+00:00",
+  "company": "Sandisk Corporation",
+  "feed_titles": [
+   "Sandisk Corporation News Releases"
+  ],
+  "feeds": [
+   "https://investor.sandisk.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.sandisk.com"
+ },
+ "NASDAQ:SNPS": {
+  "checked_at": "2026-07-13T19:36:12+00:00",
+  "company": "Synopsys, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.synopsys.com"
+ },
+ "NASDAQ:SNWV": {
+  "checked_at": "2026-07-13T19:36:34+00:00",
+  "company": "SANUWAVE Health, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://sanuwave.com"
+ },
+ "NASDAQ:SPCX": {
+  "checked_at": "2026-07-13T19:37:23+00:00",
+  "company": "Space Exploration Technologies Corp.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.spacex.com"
+ },
+ "NASDAQ:STX": {
+  "checked_at": "2026-07-13T19:37:41+00:00",
+  "company": "Seagate Technology Holdings plc",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.seagate.com"
+ },
+ "NASDAQ:SVCO": {
+  "checked_at": "2026-07-13T19:37:28+00:00",
+  "company": "Silvaco Group, Inc.",
+  "feed_titles": [
+   "Silvaco Group, Inc. News Releases",
+   "Silvaco"
+  ],
+  "feeds": [
+   "https://investors.silvaco.com/rss/news-releases.xml",
+   "https://silvaco.com/feed/"
+  ],
+  "source": "discovered",
+  "website": "https://silvaco.com"
+ },
+ "NASDAQ:SYNA": {
+  "checked_at": "2026-07-13T19:37:39+00:00",
+  "company": "Synaptics Incorporated",
+  "feed_titles": [
+   "Synaptics Incorporated News Releases",
+   "Synaptics"
+  ],
+  "feeds": [
+   "https://investor.synaptics.com/rss/news-releases.xml",
+   "https://www.synaptics.com/rss.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.synaptics.com"
+ },
+ "NASDAQ:TER": {
+  "checked_at": "2026-07-13T19:37:26+00:00",
+  "company": "Teradyne, Inc.",
+  "feed_titles": [
+   "Teradyne",
+   "Teradyne"
+  ],
+  "feeds": [
+   "https://www.teradyne.com/feed/",
+   "https://www.teradyne.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.teradyne.com"
+ },
+ "NASDAQ:TLN": {
+  "checked_at": "2026-07-13T19:34:03+00:00",
+  "company": "Talen Energy Corporation",
+  "feed_titles": [
+   "Talen Energy Corporation News Releases"
+  ],
+  "feeds": [
+   "https://ir.talenenergy.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.talenenergy.com"
+ },
+ "NASDAQ:TTMI": {
+  "checked_at": "2026-07-13T19:37:38+00:00",
+  "company": "TTM Technologies, Inc.",
+  "feed_titles": [
+   "TTM Technologies, Inc. (TTMI) Press Releases"
+  ],
+  "feeds": [
+   "https://investors.ttm.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.ttm.com"
+ },
+ "NASDAQ:TTWO": {
+  "checked_at": "2026-07-13T19:34:44+00:00",
+  "company": "Take-Two Interactive Software, Inc.",
+  "feed_titles": [
+   "Take-Two Interactive Software, Inc. News Releases"
+  ],
+  "feeds": [
+   "https://ir.take2games.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.take2games.com"
+ },
+ "NASDAQ:TWIN": {
+  "checked_at": "2026-07-13T19:35:09+00:00",
+  "company": "Twin Disc, Incorporated",
+  "feed_titles": [
+   "Twin Disc, Inc. News Releases",
+   "Twin Disc"
+  ],
+  "feeds": [
+   "https://ir.twindisc.com/rss/news-releases.xml",
+   "https://www.twindisc.com/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.twindisc.com"
+ },
+ "NASDAQ:TWST": {
+  "checked_at": "2026-07-13T19:35:44+00:00",
+  "company": "Twist Bioscience Corporation",
+  "feed_titles": [
+   "Twist Bioscience News Releases"
+  ],
+  "feeds": [
+   "https://investors.twistbioscience.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.twistbioscience.com"
+ },
+ "NASDAQ:TXN": {
+  "checked_at": "2026-07-13T19:37:08+00:00",
+  "company": "Texas Instruments Incorporated",
+  "feed_titles": [
+   "Texas Instruments News Releases"
+  ],
+  "feeds": [
+   "https://investor.ti.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.ti.com"
+ },
+ "NASDAQ:VIAV": {
+  "checked_at": "2026-07-13T19:37:27+00:00",
+  "company": "Viavi Solutions Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.viavisolutions.com"
+ },
+ "NASDAQ:VICR": {
+  "checked_at": "2026-07-13T19:37:49+00:00",
+  "company": "Vicor Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.vicorpower.com"
+ },
+ "NASDAQ:WLDN": {
+  "checked_at": "2026-07-13T19:35:48+00:00",
+  "company": "Willdan Group, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.willdan.com"
+ },
+ "NYSE:APH": {
+  "checked_at": "2026-07-13T19:36:25+00:00",
+  "company": "Amphenol Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.amphenol.com"
+ },
+ "NYSE:BBAI": {
+  "checked_at": "2026-07-13T19:37:31+00:00",
+  "company": "BigBear.ai Holdings, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://bigbear.ai"
+ },
+ "NYSE:BIRK": {
+  "checked_at": "2026-07-13T19:35:24+00:00",
+  "company": "Birkenstock Holding plc",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.birkenstock-holding.com"
+ },
+ "NYSE:CAAP": {
+  "checked_at": "2026-07-13T19:35:24+00:00",
+  "company": "Corporación América Airports S.A.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.caap.aero"
+ },
+ "NYSE:CALX": {
+  "checked_at": "2026-07-13T19:35:12+00:00",
+  "company": "Calix, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.calix.com"
+ },
+ "NYSE:COHR": {
+  "checked_at": "2026-07-13T19:37:22+00:00",
+  "company": "Coherent Corp.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.coherent.com"
+ },
+ "NYSE:CPNG": {
+  "checked_at": "2026-07-13T19:36:40+00:00",
+  "company": "Coupang, Inc.",
+  "feed_titles": [
+   "Coupang, Inc.",
+   "Coupang, Inc."
+  ],
+  "feeds": [
+   "https://www.aboutcoupang.com/feed",
+   "https://www.aboutcoupang.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.aboutcoupang.com"
+ },
+ "NYSE:CRM": {
+  "checked_at": "2026-07-13T19:31:27+00:00",
+  "company": "Salesforce, Inc.",
+  "feed_titles": [
+   "Salesforce"
+  ],
+  "feeds": [
+   "https://www.salesforce.com/news/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.salesforce.com"
+ },
+ "NYSE:DOCN": {
+  "checked_at": "2026-07-13T19:37:24+00:00",
+  "company": "DigitalOcean Holdings, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.digitalocean.com"
+ },
+ "NYSE:FOUR": {
+  "checked_at": "2026-07-13T19:35:53+00:00",
+  "company": "Shift4 Payments, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.shift4.com"
+ },
+ "NYSE:GLW": {
+  "checked_at": "2026-07-13T19:37:14+00:00",
+  "company": "Corning Incorporated",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.corning.com"
+ },
+ "NYSE:GWRE": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "Guidewire Software, Inc.",
+  "feed_titles": [
+   "Guidewire Software, Inc News Releases",
+   "Blog posts | RSS Feed"
+  ],
+  "feeds": [
+   "https://ir.guidewire.com/rss/news-releases.xml",
+   "https://www.guidewire.com/rss.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.guidewire.com"
+ },
+ "NYSE:HBM": {
+  "checked_at": "2026-07-13T19:37:00+00:00",
+  "company": "Hudbay Minerals Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.hudbayminerals.com"
+ },
+ "NYSE:HNGE": {
+  "checked_at": "2026-07-13T19:34:40+00:00",
+  "company": "Hinge Health, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.hingehealth.com"
+ },
+ "NYSE:LHX": {
+  "checked_at": "2026-07-13T19:35:37+00:00",
+  "company": "L3Harris Technologies, Inc.",
+  "feed_titles": [
+   "L3Harris Technologies"
+  ],
+  "feeds": [
+   "https://www.l3harris.com/rss.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.l3harris.com"
+ },
+ "NYSE:LLY": {
+  "checked_at": "2026-07-13T19:35:17+00:00",
+  "company": "Eli Lilly and Company",
+  "feed_titles": [
+   "Eli Lilly and Company News Releases"
+  ],
+  "feeds": [
+   "https://investor.lilly.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.lilly.com"
+ },
+ "NYSE:NOW": {
+  "checked_at": "2026-07-13T19:31:27+00:00",
+  "company": "ServiceNow, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.servicenow.com"
+ },
+ "NYSE:NU": {
+  "checked_at": "2026-07-13T19:35:21+00:00",
+  "company": "Nu Holdings Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://nubank.com.br"
+ },
+ "NYSE:PAC": {
+  "checked_at": "2026-07-13T19:35:59+00:00",
+  "company": "Grupo Aeroportuario del Pacífico, S.A.B. de C.V.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.aeropuertosgap.com.mx"
+ },
+ "NYSE:PAR": {
+  "checked_at": "2026-07-13T19:33:54+00:00",
+  "company": "PAR Technology Corporation",
+  "feed_titles": [
+   "PAR Technology",
+   "PAR Technology"
+  ],
+  "feeds": [
+   "https://partech.com/feed/",
+   "https://www.partech.com/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.partech.com"
+ },
+ "NYSE:PEN": {
+  "checked_at": "2026-07-13T19:34:57+00:00",
+  "company": "Penumbra, Inc.",
+  "feed_titles": [
+   "Penumbra Inc",
+   "Penumbra Inc"
+  ],
+  "feeds": [
+   "https://www.penumbrainc.com/feed",
+   "https://www.penumbrainc.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.penumbrainc.com"
+ },
+ "NYSE:PUMP": {
+  "checked_at": "2026-07-13T19:33:43+00:00",
+  "company": "ProPetro Holding Corp.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.propetroservices.com"
+ },
+ "NYSE:RBRK": {
+  "checked_at": "2026-07-13T19:36:01+00:00",
+  "company": "Rubrik, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.rubrik.com"
+ },
+ "NYSE:RVLV": {
+  "checked_at": "2026-07-13T19:34:31+00:00",
+  "company": "Revolve Group, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.revolve.com"
+ },
+ "NYSE:SE": {
+  "checked_at": "2026-07-13T19:34:39+00:00",
+  "company": "Sea Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.sea.com"
+ },
+ "NYSE:SNOW": {
+  "checked_at": "2026-07-13T19:33:46+00:00",
+  "company": "Snowflake Inc.",
+  "feed_titles": [
+   "",
+   ""
+  ],
+  "feeds": [
+   "https://www.snowflake.com/feed",
+   "https://www.snowflake.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.snowflake.com"
+ },
+ "NYSE:STM": {
+  "checked_at": "2026-07-13T19:37:10+00:00",
+  "company": "STMicroelectronics N.V.",
+  "feed_titles": [
+   "STMicroelectronics News Releases"
+  ],
+  "feeds": [
+   "https://investors.st.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.st.com/content/st_com/en.html"
+ },
+ "NYSE:TBBB": {
+  "checked_at": "2026-07-13T19:35:27+00:00",
+  "company": "BBB Foods Inc.",
+  "feed_titles": [
+   "Tiendas 3b",
+   "Tiendas 3b"
+  ],
+  "feeds": [
+   "https://tiendas3b.com/feed/",
+   "https://tiendas3b.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://tiendas3b.com"
+ },
+ "NYSE:TIC": {
+  "checked_at": "2026-07-13T19:36:58+00:00",
+  "company": "TIC Solutions, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.ticsolutions.com"
+ },
+ "NYSE:U": {
+  "checked_at": "2026-07-13T19:35:29+00:00",
+  "company": "Unity Software Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://unity.com"
+ },
+ "NYSE:VSH": {
+  "checked_at": "2026-07-13T19:37:52+00:00",
+  "company": "Vishay Intertechnology, Inc.",
+  "feed_titles": [
+   "Vishay Intertechnology, Inc. News Releases"
+  ],
+  "feeds": [
+   "https://ir.vishay.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.vishay.com"
+ },
+ "NYSE:VSXY": {
+  "checked_at": "2026-07-13T19:34:48+00:00",
+  "company": "Victorias Secret & Co.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.victoriassecretandco.com"
+ },
+ "NYSE:WOLF": {
+  "checked_at": "2026-07-13T19:37:13+00:00",
+  "company": "Wolfspeed, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.wolfspeed.com"
+ },
+ "NYSE:WSO": {
+  "checked_at": "2026-07-13T19:34:11+00:00",
+  "company": "Watsco, Inc.",
+  "feed_titles": [
+   "Watsco, Inc. News Releases"
+  ],
+  "feeds": [
+   "https://investors.watsco.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.watsco.com"
+ },
+ "OMXSTO:ACCON": {
+  "checked_at": "2026-07-13T19:36:51+00:00",
+  "company": "Acconeer AB (publ)",
+  "feed_titles": [
+   "Acconeer",
+   "Acconeer"
+  ],
+  "feeds": [
+   "https://acconeer.com/feed/",
+   "https://www.acconeer.com/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.acconeer.com"
+ },
+ "OMXSTO:CLAV": {
+  "checked_at": "2026-07-13T19:35:24+00:00",
+  "company": "Clavister Holding AB (publ.)",
+  "feed_titles": [
+   "Clavister",
+   "Clavister"
+  ],
+  "feeds": [
+   "https://www.clavister.com/feed/",
+   "https://www.clavister.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.clavister.com"
+ },
+ "OMXSTO:EQT": {
+  "checked_at": "2026-07-13T19:34:36+00:00",
+  "company": "EQT AB (publ)",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.eqtgroup.com"
+ },
+ "OMXSTO:FREEM": {
+  "checked_at": "2026-07-13T19:37:18+00:00",
+  "company": "Freemelt Holding AB (publ)",
+  "feed_titles": [
+   "Freemelt",
+   "Freemelt"
+  ],
+  "feeds": [
+   "https://www.freemelt.com/feed",
+   "https://www.freemelt.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.freemelt.com"
+ },
+ "OMXSTO:HAYPP": {
+  "checked_at": "2026-07-13T19:36:06+00:00",
+  "company": "Haypp Group AB (publ)",
+  "feed_titles": [
+   "MFN News Items Archive - Haypp Group"
+  ],
+  "feeds": [
+   "https://hayppgroup.com/news/rss"
+  ],
+  "source": "discovered",
+  "website": "https://hayppgroup.com"
+ },
+ "OMXSTO:RVRC": {
+  "checked_at": "2026-07-13T19:34:14+00:00",
+  "company": "RVRC Holding AB (publ)",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://corporate.revolutionrace.com"
+ },
+ "OMXSTO:STIL": {
+  "checked_at": "2026-07-13T19:37:09+00:00",
+  "company": "Stille AB",
+  "feed_titles": [
+   "News Archive - Stille Global",
+   "Stille Global"
+  ],
+  "feeds": [
+   "https://www.stille.se/news/rss",
+   "https://www.stille.se/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.stille.se"
+ },
+ "OMXSTO:SYNSAM": {
+  "checked_at": "2026-07-13T19:34:45+00:00",
+  "company": "Synsam AB (publ)",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.synsamgroup.com"
+ },
+ "OMXSTO:TEQ": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "Teqnion AB (publ)",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.teqnion.se"
+ },
+ "OSL:KIT": {
+  "checked_at": "2026-07-13T19:37:16+00:00",
+  "company": "Kitron ASA",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://kitron.com"
+ },
+ "OSL:NORBT": {
+  "checked_at": "2026-07-13T19:36:32+00:00",
+  "company": "Norbit ASA",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://norbit.com"
+ },
+ "OTC:BUKS": {
+  "checked_at": "2026-07-13T19:33:47+00:00",
+  "company": "Butler National Corporation",
+  "feed_titles": [
+   "Butler National Corporation",
+   "Butler National Corporation"
+  ],
+  "feeds": [
+   "https://butlernational.com/feed/",
+   "https://butlernational.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://butlernational.com"
+ },
+ "OTC:KLNG": {
+  "checked_at": "2026-07-13T19:35:46+00:00",
+  "company": "Koil Energy Solutions, Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.koilenergy.com"
+ },
+ "OTC:MCCRF": {
+  "checked_at": "2026-07-13T19:34:51+00:00",
+  "company": "McCoy Global Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.mccoyglobal.com"
+ },
+ "OTC:NTDOF": {
+  "checked_at": "2026-07-13T19:34:48+00:00",
+  "company": "Nintendo Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.nintendo.co.jp"
+ },
+ "OTC:NTDOY": {
+  "checked_at": "2026-07-13T19:35:42+00:00",
+  "company": "Nintendo Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.nintendo.co.jp"
+ },
+ "OTC:SHECY": {
+  "checked_at": "2026-07-13T19:35:41+00:00",
+  "company": "Shin-Etsu Chemical Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.shinetsu.co.jp"
+ },
+ "OTC:XIACF": {
+  "checked_at": "2026-07-13T19:34:45+00:00",
+  "company": "Xiaomi Corporation",
+  "feed_titles": [
+   "Xiaomi Corporation News Releases"
+  ],
+  "feeds": [
+   "https://ir.mi.com/rss/news-releases.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.mi.com"
+ },
+ "SIX:GALD": {
+  "checked_at": "2026-07-13T19:35:56+00:00",
+  "company": "GALDERMA GROUP N",
+  "feed_titles": [
+   "Galderma News Releases",
+   "Galderma"
+  ],
+  "feeds": [
+   "https://investors.galderma.com/rss/news-releases.xml",
+   "https://www.galderma.com/rss.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.galderma.com"
+ },
+ "SIX:IFCN": {
+  "checked_at": "2026-07-13T19:36:18+00:00",
+  "company": "INFICON Holding AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.inficon.com"
+ },
+ "SIX:VACN": {
+  "checked_at": "2026-07-13T19:35:33+00:00",
+  "company": "VAT Group AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.vatgroup.com"
+ },
+ "SZSE:002916": {
+  "checked_at": "2026-07-13T19:37:55+00:00",
+  "company": "Shennan Circuits Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.scc.com.cn"
+ },
+ "TPEX:2916": {
+  "checked_at": "2026-07-13T19:35:07+00:00",
+  "company": "Munsin Garment Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.munsin.com.tw"
+ },
+ "TPEX:6967": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "Trans-Sun Materials Technology Company Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.trans-sun.com.tw"
+ },
+ "TSE:215A": {
+  "checked_at": "2026-07-13T19:34:44+00:00",
+  "company": "TIMEE INC",
+  "feed_titles": [
+   "ニュース – タイミー",
+   "タイミー"
+  ],
+  "feeds": [
+   "https://corp.timee.co.jp/news/rss",
+   "https://corp.timee.co.jp/feed"
+  ],
+  "source": "discovered",
+  "website": "https://corp.timee.co.jp"
+ },
+ "TSE:2326": {
+  "checked_at": "2026-07-13T19:34:50+00:00",
+  "company": "Digital Arts Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.daj.jp"
+ },
+ "TSE:2802": {
+  "checked_at": "2026-07-13T19:36:21+00:00",
+  "company": "Ajinomoto Co., Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.ajinomoto.co.jp"
+ },
+ "TSE:3445": {
+  "checked_at": "2026-07-13T19:37:09+00:00",
+  "company": "RS Technologies Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.rs-tec.jp"
+ },
+ "TSE:3927": {
+  "checked_at": "2026-07-13T19:35:55+00:00",
+  "company": "Fuva Brain Limited",
+  "feed_titles": [
+   "News",
+   "株式会社フーバーブレイン"
+  ],
+  "feeds": [
+   "https://www.fuva-brain.co.jp/news/rss",
+   "https://www.fuva-brain.co.jp/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.fuva-brain.co.jp"
+ },
+ "TSE:4004": {
+  "checked_at": "2026-07-13T19:37:22+00:00",
+  "company": "Resonac Holdings Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.resonac.com"
+ },
+ "TSE:4062": {
+  "checked_at": "2026-07-13T19:37:56+00:00",
+  "company": "Ibiden Co.,Ltd.",
+  "feed_titles": [
+   "IBIDEN CO.,LTD."
+  ],
+  "feeds": [
+   "https://www.ibiden.com/rss.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.ibiden.com"
+ },
+ "TSE:4975": {
+  "checked_at": "2026-07-13T19:37:03+00:00",
+  "company": "JCU Corporation",
+  "feed_titles": [
+   "ニュース | 株式会社JCU"
+  ],
+  "feeds": [
+   "https://www.jcu-i.com/news/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.jcu-i.com"
+ },
+ "TSE:5706": {
+  "checked_at": "2026-07-13T19:36:48+00:00",
+  "company": "Mitsui Kinzoku Company, Limited",
+  "feed_titles": [
+   "三井金属株式会社",
+   "三井金属株式会社"
+  ],
+  "feeds": [
+   "https://www.mitsui-kinzoku.com/rss.aspx?moduleid=1073&portalid=0&TabModule844=0",
+   "https://www.mitsui-kinzoku.com/rss.aspx?moduleid=859&portalid=0"
+  ],
+  "source": "discovered",
+  "website": "https://www.mitsui-kinzoku.com"
+ },
+ "TSE:6871": {
+  "checked_at": "2026-07-13T19:35:46+00:00",
+  "company": "Micronics Japan Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.mjc.co.jp"
+ },
+ "TSE:6971": {
+  "checked_at": "2026-07-13T19:36:25+00:00",
+  "company": "Kyocera Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://global.kyocera.com"
+ },
+ "TSE:6981": {
+  "checked_at": "2026-07-13T19:37:56+00:00",
+  "company": "Murata Manufacturing Co., Ltd.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.murata.com"
+ },
+ "TSE:7911": {
+  "checked_at": "2026-07-13T19:35:49+00:00",
+  "company": "TOPPAN Holdings Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.holdings.toppan.com"
+ },
+ "TSX:BB": {
+  "checked_at": "2026-07-13T19:36:38+00:00",
+  "company": "BlackBerry Limited",
+  "feed_titles": [
+   "BlackBerry Blog"
+  ],
+  "feeds": [
+   "https://www.blackberry.com/feed.xml"
+  ],
+  "source": "discovered",
+  "website": "https://www.blackberry.com"
+ },
+ "TSX:CPH": {
+  "checked_at": "2026-07-13T19:36:27+00:00",
+  "company": "Cipher Pharmaceuticals Inc.",
+  "feed_titles": [
+   "Cipher Pharmaceuticals Inc.",
+   "Cipher Pharmaceuticals Inc."
+  ],
+  "feeds": [
+   "https://www.cipherpharma.com/feed/",
+   "https://www.cipherpharma.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.cipherpharma.com"
+ },
+ "TSX:CSU": {
+  "checked_at": "2026-07-13T19:31:27+00:00",
+  "company": "Constellation Software Inc.",
+  "feed_titles": [
+   "CSI Software",
+   "CSI Software"
+  ],
+  "feeds": [
+   "https://www.csisoftware.com/feed/",
+   "https://www.csisoftware.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.csisoftware.com"
+ },
+ "TSX:DNG": {
+  "checked_at": "2026-07-13T19:34:28+00:00",
+  "company": "Dynacor Group Inc.",
+  "feed_titles": [
+   "Groupe Dynacor",
+   "Groupe Dynacor"
+  ],
+  "feeds": [
+   "https://dynacor.com/feed/",
+   "https://www.dynacor.com/feed"
+  ],
+  "source": "discovered",
+  "website": "https://www.dynacor.com"
+ },
+ "TSX:FIH.U": {
+  "checked_at": "2026-07-13T19:38:07+00:00",
+  "company": "Fairfax India Holdings Corporation",
+  "feed_titles": [
+   "Fairfax India",
+   "Fairfax India"
+  ],
+  "feeds": [
+   "https://www.fairfaxindia.ca/feed/",
+   "https://www.fairfaxindia.ca/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.fairfaxindia.ca"
+ },
+ "TSX:FTG": {
+  "checked_at": "2026-07-13T19:35:51+00:00",
+  "company": "Firan Technology Group Corporation",
+  "feed_titles": [
+   "Blogs – Firan Technology Group",
+   "Firan Technology Group"
+  ],
+  "feeds": [
+   "https://www.ftgcorp.com/news/rss",
+   "https://www.ftgcorp.com/feed/"
+  ],
+  "source": "discovered",
+  "website": "https://www.ftgcorp.com"
+ },
+ "TSX:IFA": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "iFabric Corp.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.ifabriccorp.com"
+ },
+ "TSX:KSI": {
+  "checked_at": "2026-07-13T19:35:08+00:00",
+  "company": "kneat.com, inc.",
+  "feed_titles": [
+   "Kneat Solutions News Releases",
+   "Kneat"
+  ],
+  "feeds": [
+   "https://investors.kneat.com/rss/news-releases.xml",
+   "https://kneat.com/feed/"
+  ],
+  "source": "discovered",
+  "website": "https://kneat.com"
+ },
+ "TSX:PBH": {
+  "checked_at": "2026-07-13T19:35:02+00:00",
+  "company": "Premium Brands Holdings Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.premiumbrandsholdings.com"
+ },
+ "TSX:PRL": {
+  "checked_at": "2026-07-13T19:35:37+00:00",
+  "company": "Propel Holdings Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.propelholdings.com"
+ },
+ "TSX:VHI": {
+  "checked_at": "2026-07-13T19:33:57+00:00",
+  "company": "Vitalhub Corp.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.vitalhub.com"
+ },
+ "TSXV:BEW": {
+  "checked_at": "2026-07-13T19:35:58+00:00",
+  "company": "BeWhere Holdings Inc.",
+  "feed_titles": [
+   "BeWhere – the evolution of asset tracking",
+   "BeWhere – the evolution of asset tracking"
+  ],
+  "feeds": [
+   "https://bewhere.com/feed/",
+   "https://bewhere.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://bewhere.com"
+ },
+ "TSXV:BLM": {
+  "checked_at": "2026-07-13T19:35:54+00:00",
+  "company": "BluMetric Environmental Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.blumetric.ca"
+ },
+ "TSXV:CTEK": {
+  "checked_at": "2026-07-13T19:35:03+00:00",
+  "company": "Cleantek Industries Inc.",
+  "feed_titles": [
+   "Cleantek Industries",
+   "Cleantek Industries"
+  ],
+  "feeds": [
+   "https://cleantekinc.com/feed/",
+   "https://cleantekinc.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://cleantekinc.com"
+ },
+ "TSXV:LMN": {
+  "checked_at": "2026-07-13T19:35:50+00:00",
+  "company": "Lumine Group Inc.",
+  "feed_titles": [
+   "Lumine",
+   "Lumine"
+  ],
+  "feeds": [
+   "https://www.luminegroup.com/feed",
+   "https://www.luminegroup.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.luminegroup.com"
+ },
+ "TSXV:NURS": {
+  "checked_at": "2026-07-13T19:35:33+00:00",
+  "company": "Hydreight Technologies Inc.",
+  "feed_titles": [
+   "Hydreight",
+   "Hydreight"
+  ],
+  "feeds": [
+   "https://hydreight.com/feed/",
+   "https://hydreight.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://hydreight.com"
+ },
+ "TSXV:PNG": {
+  "checked_at": "2026-07-13T19:36:59+00:00",
+  "company": "Kraken Robotics Inc.",
+  "feed_titles": [
+   "Kraken Robotics",
+   "Kraken Robotics"
+  ],
+  "feeds": [
+   "https://www.krakenrobotics.com/feed/",
+   "https://www.krakenrobotics.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.krakenrobotics.com"
+ },
+ "TSXV:SPRQ": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "SPARQ Systems Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.sparqsys.com"
+ },
+ "TSXV:TOI": {
+  "checked_at": "2026-07-13T19:34:17+00:00",
+  "company": "Topicus.com Inc.",
+  "feed_titles": [
+   "RSS"
+  ],
+  "feeds": [
+   "https://www.topicus.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.topicus.com"
+ },
+ "TSXV:XX": {
+  "checked_at": "2026-07-13T19:34:32+00:00",
+  "company": "Avante Corp.",
+  "feed_titles": [
+   "Avante Corp [XX]",
+   "Avante Corp [XX]"
+  ],
+  "feeds": [
+   "https://www.avantecorp.ca/feed/",
+   "https://www.avantecorp.ca/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.avantecorp.ca"
+ },
+ "TSXV:ZDC": {
+  "checked_at": "2026-07-13T19:37:33+00:00",
+  "company": "Zedcor Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://zedcor.com"
+ },
+ "TWSE:2454": {
+  "checked_at": "2026-07-13T19:36:35+00:00",
+  "company": "MediaTek Inc.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.mediatek.com"
+ },
+ "TWSE:3037": {
+  "checked_at": "2026-07-13T19:33:43+00:00",
+  "company": "Unimicron Technology Corp.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.unimicron.com"
+ },
+ "TWSE:3189": {
+  "checked_at": "2026-07-13T19:33:46+00:00",
+  "company": "Kinsus Interconnect Technology Corp.",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.kinsus.com.tw"
+ },
+ "TWSE:3661": {
+  "checked_at": "2026-07-13T19:36:13+00:00",
+  "company": "Alchip Technologies, Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.alchip.com"
+ },
+ "TWSE:4958": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "Zhen Ding Technology Holding Limited",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.zdtco.com"
+ },
+ "TWSE:8046": {
+  "checked_at": "2026-07-13T19:33:41+00:00",
+  "company": "Nan Ya Printed Circuit Board Corporation",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.nanyapcb.com.tw"
+ },
+ "VIE:ATS": {
+  "checked_at": "2026-07-13T19:36:09+00:00",
+  "company": "AT & S Austria Technologie & Systemtechnik Aktiengesellschaft",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://ats.net"
+ },
+ "XETR:CEK": {
+  "checked_at": "2026-07-13T19:35:11+00:00",
+  "company": "CeoTronics AG",
+  "feed_titles": [
+   "CEOTRONICS AG",
+   "CEOTRONICS AG"
+  ],
+  "feeds": [
+   "https://ceotronics.com/feed/",
+   "https://ceotronics.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://ceotronics.com"
+ },
+ "XETR:CHG": {
+  "checked_at": "2026-07-13T19:33:50+00:00",
+  "company": "CHAPTERS Group AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.chaptersgroup.com"
+ },
+ "XETR:HAG": {
+  "checked_at": "2026-07-13T19:35:52+00:00",
+  "company": "Hensoldt AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.hensoldt.net"
+ },
+ "XETR:HIGH": {
+  "checked_at": "2026-07-13T19:35:22+00:00",
+  "company": "Cantourage Group SE",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.cantourage.com"
+ },
+ "XETR:IFX": {
+  "checked_at": "2026-07-13T19:36:40+00:00",
+  "company": "Infineon Technologies AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.infineon.com"
+ },
+ "XETR:P4O": {
+  "checked_at": "2026-07-13T19:34:00+00:00",
+  "company": "Planoptik AG",
+  "feed_titles": [
+   "PLANOPTIK AG",
+   "PLANOPTIK AG"
+  ],
+  "feeds": [
+   "https://www.planoptik.com/en/feed/",
+   "https://planoptik.com/feed"
+  ],
+  "source": "discovered",
+  "website": "https://planoptik.com"
+ },
+ "XETR:RHM": {
+  "checked_at": "2026-07-13T19:36:00+00:00",
+  "company": "Rheinmetall AG",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.rheinmetall.com"
+ },
+ "XETR:SGL": {
+  "checked_at": "2026-07-13T19:34:00+00:00",
+  "company": "SGL Carbon SE",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.sglcarbon.com"
+ },
+ "XETR:SMHN": {
+  "checked_at": "2026-07-13T19:35:53+00:00",
+  "company": "SUSS MicroTec SE",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.suss.com"
+ },
+ "XETR:SOH1": {
+  "checked_at": "2026-07-13T19:35:01+00:00",
+  "company": "Soitec SA",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://www.soitec.com"
+ },
+ "XETR:XK4": {
+  "checked_at": "2026-07-13T19:35:43+00:00",
+  "company": "Gabler Group AG",
+  "feed_titles": [
+   "GABLER",
+   "GABLER"
+  ],
+  "feeds": [
+   "https://www.gabler-naval.com/feed",
+   "https://www.gabler-naval.com/rss"
+  ],
+  "source": "discovered",
+  "website": "https://www.gabler-naval.com"
+ },
+ "XETR:ZAL": {
+  "checked_at": "2026-07-13T19:34:37+00:00",
+  "company": "Zalando SE",
+  "feed_titles": [],
+  "feeds": [],
+  "source": "discovered",
+  "website": "https://corporate.zalando.com"
+ }
+}

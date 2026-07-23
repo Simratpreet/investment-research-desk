@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice Research</title>
+<style>
+  :root { --bg:#f6f7f9; --panel:#fff; --ink:#1f2328; --muted:#6b7280; --line:#e5e7eb;
+          --accent:#2563eb; --rec:#dc2626; --field:#f9fafb; color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.6 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+         background:var(--bg); color:var(--ink); }
+  .wrap { max-width:760px; margin:0 auto; padding:1.2rem 1rem 4rem; }
+  h1 { font-size:1.3rem; margin:.3rem 0 1rem; }
+  .row { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+  #symbol { flex:1; min-width:10rem; font:inherit; text-transform:uppercase;
+            padding:.6rem .8rem; border:1px solid var(--line); border-radius:10px; background:var(--field); }
+  #rec { border:0; border-radius:12px; padding:.7rem 1.3rem; font:inherit; font-weight:600;
+         color:#fff; background:var(--accent); cursor:pointer; }
+  #rec.recording { background:var(--rec); }
+  #rec:disabled { opacity:.5; cursor:default; }
+  #newConv { border:1px solid var(--line); border-radius:12px; padding:.7rem 1rem; font:inherit;
+             color:var(--muted); background:var(--panel); cursor:pointer; }
+  #newConv:hover { color:var(--ink); border-color:var(--muted); }
+  #qtext { flex:1; min-width:12rem; font:inherit; padding:.6rem .8rem;
+           border:1px solid var(--line); border-radius:10px; background:var(--field); }
+  #askText { border:0; border-radius:12px; padding:.7rem 1.3rem; font:inherit; font-weight:600;
+             color:#fff; background:var(--accent); cursor:pointer; }
+  #askText:disabled { opacity:.5; cursor:default; }
+  .status { color:var(--muted); min-height:1.4em; margin-bottom:1rem; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+          padding:1rem 1.1rem; margin-bottom:1rem; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .card h2 { font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted);
+             margin:0 0 .5rem; }
+  .q { font-weight:600; }
+  .a { white-space:pre-wrap; }
+  audio { width:100%; margin-top:.6rem; }
+  .sources { color:var(--muted); font-size:.8rem; margin-top:.5rem; word-break:break-word; }
+  .entry { margin-bottom:1.4rem; }
+  .entry + .entry, #log > .entry ~ .entry { border-top:1px dashed var(--line); padding-top:1.1rem; }
+  .hint { color:var(--muted); font-size:.85rem; }
+</style></head>
+<body>
+<div class="wrap">
+  <h1>🎙️ Voice Research</h1>
+  <div class="row">
+    <input id="symbol" placeholder="Symbol (e.g. 544518 or VENUSPIPES)" autocomplete="off">
+    <button id="rec">🎙️ Ask a question</button>
+    <button id="newConv" title="Clear conversation memory">🔄 New conversation</button>
+  </div>
+  <div class="row">
+    <input id="qtext" placeholder="…or type your question, then Enter / Ask" autocomplete="off">
+    <button id="askText">Ask (text)</button>
+  </div>
+  <div class="status" id="status">Enter a symbol, then click <b>Ask a question</b>, speak, and click <b>Stop &amp; send</b>.</div>
+
+  <div id="log"></div>
+  <p class="hint">Reasoning: Gemini 3.1 Pro (high) over local filings · Speech: GPT-4o Transcribe · Voice: Gemini 3.1 TTS</p>
+</div>
+
+<script>
+const recBtn = document.getElementById("rec");
+const statusEl = document.getElementById("status");
+const symbolEl = document.getElementById("symbol");
+let mediaRecorder, chunks = [], stream;
+
+// Multi-turn memory: prior Q&A for the current symbol, sent back each request.
+let history = [];
+let historySymbol = null;
+
+function setStatus(t) { statusEl.textContent = t; }
+
+function resetHistory(sym) {
+  history = [];
+  historySymbol = sym || null;
+}
+
+// Explicit "New conversation" — clear memory but keep the symbol.
+document.getElementById("newConv").addEventListener("click", () => {
+  resetHistory(symbolEl.value.trim().toUpperCase());
+  document.getElementById("log").innerHTML = "";
+  setStatus("New conversation — ask your first question.");
+});
+
+// Append a Q&A entry to the log (newest on top); each keeps its own audio.
+function addEntry(j) {
+  const el = document.createElement("div");
+  el.className = "entry";
+  const q = document.createElement("div"); q.className = "card";
+  const qh = document.createElement("h2"); qh.textContent = "You asked · " + j.symbol;
+  const qt = document.createElement("div"); qt.className = "q"; qt.textContent = j.question;
+  q.append(qh, qt);
+  const a = document.createElement("div"); a.className = "card";
+  const ah = document.createElement("h2"); ah.textContent = "Answer";
+  const at = document.createElement("div"); at.className = "a"; at.textContent = j.answer;
+  const player = document.createElement("audio"); player.controls = true; player.src = j.audio;
+  const src = document.createElement("div"); src.className = "sources";
+  src.textContent = "Sources: " + (j.sources || []).join(", ");
+  a.append(ah, at, player, src);
+  el.append(q, a);
+  const log = document.getElementById("log");
+  log.prepend(el);
+  player.play().catch(() => {});
+}
+
+let recording = false;
+
+async function startRec() {
+  const symbol = symbolEl.value.trim();
+  if (!symbol) { setStatus("Enter a symbol first."); return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) { setStatus("Mic permission denied — allow the microphone and try again."); return; }
+  chunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); send(); };
+  mediaRecorder.start();
+  recording = true;
+  recBtn.classList.add("recording");
+  recBtn.textContent = "⏹ Stop & send";
+  setStatus("🔴 Recording… speak your question, then click Stop & send.");
+}
+
+function stopRec() {
+  if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  recording = false;
+  recBtn.classList.remove("recording");
+  recBtn.textContent = "🎙️ Ask a question";
+}
+
+// One button: click to start recording, click again to stop and send.
+recBtn.addEventListener("click", () => {
+  if (recording) stopRec();
+  else startRec();
+});
+
+const textBtn = document.getElementById("askText");
+const qtextEl = document.getElementById("qtext");
+
+// Shared submit for both audio and typed questions.
+async function submit(fd) {
+  const symbol = symbolEl.value.trim();
+  if (!symbol) { setStatus("Enter a symbol first."); return; }
+  // A genuinely different symbol at ask-time starts a fresh conversation.
+  const sym = symbol.toUpperCase();
+  if (sym !== historySymbol) resetHistory(sym);
+  fd.append("symbol", symbol);
+  fd.append("history", JSON.stringify(history));
+  recBtn.disabled = textBtn.disabled = true;
+  setStatus("Reasoning over the filings and generating audio… (can take up to ~1 min)");
+  try {
+    const r = await fetch("/api/voice/ask", { method: "POST", body: fd });
+    const j = await r.json();
+    if (!r.ok) { setStatus("✗ " + (j.error || r.status)); return; }
+    // Record the turn so the next question can reference it.
+    history.push({ role: "user", content: j.question });
+    history.push({ role: "assistant", content: j.answer });
+    addEntry(j);
+    setStatus("Done ✓ — ask a follow-up, or start a New conversation.");
+  } catch (e) { setStatus("✗ " + e.message); }
+  finally { recBtn.disabled = textBtn.disabled = false; }
+}
+
+function send() {
+  const blob = new Blob(chunks, { type: "audio/webm" });
+  if (blob.size < 1200) { setStatus("Too short — hold a bit longer."); return; }
+  const fd = new FormData();
+  fd.append("audio", blob, "q.webm");
+  submit(fd);
+}
+
+function sendText() {
+  const q = qtextEl.value.trim();
+  if (!q) { setStatus("Type a question first."); return; }
+  const fd = new FormData();
+  fd.append("text", q);
+  qtextEl.value = "";
+  submit(fd);
+}
+
+textBtn.addEventListener("click", sendText);
+qtextEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendText(); }
+});
+</script>
+</body></html>

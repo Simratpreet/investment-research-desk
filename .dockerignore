@@ -1,0 +1,29 @@
+# Secrets must never enter the image (build args / env vars supply them at runtime)
+.env
+.env.*
+screener_alerts/cookie.txt
+*.pem
+*.key
+
+# Runtime state lives on a mounted volume, not baked in
+alert_log.json
+news_alerts/news_store.json
+news_alerts/data/names_cache.json
+screener_alerts/announcements_store.json
+screener_alerts/annual_reports_seen.json
+screener_alerts/seen.json
+
+# Duplicate/staging tree
+.fixed-staging/
+
+# Dev-only cruft
+.git/
+.gitignore
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.DS_Store
+.claude/
+HANDOFF.md

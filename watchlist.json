@@ -1,0 +1,3354 @@
+[
+  {
+    "ticker": "XX",
+    "exchange": "TSXV",
+    "company": "Avante Corp.",
+    "notes": "",
+    "added_date": "2026-03-29T10:42:29.599486+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CTEK",
+    "exchange": "TSXV",
+    "company": "Cleantek Industries Inc.",
+    "notes": "",
+    "added_date": "2026-03-29T10:42:51.935910+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "KIT",
+    "exchange": "OSL",
+    "company": "Kitron ASA",
+    "notes": "",
+    "added_date": "2026-03-29T10:45:02.056695+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CPH",
+    "exchange": "TSX",
+    "company": "Cipher Pharmaceuticals Inc.",
+    "notes": "",
+    "added_date": "2026-03-29T10:45:20.333193+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "INOXINDIA",
+    "exchange": "NSE",
+    "company": "INOX India Limited",
+    "notes": "",
+    "added_date": "2026-03-29T17:31:33.337138+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "FTG",
+    "exchange": "TSX",
+    "company": "Firan Technology Group Corporation",
+    "notes": "",
+    "added_date": "2026-03-29T17:32:24.732845+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "COV",
+    "exchange": "TSXV",
+    "company": "Covalon Technologies Ltd.",
+    "notes": "",
+    "added_date": "2026-03-29T17:32:32.466934+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SRT",
+    "exchange": "AIM",
+    "company": "SRT Marine Systems plc",
+    "notes": "",
+    "added_date": "2026-03-29T17:32:42.247451+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "RELY",
+    "exchange": "NASDAQ",
+    "company": "Remitly Global, Inc.",
+    "notes": "",
+    "added_date": "2026-03-30T07:55:13.266561+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ASTS",
+    "exchange": "NASDAQ",
+    "company": "AST SpaceMobile, Inc.",
+    "notes": "",
+    "added_date": "2026-03-30T07:55:29.967171+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ISSC",
+    "exchange": "NASDAQ",
+    "company": "Innovative Aerosystems, Inc.",
+    "notes": "",
+    "added_date": "2026-03-30T08:05:50.801362+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BUKS",
+    "exchange": "NASDAQ",
+    "company": "Butler National Corporation",
+    "notes": "",
+    "added_date": "2026-03-30T08:05:54.521770+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ETON",
+    "exchange": "NASDAQ",
+    "company": "Eton Pharmaceuticals, Inc.",
+    "notes": "",
+    "added_date": "2026-04-08T16:05:28.637496+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "VENUSPIPES",
+    "exchange": "NSE",
+    "company": "Venus Pipes and Tubes Limited",
+    "notes": "",
+    "added_date": "2026-04-10T07:19:34.155993+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SCODATUBES",
+    "exchange": "NSE",
+    "company": "Scoda Tubes Limited",
+    "notes": "",
+    "added_date": "2026-04-10T07:19:39.274329+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SOI",
+    "exchange": "ENXTPA",
+    "company": "Soitec SA",
+    "notes": "",
+    "added_date": "2026-04-15T06:43:24.640520+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "IDR",
+    "exchange": "BME",
+    "company": "Indra Sistemas, S.A.",
+    "notes": "",
+    "added_date": "2026-04-19T18:01:01.533803+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AIXA",
+    "exchange": "XETR",
+    "company": "AIXTRON SE",
+    "notes": "",
+    "added_date": "2026-04-19T18:26:53.332903+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DNG",
+    "exchange": "TSX",
+    "company": "Dynacor Group Inc.",
+    "notes": "",
+    "added_date": "2026-04-19T18:27:21.614736+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NTDOY",
+    "exchange": "NASDAQ",
+    "company": "Nintendo Co., Ltd.",
+    "notes": "",
+    "added_date": "2026-04-19T18:27:37.559771+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "2454",
+    "exchange": "TWSE",
+    "company": "MediaTek Inc.",
+    "notes": "",
+    "added_date": "2026-04-19T18:29:01.275685+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CLAV",
+    "exchange": "OMXSTO",
+    "company": "Clavister Holding AB (publ.)",
+    "notes": "",
+    "added_date": "2026-04-19T19:38:55.212248+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "LUMAXTECH",
+    "exchange": "NSE",
+    "company": "Lumax Auto Technologies Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:12:01.659251+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SANSERA",
+    "exchange": "NSE",
+    "company": "Sansera Engineering Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:12:08.172568+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SHRIPISTON",
+    "exchange": "NSE",
+    "company": "SPR Auto Technologies Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:12:21.884168+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ACUTAAS",
+    "exchange": "NSE",
+    "company": "Acutaas Chemicals Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:12:25.778903+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "UJJIVANSFB",
+    "exchange": "NSE",
+    "company": "Ujjivan Small Finance Bank Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:12:38.045311+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "UNIVCABLES",
+    "exchange": "NSE",
+    "company": "Universal Cables Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:13:01.892652+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "UFBL",
+    "exchange": "NSE",
+    "company": "UNITED FOODBRANDS LIMITED",
+    "notes": "",
+    "added_date": "2026-04-20T08:13:15.105702+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NAM-INDIA",
+    "exchange": "NSE",
+    "company": "Nippon Life India Asset Management Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:13:24.244705+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SAMBHV",
+    "exchange": "NSE",
+    "company": "SAMBHV STEEL TUBES LTD",
+    "notes": "",
+    "added_date": "2026-04-20T08:13:28.970035+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NH",
+    "exchange": "NSE",
+    "company": "Narayana Hrudayalaya Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:33:08.646931+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SHRIRAMPPS",
+    "exchange": "NSE",
+    "company": "Shriram Properties Limited",
+    "notes": "",
+    "added_date": "2026-04-20T08:50:00.827843+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "LPK",
+    "exchange": "XETR",
+    "company": "LPKF Laser & Electronics SE",
+    "notes": "",
+    "added_date": "2026-04-28T07:45:23.363513+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "IFX",
+    "exchange": "XETR",
+    "company": "Infineon Technologies AG",
+    "notes": "",
+    "added_date": "2026-04-28T07:45:33.977279+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "STM",
+    "exchange": "NYSE",
+    "company": "STMicroelectronics N.V.",
+    "notes": "",
+    "added_date": "2026-04-28T07:45:41.343536+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ON",
+    "exchange": "NYSE",
+    "company": "ON Semiconductor Corporation",
+    "notes": "",
+    "added_date": "2026-04-28T07:45:47.995828+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ADTN",
+    "exchange": "NASDAQ",
+    "company": "ADTRAN Holdings, Inc.",
+    "notes": "",
+    "added_date": "2026-05-06T07:20:22.370455+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SLAB",
+    "exchange": "NASDAQ",
+    "company": "Silicon Laboratories Inc.",
+    "notes": "",
+    "added_date": "2026-05-06T07:27:23.069787+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "VIAV",
+    "exchange": "NASDAQ",
+    "company": "Viavi Solutions Inc.",
+    "notes": "",
+    "added_date": "2026-05-06T07:28:10.066786+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SYNA",
+    "exchange": "NASDAQ",
+    "company": "Synaptics Incorporated",
+    "notes": "",
+    "added_date": "2026-05-06T07:33:24.193849+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "RFIL",
+    "exchange": "NASDAQ",
+    "company": "RF Industries, Ltd.",
+    "notes": "",
+    "added_date": "2026-05-06T07:47:45.913623+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "HIMX",
+    "exchange": "NASDAQ",
+    "company": "Himax Technologies, Inc.",
+    "notes": "",
+    "added_date": "2026-05-06T07:57:02.084899+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TXN",
+    "exchange": "NASDAQ",
+    "company": "Texas Instruments Incorporated",
+    "notes": "",
+    "added_date": "2026-05-06T08:17:56.614388+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SIS",
+    "exchange": "TSX",
+    "company": "Savaria Corporation",
+    "notes": "",
+    "added_date": "2026-05-06T08:25:49.825490+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "GRID",
+    "exchange": "TSX",
+    "company": "Tantalus Systems Holding Inc.",
+    "notes": "",
+    "added_date": "2026-05-06T08:29:46.723687+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "EXENS",
+    "exchange": "ENXTPA",
+    "company": "Exosens",
+    "notes": "",
+    "added_date": "2026-05-06T14:14:56.775218+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "GHH",
+    "exchange": "AIM",
+    "company": "Gooch & Housego PLC",
+    "notes": "",
+    "added_date": "2026-05-06T14:21:43.122671+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "CRW",
+    "exchange": "AIM",
+    "company": "Craneware plc",
+    "notes": "",
+    "added_date": "2026-05-06T14:21:48.263746+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "GRAB",
+    "exchange": "NASDAQ",
+    "company": "Grab Holdings Limited",
+    "notes": "",
+    "added_date": "2026-05-09T09:10:28.019014+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "UBER",
+    "exchange": "NASDAQ",
+    "company": "Uber Technologies, Inc.",
+    "notes": "",
+    "added_date": "2026-05-09T09:10:32.504068+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SPSY",
+    "exchange": "LSE",
+    "company": "Spectra Systems Corporation",
+    "notes": "",
+    "added_date": "2026-05-10T15:36:00.854052+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "KSPI",
+    "exchange": "NASDAQ",
+    "company": "Joint Stock Company Kaspi.kz",
+    "notes": "",
+    "added_date": "2026-05-10T15:36:14.197175+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PRL",
+    "exchange": "TSX",
+    "company": "Propel Holdings Inc.",
+    "notes": "",
+    "added_date": "2026-05-10T15:59:06.703833+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "KPG",
+    "exchange": "ASX",
+    "company": "Kelly Partners Group Holdings Limited",
+    "notes": "",
+    "added_date": "2026-05-10T16:11:00.478727+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PWH",
+    "exchange": "ASX",
+    "company": "PWR Holdings Limited",
+    "notes": "",
+    "added_date": "2026-05-25T10:00:39.136060+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CUP",
+    "exchange": "ASX",
+    "company": "Count Limited",
+    "notes": "",
+    "added_date": "2026-05-25T10:00:43.005103+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "HURC",
+    "exchange": "NASDAQ",
+    "company": "Hurco Companies, Inc.",
+    "notes": "",
+    "added_date": "2026-06-18T19:19:40.181549+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "XK4",
+    "exchange": "XETR",
+    "company": "Gabler Group AG",
+    "notes": "",
+    "added_date": "2026-06-18T19:20:02.558996+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TPE",
+    "exchange": "XETR",
+    "company": "PVA TePla AG",
+    "notes": "",
+    "added_date": "2026-06-18T19:20:32.980157+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "WLDN",
+    "exchange": "NYSE",
+    "company": "Willdan Group, Inc.",
+    "notes": "",
+    "added_date": "2026-06-18T19:20:44.599532+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ASYS",
+    "exchange": "NASDAQ",
+    "company": "Amtech Systems, Inc.",
+    "notes": "",
+    "added_date": "2026-06-18T19:20:53.407483+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "HNGE",
+    "exchange": "NYSE",
+    "company": "Hinge Health, Inc.",
+    "notes": "",
+    "added_date": "2026-06-18T19:20:59.358490+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "GWRE",
+    "exchange": "NYSE",
+    "company": "Guidewire Software, Inc.",
+    "notes": "",
+    "added_date": "2026-06-18T19:22:24.621245+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "U",
+    "exchange": "NASDAQ",
+    "company": "Unity Software Inc.",
+    "notes": "",
+    "added_date": "2026-06-18T19:22:31.660953+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "APP",
+    "exchange": "NASDAQ",
+    "company": "AppLovin Corporation",
+    "notes": "",
+    "added_date": "2026-06-18T19:23:37.110715+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AVAV",
+    "exchange": "NASDAQ",
+    "company": "AeroVironment, Inc.",
+    "notes": "",
+    "added_date": "2026-06-18T19:24:02.503910+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BIRK",
+    "exchange": "NYSE",
+    "company": "Birkenstock Holding plc",
+    "notes": "",
+    "added_date": "2026-06-18T19:24:16.525210+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SE",
+    "exchange": "NYSE",
+    "company": "Sea Limited",
+    "notes": "",
+    "added_date": "2026-06-18T19:24:50.562381+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CSU",
+    "exchange": "TSX",
+    "company": "Constellation Software Inc.",
+    "notes": "",
+    "added_date": "2026-06-18T19:25:18.655781+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "VSH",
+    "exchange": "NYSE",
+    "company": "Vishay Intertechnology, Inc.",
+    "notes": "",
+    "added_date": "2026-06-29T21:32:04.112307+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "IFA",
+    "exchange": "TSX",
+    "company": "iFabric Corp.",
+    "notes": "",
+    "added_date": "2026-06-29T21:32:13.657592+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CLPT",
+    "exchange": "NASDAQ",
+    "company": "ClearPoint Neuro, Inc.",
+    "notes": "",
+    "added_date": "2026-06-29T21:32:20.522025+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "QURE",
+    "exchange": "NASDAQ",
+    "company": "uniQure N.V.",
+    "notes": "",
+    "added_date": "2026-06-29T21:32:23.515982+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PNG",
+    "exchange": "TSXV",
+    "company": "Kraken Robotics Inc.",
+    "notes": "",
+    "added_date": "2026-06-30T07:30:50.765303+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "3BBLACKBIO",
+    "exchange": "NSE",
+    "company": "3B Blackbio Dx Limited",
+    "notes": "",
+    "added_date": "2026-07-04T07:48:52.832876+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CROX",
+    "exchange": "NASDAQ",
+    "company": "Crocs, Inc.",
+    "notes": "",
+    "added_date": "2026-07-04T20:20:20.710626+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DLO",
+    "exchange": "NASDAQ",
+    "company": "DLocal Limited",
+    "notes": "",
+    "added_date": "2026-07-08T15:05:31.755296+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NXT",
+    "exchange": "NASDAQ",
+    "company": "Nextpower Inc.",
+    "notes": "",
+    "added_date": "2026-07-08T15:05:39.865222+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "FLYW",
+    "exchange": "NASDAQ",
+    "company": "Flywire Corporation",
+    "notes": "",
+    "added_date": "2026-07-08T15:05:49.137977+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "V",
+    "exchange": "NASDAQ",
+    "company": "Visa Inc.",
+    "notes": "",
+    "added_date": "2026-07-08T15:06:03.054059+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SIF",
+    "exchange": "NYSE",
+    "company": "SIFCO Industries, Inc.",
+    "notes": "",
+    "added_date": "2026-07-08T15:06:31.219150+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NORBT",
+    "exchange": "OSL",
+    "company": "Norbit ASA",
+    "notes": "",
+    "added_date": "2026-07-08T15:06:44.005084+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CAT",
+    "exchange": "ASX",
+    "company": "Catapult Sports Ltd",
+    "notes": "",
+    "added_date": "2026-07-08T15:07:19.878872+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BKTI",
+    "exchange": "NYSE",
+    "company": "BK Technologies Corporation",
+    "notes": "",
+    "added_date": "2026-07-08T15:07:31.452240+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AXON",
+    "exchange": "NASDAQ",
+    "company": "Axon Enterprise, Inc.",
+    "notes": "",
+    "added_date": "2026-07-08T15:07:38.027780+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "MELI",
+    "exchange": "NASDAQ",
+    "company": "MercadoLibre, Inc.",
+    "notes": "",
+    "added_date": "2026-07-08T15:08:07.622487+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "RBRK",
+    "exchange": "NASDAQ",
+    "company": "Rubrik, Inc.",
+    "notes": "",
+    "added_date": "2026-07-08T15:08:32.047434+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "FEVR",
+    "exchange": "AIM",
+    "company": "Fevertree Drinks PLC",
+    "notes": "",
+    "added_date": "2026-07-11T08:03:29.200677+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "4958",
+    "exchange": "TWSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "6967",
+    "exchange": "TPEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "SPRQ",
+    "exchange": "TSXV",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "0R1E",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "8046",
+    "exchange": "TWSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "CRM",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TEQ",
+    "exchange": "OMXSTO",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "WOSG",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "GTLB",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DR0",
+    "exchange": "GETTEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TEA",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NOW",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PUMP",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "3037",
+    "exchange": "TWSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "ADBE",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SNOW",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "3189",
+    "exchange": "TWSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "CHG",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CLBT",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SQZ",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "PAR",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "KEQU",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "ELMD",
+    "exchange": "AMEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "COCO",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "VHI",
+    "exchange": "TSX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "MSFT",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "EQUI",
+    "exchange": "MIL",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "P4O",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SGL",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DXCM",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TLN",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SHA",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "1INN",
+    "exchange": "GETTEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "AMZN",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "WSO",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "AT.",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "RVRC",
+    "exchange": "OMXSTO",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "FROG",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TOI",
+    "exchange": "TSXV",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DEZ",
+    "exchange": "GETTEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NFLX",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "RVLV",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BFT",
+    "exchange": "GPW",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ADB",
+    "exchange": "MIL",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "EQT",
+    "exchange": "OMXSTO",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ZAL",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BVS",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "215A",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TTWO",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "0ACC",
+    "exchange": "LSIN",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "XIACF",
+    "exchange": "OTC",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "MLAS3",
+    "exchange": "BMFBOVESPA",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SYNSAM",
+    "exchange": "OMXSTO",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "GRG",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "VSXY",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NTDOF",
+    "exchange": "OTC",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "2326",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "MCCRF",
+    "exchange": "OTC",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "WISE",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BSY",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DSCV",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "RAVE",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PEN",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SOH1",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PBH",
+    "exchange": "TSX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PUIG",
+    "exchange": "BME",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SKO",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "2916",
+    "exchange": "TPEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "KSI",
+    "exchange": "TSX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "QTX",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TUN",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TWIN",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "GLBE",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "WBC",
+    "exchange": "JSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CEK",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PHN",
+    "exchange": "MIL",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "CALX",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "0OHC",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "LLY",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "SCS",
+    "exchange": "HOSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SHO",
+    "exchange": "GPW",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NU",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ADYEN",
+    "exchange": "EURONEXT",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "HIGH",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BOLSA/A",
+    "exchange": "BMV",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CAAP",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "LFCR",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TBBB",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SLP",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "VACN",
+    "exchange": "SIX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NURS",
+    "exchange": "TSXV",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NPCE",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "GOOGL",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "VGO",
+    "exchange": "GPW",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "LHX",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SHECY",
+    "exchange": "OTC",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TWST",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SPM",
+    "exchange": "MIL",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DRO",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "KLNG",
+    "exchange": "OTC",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "6871",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "DNP",
+    "exchange": "GPW",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AHC",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "7911",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "LMN",
+    "exchange": "TSXV",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CDNS",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "HAG",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SMHN",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ALWEC",
+    "exchange": "EURONEXT",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "FOUR",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BLM",
+    "exchange": "TSXV",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "META",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "3927",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "GALD",
+    "exchange": "SIX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BEW",
+    "exchange": "TSXV",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PAC",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "RHM",
+    "exchange": "XETR",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "EOL",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "UNI",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "MRX",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "1LPK",
+    "exchange": "MIL",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "HAYPP",
+    "exchange": "OMXSTO",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "0HA9",
+    "exchange": "LSIN",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "6618",
+    "exchange": "HKEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "KMR",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ATS",
+    "exchange": "VIE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "OMAB",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SNPS",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "HUB",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "R3NK",
+    "exchange": "GETTEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BKNG",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SGLN",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "3661",
+    "exchange": "TWSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "GSJ",
+    "exchange": "BME",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AOUT",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SPZ",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "IFCN",
+    "exchange": "SIX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "1357",
+    "exchange": "HKEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "WTC",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "2802",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "ACE",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "APH",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "6971",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "ABNB",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "PENG",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CDA",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "REAX",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SNWV",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SRG",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "QCOM",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CHRT",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "LBW",
+    "exchange": "GPW",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BB",
+    "exchange": "TSX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "CPNG",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DUR",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BLG",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "LNSR",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AD8",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "042660",
+    "exchange": "KRX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "FIH.U",
+    "exchange": "TSX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ONDS",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "5706",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "IESC",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "ACCON",
+    "exchange": "OMXSTO",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "NVDA",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SMTC",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "KTOS",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TAVHL",
+    "exchange": "BIST",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "9CN",
+    "exchange": "GETTEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "EQX",
+    "exchange": "AMEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TIC",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "HBM",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "LDB",
+    "exchange": "MIL",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "4975",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "ELS",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SDR",
+    "exchange": "ASX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AMD",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AIRO",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "3445",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "STIL",
+    "exchange": "OMXSTO",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "WOLF",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "GLW",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "LITE",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "FREEM",
+    "exchange": "OMXSTO",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AMAT",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "MU",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "COHR",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "4004",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "LHL",
+    "exchange": "GETTEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SPCX",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "DOCN",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "MKSI",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TER",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "0GSS",
+    "exchange": "LSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "SVCO",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BBAI",
+    "exchange": "NYSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "353200",
+    "exchange": "KRX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "ZDC",
+    "exchange": "TSXV",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "TTMI",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "BWAY",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "STX",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "GLXY",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "222080",
+    "exchange": "KRX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "FTAI",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AMKR",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "VICR",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "INTC",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "011790",
+    "exchange": "KRX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "OX0",
+    "exchange": "FWB",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "002916",
+    "exchange": "SZSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "4062",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "6981",
+    "exchange": "TSE",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "ARM",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "AAOI",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "RMBS",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "011070",
+    "exchange": "KRX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "KCN",
+    "exchange": "GETTEX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "SNDK",
+    "exchange": "NASDAQ",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  },
+  {
+    "ticker": "009150",
+    "exchange": "KRX",
+    "company": "",
+    "notes": "",
+    "added_date": "2026-07-20T18:30:42.057099+00:00",
+    "track": [
+      "news"
+    ]
+  },
+  {
+    "ticker": "MAMATA",
+    "exchange": "NSE",
+    "company": "MAMATA MACHINERY LIMITED",
+    "notes": "",
+    "added_date": "2026-07-21T13:13:35.846714+00:00",
+    "track": [
+      "news",
+      "ta"
+    ]
+  }
+]

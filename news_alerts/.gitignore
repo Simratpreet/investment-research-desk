@@ -1,0 +1,6 @@
+.env
+data/
+logs/
+__pycache__/
+news_store.json
+news_store.json.tmp
