@@ -13,6 +13,15 @@ news_alerts/data/names_cache.json
 screener_alerts/announcements_store.json
 screener_alerts/annual_reports_seen.json
 screener_alerts/seen.json
+screener_alerts/pending.json
+
+# ─── Generated report/log artifacts (append-only, multi-MB) ───────────────
+news_alerts/reports.md
+news_alerts/reports2.md
+news_alerts/logs/
+screener_alerts/digest.md
+screener_alerts/annual_reports_digest.md
+*.log
 
 # ─── Duplicate/staging tree — pending review verdict on which is canonical ─
 .fixed-staging/
