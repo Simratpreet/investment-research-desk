@@ -13,6 +13,15 @@ container host with HTTPS. Voice context should come from S3 bucket
   History clears ONLY on: page refresh, "🔄 New conversation" button, or a genuinely
   different symbol at ask-time (checked in `send()`, not on keystroke).
 
+## ⚠️ READ `CODE-REVIEW.md` FIRST
+A full pre-deploy review (security/correctness/structure) is in `CODE-REVIEW.md`.
+It has TIER-0 deploy blockers (no auth; `rmtree` path traversal that deletes the whole
+app; stored XSS on /share; secrets to rotate). Do those before the migration steps below.
+
+## Done since original handoff
+- `git init` + `.gitignore` + `.dockerignore` + `.env.example` (secrets/state/artifacts
+  excluded and verified). `.fixed-staging` duplicate deleted. `reports*.md` (3MB) removed.
+
 ## TODO (next steps, in order)
 1. **`load_context()` → read from S3**, not local `CONTEXT_DIRS`.
    - Bucket `simrat-company-docs` EXISTS, region us-east-1, but is **EMPTY**.
