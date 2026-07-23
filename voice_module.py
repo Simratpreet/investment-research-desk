@@ -122,8 +122,37 @@ REASON_MODEL = REASON_MODELS[0]["id"]   # default when none is chosen
 TTS_MODEL = "google/gemini-3.1-flash-tts-preview"
 TTS_VOICE = "Charon"          # steady "informative" narrator
 TTS_PCM_RATE = 24000
-TTS_CHAR_LIMIT = 1000         # ~85s/chunk — safely under Gemini TTS's ~120s cap
+# Measured, not estimated: this voice speaks ~17.5 chars/sec (calibrated by
+# synthesizing 400/700/1000-char samples and dividing PCM bytes by 48000 B/s).
+# A single generation loses prosody past roughly a minute, so cap each chunk
+# near 50s and leave margin for the rate varying with content.
+TTS_CHARS_PER_SEC = 17.5
+TTS_CHAR_LIMIT = 880          # ~50s/chunk (the ~120s API cap is ~2100 chars)
 TTS_WORKERS = 6              # synthesize answer chunks in parallel
+
+# Every chunk is a separate, stateless generation: the model re-derives pitch,
+# pace and register from scratch each time, which is what makes joins audible.
+# Sending identical direction with each chunk anchors those choices so the
+# pieces match. Verified against the endpoint — the direction is obeyed, not
+# read aloud. Deliberately avoids "unhurried"/"slow"/"no rush", which measurably
+# drag the pace; the goal is consistency, not languor.
+TTS_DIRECTION = (
+    "Synthesize speech for the performance defined below. "
+    "Speak ONLY the lines under #### TRANSCRIPT.\n\n"
+    "### PERFORMANCE\n"
+    "A measured equity analyst briefing a client at a normal conversational pace. "
+    "Warm and sincere, clear and matter-of-fact. Hold the same pitch centre, "
+    "energy and tempo from the first word to the last.\n\n"
+    "#### TRANSCRIPT\n"
+)
+
+# Seam treatment: trim each generation's own lead-in/tail silence, fade the cut
+# edges so the splice can't click, and insert one fixed pause between pieces.
+# Chunks break at sentence ends, so a pause is what belongs there anyway.
+TTS_JOIN_PAUSE_MS = 160
+TTS_FADE_MS = 12
+TTS_SILENCE_FLOOR = 0.006     # fraction of full scale counted as silence
+TTS_EDGE_PAD_MS = 25          # keep this much silence either side of speech
 MAX_CONTEXT_CHARS = 800_000   # generous; gemini-3.6-flash has a 1M-token window
 MAX_TYPED_CHARS = 2000        # a typed question longer than this is abuse, not a question
 TTS_RETRIES = 3               # attempts per chunk before giving up on that chunk
@@ -452,24 +481,75 @@ def reason(question: str, context: str, symbol: str, history=None, model=None) -
 
 
 def _chunk(text: str, limit: int):
-    parts = re.split(r"(?<=[.!?])\s+|\n+", text)
+    """Split into synthesis-sized pieces, preferring a paragraph break to a
+    mid-paragraph one. Greedy packing to exactly `limit` puts the cut wherever
+    the character count happens to land; ending a chunk where the writing
+    already ends puts the unavoidable pause where a pause belongs."""
     chunks, cur = [], ""
-    for p in parts:
-        if not p:
+
+    def flush():
+        nonlocal cur
+        if cur:
+            chunks.append(cur)
+            cur = ""
+
+    for para in re.split(r"\n\s*\n", text):
+        para = para.strip()
+        if not para:
             continue
-        while len(p) > limit:
-            if cur:
-                chunks.append(cur); cur = ""
-            chunks.append(p[:limit]); p = p[limit:]
-        if len(cur) + len(p) + 1 <= limit:
-            cur = f"{cur} {p}".strip()
-        else:
-            if cur:
-                chunks.append(cur)
-            cur = p
-    if cur:
-        chunks.append(cur)
+        for sent in [s for s in re.split(r"(?<=[.!?])\s+|\n+", para) if s]:
+            # A single sentence longer than the limit has no good break; cut it.
+            while len(sent) > limit:
+                flush()
+                chunks.append(sent[:limit])
+                sent = sent[limit:]
+            if cur and len(cur) + len(sent) + 1 > limit:
+                flush()
+            cur = f"{cur} {sent}".strip()
+        # Prefer to end here, but only once the chunk is substantial — flushing a
+        # two-line paragraph on its own would make more seams, not fewer.
+        if len(cur) >= limit * 0.6:
+            flush()
+    flush()
     return chunks
+
+
+def _pcm_array(pcm: bytes):
+    import numpy as np
+    if len(pcm) % 2:
+        pcm = pcm[:-1]          # a truncated final sample would shift every frame
+    return np.frombuffer(pcm, dtype="<i2")
+
+
+def _trim_and_fade(pcm: bytes) -> bytes:
+    """Drop a generation's own leading/trailing silence and fade the cut edges.
+    Each response carries its own dead air; concatenating it raw is half of why
+    joins are audible, and slicing mid-waveform is the other half (a step in
+    amplitude is a click)."""
+    import numpy as np
+    a = _pcm_array(pcm)
+    if a.size == 0:
+        return b""
+    loud = np.flatnonzero(np.abs(a) > int(32767 * TTS_SILENCE_FLOOR))
+    if loud.size == 0:
+        return b""              # a chunk of pure silence contributes nothing
+    pad = int(TTS_PCM_RATE * TTS_EDGE_PAD_MS / 1000)
+    a = a[max(0, loud[0] - pad): min(a.size, loud[-1] + pad + 1)].astype(np.float32)
+    fade = min(int(TTS_PCM_RATE * TTS_FADE_MS / 1000), a.size // 2)
+    if fade > 0:
+        ramp = np.linspace(0.0, 1.0, fade, dtype=np.float32)
+        a[:fade] *= ramp
+        a[-fade:] *= ramp[::-1]
+    return a.astype("<i2").tobytes()
+
+
+def _join_pcm(pieces) -> bytes:
+    """Concatenate synthesized chunks with a single consistent pause between."""
+    parts = [p for p in (_trim_and_fade(p) for p in pieces if p) if p]
+    if not parts:
+        return b""
+    gap = b"\x00\x00" * int(TTS_PCM_RATE * TTS_JOIN_PAUSE_MS / 1000)
+    return gap.join(parts)
 
 
 def _tts_pcm(text: str) -> bytes:
@@ -484,7 +564,8 @@ def _tts_pcm(text: str) -> bytes:
             resp = requests.post(
                 f"{OR_URL}/audio/speech",
                 headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
-                json={"model": TTS_MODEL, "input": text, "voice": TTS_VOICE, "response_format": "pcm"},
+                json={"model": TTS_MODEL, "input": TTS_DIRECTION + text,
+                      "voice": TTS_VOICE, "response_format": "pcm"},
                 timeout=180,
             )
             if resp.status_code in (429, 500, 502, 503, 504):
@@ -506,12 +587,15 @@ def synthesize_wav(text: str) -> bytes:
     """Chunk the answer, synthesize the pieces in parallel, concat PCM to one WAV."""
     import concurrent.futures
 
-    cleaned = re.sub(r"[\[\]*`#]", " ", text)  # strip markup TTS reads oddly
+    # Strip markup TTS reads oddly. Note this also removes [tag] style direction,
+    # which is intentional: direction belongs in TTS_DIRECTION, applied uniformly
+    # to every chunk, not sprinkled through the text where it would differ per chunk.
+    cleaned = re.sub(r"[\[\]*`#]", " ", text)
     chunks = _chunk(cleaned, TTS_CHAR_LIMIT)
     if not chunks:
         raise ValueError("nothing to synthesize")
     if len(chunks) == 1:
-        pcm = _tts_pcm(chunks[0])
+        pcm = _join_pcm([_tts_pcm(chunks[0])])
     else:
         # Synthesize in parallel but isolate failures: a chunk that fails after
         # retries drops to b"" (a small gap) instead of discarding the other five.
@@ -524,7 +608,7 @@ def synthesize_wav(text: str) -> bytes:
                     pieces[i] = fut.result()
                 except Exception as e:
                     log.warning("TTS chunk %d/%d failed, dropping: %s", i + 1, len(chunks), e)
-        pcm = b"".join(pieces)  # index order preserved regardless of completion order
+        pcm = _join_pcm(pieces)  # index order preserved regardless of completion order
         if not pcm:
             raise RuntimeError("all TTS chunks failed")
     buf = io.BytesIO()
