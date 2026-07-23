@@ -13,8 +13,12 @@ Context comes from up to three places, any combination of which may be empty:
   * nothing at all — with no symbol and no attachments it's a free conversation
     on any topic.
 
+Questions run asynchronously: POST /api/voice/ask starts a job and returns its
+id, GET /api/voice/job/<id> collects the result. A phone that sleeps mid-answer
+drops the connection, and this way the work isn't lost with it.
+
 Exposed as a Flask blueprint: GET /voice (page), POST /api/voice/ask,
-GET|POST /api/voice/docs, DELETE /api/voice/docs/<id>.
+GET /api/voice/job/<id>, GET|POST /api/voice/docs, DELETE /api/voice/docs/<id>.
 """
 
 import base64
@@ -72,6 +76,31 @@ def _s3():
 # Bound concurrent expensive pipelines (STT + high-effort reasoning + parallel
 # TTS) so a burst can't fan out unbounded OpenRouter spend / memory. Per-worker.
 _VOICE_SEMA = threading.BoundedSemaphore(2)
+
+# --- Async question jobs ----------------------------------------------------
+# A question takes up to a minute; a phone that sleeps mid-request drops the
+# connection and the user loses paid work that the server went on to finish.
+# So /api/voice/ask returns a job id and the client polls for the result.
+# In-memory by design — this app already requires a single worker process (the
+# rate limiter, _VOICE_SEMA and the scheduler all assume it). A restart drops
+# pending jobs; the client then gets a 404 and re-asks.
+_jobs = {}
+_jobs_lock = threading.Lock()
+_JOB_ID_RE = re.compile(r"[0-9a-f]{32}\Z")
+JOB_TTL = 1800            # a finished answer stays collectable for 30 min
+JOB_MAX_FINISHED = 4      # each holds a multi-MB base64 WAV — keep memory bounded
+
+
+def _sweep_jobs():
+    """Drop expired jobs and cap retained finished ones. Caller holds the lock."""
+    now = time.time()
+    for jid in [j for j, v in _jobs.items()
+                if v.get("done") and now - v["done"] > JOB_TTL]:
+        _jobs.pop(jid, None)
+    # A running job is never evicted by the cap — only completed ones, oldest first.
+    finished = sorted(((v.get("done", 0), j) for j, v in _jobs.items() if v.get("done")))
+    for _, jid in finished[:max(0, len(finished) - JOB_MAX_FINISHED)]:
+        _jobs.pop(jid, None)
 
 OR_URL = "https://openrouter.ai/api/v1"
 STT_MODEL = "openai/gpt-4o-transcribe"
@@ -587,6 +616,33 @@ def voice_ask():
     if not _VOICE_SEMA.acquire(blocking=False):
         return jsonify({"error": "Server busy with another request — "
                                  "try again in a moment."}), 429
+
+    # Hand off to a worker and return a job id immediately. A phone that sleeps
+    # mid-question drops the HTTP connection; holding the answer server-side
+    # means the client can reconnect and collect it instead of losing a minute
+    # of paid reasoning. Everything below runs off the request context, so all
+    # request data (form fields, uploaded audio bytes) is already materialised.
+    job_id = uuid.uuid4().hex
+    with _jobs_lock:
+        _sweep_jobs()
+        _jobs[job_id] = {"status": "running", "created": time.time()}
+    threading.Thread(
+        target=_run_ask,
+        args=(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model),
+        daemon=True,
+    ).start()
+    return jsonify({"job_id": job_id, "status": "running"}), 202
+
+
+def _finish_job(job_id: str, payload: dict, status: str):
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        if job is not None:
+            job.update(status=status, payload=payload, done=time.time())
+
+
+def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model):
+    """The STT -> reason -> TTS pipeline, run off-request. Never raises."""
     try:
         try:
             if typed:
@@ -594,29 +650,52 @@ def voice_ask():
             else:
                 question = transcribe(audio_b64, fmt)
                 if not question:
-                    return jsonify({"error": "couldn't understand the audio — try again"}), 422
+                    return _finish_job(job_id, {"error": "couldn't understand the audio — try again"}, "error")
             answer = reason(question, context, symbol, history, model)
             if not answer:
-                return jsonify({"error": "the model returned an empty answer — try rephrasing"}), 502
+                return _finish_job(job_id, {"error": "the model returned an empty answer — try rephrasing"}, "error")
             wav = synthesize_wav(answer)
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else "?"
             log.warning("voice upstream error (status=%s): %s", status, e)
-            return jsonify({"error": "upstream service error — try again in a moment."}), 502
+            return _finish_job(job_id, {"error": "upstream service error — try again in a moment."}, "error")
         except Exception as e:
             log.exception("voice pipeline error: %s", e)
-            return jsonify({"error": "internal error while processing your question"}), 500
+            return _finish_job(job_id, {"error": "internal error while processing your question"}, "error")
 
-        return jsonify({
+        _finish_job(job_id, {
             "symbol": symbol.upper(),   # "" in free-conversation mode
             "model": model,
             "sources": sources,
             "question": question,
             "answer": answer,
             "audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii"),
-        })
+        }, "done")
     finally:
         _VOICE_SEMA.release()
+
+
+@voice_bp.route("/api/voice/job/<job_id>", methods=["GET"])
+def voice_job(job_id):
+    """Poll for a question's result. Cheap and generously rate-limited: a phone
+    waking from sleep may poll several times in quick succession."""
+    if not rate_limit_ok(f"job:{client_ip(request)}", 240, 60):
+        return jsonify({"error": "Too many requests — slow down a moment."}), 429
+    if not _JOB_ID_RE.fullmatch(job_id or ""):
+        return jsonify({"status": "missing", "error": "unknown job"}), 404
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        if job is None:
+            # Expired, evicted, or lost to a restart — the client must re-ask.
+            return jsonify({"status": "missing",
+                            "error": "that answer is no longer available — ask again"}), 404
+        status = job["status"]
+        payload = job.get("payload")
+    if status == "running":
+        return jsonify({"status": "running"})
+    # Deliberately 200 for both done and error: the HTTP status describes the
+    # poll, not the job. The body carries the outcome.
+    return jsonify({"status": status, **(payload or {})})
 
 
 # --- Upload endpoints -------------------------------------------------------

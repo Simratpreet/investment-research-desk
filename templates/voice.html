@@ -344,6 +344,97 @@ recBtn.addEventListener("click", () => {
 const textBtn = document.getElementById("askText");
 const qtextEl = document.getElementById("qtext");
 
+// --- Async job flow ---------------------------------------------------------
+// A question takes up to a minute, and a phone that sleeps mid-request tears
+// down the connection. So the POST only *starts* the work and returns a job id;
+// we poll for the result. The id is kept in sessionStorage, so even if iOS
+// discards and reloads the page while the screen is off, we reconnect to the
+// job on return instead of losing a minute of paid reasoning.
+const JOB_KEY = "chatPendingJob";
+const POLL_MS = 3000;
+const POLL_GIVE_UP_MS = 8 * 60 * 1000;
+let pollTimer = null;
+let wakeLock = null;
+
+function saveJob(id) {
+  try { sessionStorage.setItem(JOB_KEY, JSON.stringify({ id, started: Date.now() })); } catch (e) {}
+}
+function clearJob() {
+  try { sessionStorage.removeItem(JOB_KEY); } catch (e) {}
+}
+function readJob() {
+  try { return JSON.parse(sessionStorage.getItem(JOB_KEY) || "null"); } catch (e) { return null; }
+}
+
+// Keep the screen awake while a question is running. This prevents the common
+// case (put the phone down, it auto-dims) rather than merely surviving it;
+// polling still covers a manual lock or an app switch. Unsupported on older
+// Safari — the catch is the whole error handling.
+async function acquireWakeLock() {
+  try {
+    if ("wakeLock" in navigator) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  } catch (e) { wakeLock = null; }
+}
+function releaseWakeLock() {
+  try { if (wakeLock) wakeLock.release(); } catch (e) {}
+  wakeLock = null;
+}
+
+function endJob() {
+  clearJob();
+  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  releaseWakeLock();
+  inFlight = false;
+  recBtn.disabled = textBtn.disabled = false;
+}
+
+async function pollJob() {
+  const job = readJob();
+  if (!job) return;
+  if (Date.now() - job.started > POLL_GIVE_UP_MS) {
+    setStatus("✗ Gave up waiting for the answer — ask again.");
+    endJob();
+    return;
+  }
+  let j;
+  try {
+    const r = await fetch("/api/voice/job/" + encodeURIComponent(job.id), { cache: "no-store" });
+    if (r.status === 401) { setStatus("✗ Signed out — reload and sign in."); endJob(); return; }
+    j = await r.json();
+    if (r.status === 404) { setStatus("✗ " + (j.error || "answer expired")); endJob(); return; }
+  } catch (e) {
+    // Offline or asleep: keep the job and try again. Do NOT fail the question —
+    // surviving exactly this is the point of the job flow.
+    pollTimer = setTimeout(pollJob, POLL_MS);
+    return;
+  }
+  // A second poll chain (visibilitychange can start one while a poll is already
+  // awaiting) may have delivered this already — endJob clears the stored job
+  // synchronously, so a stale chain sees it gone and drops out here.
+  const still = readJob();
+  if (!still || still.id !== job.id) return;
+  if (j.status === "running") { pollTimer = setTimeout(pollJob, POLL_MS); return; }
+  if (j.status === "error") { setStatus("✗ " + (j.error || "failed")); endJob(); return; }
+  // Record the turn so the next question can reference it.
+  history.push({ role: "user", content: j.question });
+  history.push({ role: "assistant", content: j.answer });
+  addEntry(j);
+  setStatus("Done ✓ — ask a follow-up, or start a New conversation.");
+  endJob();
+}
+
+// Coming back from a locked screen or a background tab: check immediately
+// rather than waiting out the remainder of the poll interval.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !readJob()) return;
+  if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  if (!wakeLock) acquireWakeLock();   // wake locks are dropped when hidden
+  pollJob();
+});
+
 // Shared submit for both audio and typed questions.
 async function submit(fd) {
   if (inFlight) return;  // block a concurrent duplicate that would scramble history order
@@ -359,28 +450,40 @@ async function submit(fd) {
   fd.append("model", modelEl.value);
   inFlight = true;
   recBtn.disabled = textBtn.disabled = true;
+  acquireWakeLock();
   setStatus(symbol || attached.size
     ? "Reasoning over the attached material and generating audio… (can take up to ~1 min)"
     : "Thinking and generating audio… (can take up to ~1 min)");
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 180000);  // don't hang forever on a stalled request
+  const timer = setTimeout(() => ctrl.abort(), 120000);  // the upload itself, not the answer
   try {
     const r = await fetch("/api/voice/ask", { method: "POST", body: fd, signal: ctrl.signal });
     const j = await r.json();
-    if (!r.ok) { setStatus("✗ " + (j.error || r.status)); return; }
-    // Record the turn so the next question can reference it.
-    history.push({ role: "user", content: j.question });
-    history.push({ role: "assistant", content: j.answer });
-    addEntry(j);
-    setStatus("Done ✓ — ask a follow-up, or start a New conversation.");
+    if (!r.ok || !j.job_id) {
+      setStatus("✗ " + (j.error || r.status));
+      endJob();
+      return;
+    }
+    saveJob(j.job_id);
+    pollTimer = setTimeout(pollJob, POLL_MS);
   } catch (e) {
-    setStatus(e.name === "AbortError" ? "✗ Timed out — try again." : "✗ " + e.message);
+    setStatus(e.name === "AbortError" ? "✗ Upload timed out — try again." : "✗ " + e.message);
+    endJob();
   } finally {
     clearTimeout(timer);
-    inFlight = false;
-    recBtn.disabled = textBtn.disabled = false;
   }
 }
+
+// Page loaded (or reloaded by iOS after a long sleep) with a question still in
+// flight — pick it back up rather than stranding the user on an idle screen.
+(function resumePendingJob() {
+  if (!readJob()) return;
+  inFlight = true;
+  recBtn.disabled = textBtn.disabled = true;
+  setStatus("Reconnecting to your question…");
+  acquireWakeLock();
+  pollJob();
+})();
 
 function send() {
   const type = recMime || mediaRecorder?.mimeType || "audio/webm";
