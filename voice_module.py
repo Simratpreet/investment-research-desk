@@ -298,8 +298,66 @@ _SPOKEN_STYLE = (
     "'those', 'the same quarter' or 'and the margin?' against the earlier turns below. "
     "Keep the answer tight and conversational since it will be read aloud. "
     "Do NOT use markdown, bullet points, headers or asterisks — reply in flowing "
-    "spoken prose."
+    "spoken prose. "
+    "NEVER cite sources with links, URLs, domain names or bracketed references — "
+    "no [text](url), no https://…, no 'sec.gov', no [1]. Every character you write "
+    "is spoken by a text-to-speech engine, and a URL read aloud is unusable. "
+    "When attribution matters, name the source in plain words instead — say "
+    "'per Nokia's Q2 press release' or 'according to the 20-F', never a link."
 )
+
+# --- Answer sanitiser -------------------------------------------------------
+# The ":online" models attach web-search citations as markdown links no matter
+# what the prompt says. The answer is fed straight to TTS, so a stray URL is
+# read out character by character. Strip citations here as a hard guarantee —
+# the prompt above is the primary fix, this is the net under it.
+# Order matters: markdown links must go before bare URLs, or the bare-URL
+# pattern eats the target out of "[label](url)" and orphans the brackets.
+_MD_LINK_RE = re.compile(r"\[([^\]\n]*)\]\(\s*<?\s*(?:https?://|www\.)[^)\s]*\s*>?\s*\)")
+_NUM_REF_RE = re.compile(r"\[\s*\d+(?:\s*[,;–—-]\s*\d+)*\s*\]")
+_BARE_URL_RE = re.compile(r"<?\b(?:https?://|www\.)[^\s<>()\[\]]+>?")
+# A label that is just a bare domain ("sec.gov", "via.ritzau.dk") is a citation,
+# not prose — TTS would spell it out letter by letter. Human labels are kept.
+_DOMAIN_ONLY_RE = re.compile(r"\A[\w-]+(?:\.[\w-]+)+\Z")
+
+
+# Removing a citation can orphan the phrase that introduced it ("…the segment
+# table in ."). The repair below is anchored on a sentinel marking where a
+# citation actually stood, so it can only ever touch text the removal broke —
+# a global "strip dangling prepositions" pass would mangle innocent prose.
+_CITE = "\x00"
+_ORPHAN_RE = re.compile(
+    r"(?i)[,;]?\s*\b(?:according to|per|via|see|from|source|sources|in|at|on|of|by|to)\b"
+    r"\s*[:,]?\s*" + _CITE + r"(?=\s*(?:[.,;:!?)]|$))")
+
+
+def _clean_answer(text: str) -> str:
+    """Strip web-search citation artefacts so nothing unspeakable reaches TTS."""
+    if not text:
+        return ""
+
+    def _delink(m):
+        # A human-readable label is real prose — keep it, drop only the target.
+        label = (m.group(1) or "").strip()
+        return _CITE if (not label or _DOMAIN_ONLY_RE.match(label)) else label
+
+    text = text.replace(_CITE, "")          # never trust the model with our sentinel
+    text = _MD_LINK_RE.sub(_delink, text)
+    text = _NUM_REF_RE.sub(_CITE, text)
+    text = _BARE_URL_RE.sub(_CITE, text)
+
+    text = _ORPHAN_RE.sub("", text)         # drop the introducer it belonged to
+    text = re.sub(r"\(\s*" + _CITE + r"\s*\)", "", text)   # "(<url>)" wholesale
+    text = text.replace(_CITE, "")
+
+    # Whatever removal left behind: empty brackets/parens, doubled spaces, a
+    # space before punctuation, and punctuation doubled by the excision.
+    text = re.sub(r"\(\s*[,;:]?\s*\)|\[\s*\]", "", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = re.sub(r"([,.;:])\1+", r"\1", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 def resolve_model(requested: str) -> str:
@@ -360,7 +418,8 @@ def reason(question: str, context: str, symbol: str, history=None, model=None) -
     resp.raise_for_status()
     # content can be null on a refusal or reasoning-only turn — coalesce, don't .strip(None).
     msg = (resp.json().get("choices") or [{}])[0].get("message") or {}
-    return (msg.get("content") or "").strip()
+    # Sanitise here so the displayed text and the TTS input are the same string.
+    return _clean_answer((msg.get("content") or "").strip())
 
 
 def _chunk(text: str, limit: int):
