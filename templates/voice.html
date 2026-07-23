@@ -56,81 +56,146 @@
                 line-height:1.03; letter-spacing:-.05em; margin:0 0 .3rem; }
   .page-sub { color:var(--text-secondary); font-size:.92rem; margin:0 0 1.8rem; }
 
-  /* Console card holding the controls */
-  .console { background:var(--surface); border:1px solid var(--border); border-radius:18px;
-             padding:1.2rem 1.3rem; box-shadow:0 1px 2px rgba(17,39,29,.04); margin-bottom:1.4rem; }
-  .row { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
-  .row + .row { margin-top:.8rem; }
-  input[type=text], #symbol, #qtext {
-    flex:1; min-width:11rem; padding:.65rem .85rem; border:1px solid var(--border);
-    border-radius:11px; background:var(--surface-warm); color:var(--text); }
-  #symbol { text-transform:uppercase; font-weight:600; letter-spacing:.02em; max-width:15rem; }
-  #symbol:focus, #qtext:focus { border-color:var(--accent); background:#fff; }
-  #model { padding:.65rem .85rem; border:1px solid var(--border); border-radius:11px;
-           background:var(--surface-warm); color:var(--text); font:inherit; font-size:.85rem;
-           font-weight:600; cursor:pointer; max-width:13rem; }
-  #model:focus { border-color:var(--accent); background:#fff; }
-
+  /* --- Buttons (shared) --- */
   .btn { border:0; border-radius:11px; padding:.62rem 1.15rem; font-weight:600; font-size:.85rem;
          cursor:pointer; transition:transform .16s, box-shadow .16s, background .16s, border-color .16s; }
-  .btn:disabled { opacity:.5; cursor:default; transform:none; }
+  .btn:disabled { opacity:.45; cursor:default; transform:none; }
   .btn-primary { background:var(--accent); color:#fff; }
   .btn-primary:hover:not(:disabled) { background:var(--accent-hover); box-shadow:0 8px 18px rgba(31,106,74,.18); }
-  .btn-rec { background:var(--ink); color:#fff; }
-  .btn-rec:hover:not(:disabled) { background:#1d3a2d; transform:translateY(-1px); }
-  .btn-rec.recording { background:var(--rec); }
   .btn-ghost { background:var(--surface); color:var(--text-secondary); border:1px solid var(--border); }
   .btn-ghost:hover:not(:disabled) { border-color:#c9d2c6; color:var(--text); background:var(--surface-warm); }
+  .btn-sm { padding:.45rem .8rem; font-size:.78rem; border-radius:9px; }
 
-  /* Fetch-filings options */
-  .fetch-block { margin-top:1rem; padding-top:1rem; border-top:1px dashed var(--border); }
-  .fetch-label { font-size:.7rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
-                 color:var(--text-muted); margin-bottom:.7rem; }
-  .fetch-opts { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:.8rem; }
-  .opt { display:flex; align-items:center; gap:.4rem; font-size:.85rem; color:var(--text-secondary); }
-  .opt input[type=number] { width:3.6rem; padding:.4rem .5rem; border:1px solid var(--border);
-                            border-radius:8px; background:var(--surface-warm); text-align:center; font-variant-numeric:tabular-nums; }
+  /* --- Composer: the one thing you use every turn, so it leads --- */
+  .composer { background:var(--surface); border:1px solid var(--border); border-radius:20px;
+              box-shadow:0 1px 3px rgba(17,39,29,.05); transition:border-color .16s, box-shadow .16s; }
+  .composer:focus-within { border-color:var(--accent); box-shadow:0 6px 24px rgba(31,106,74,.10); }
+  #qtext { display:block; width:100%; border:0; background:transparent; resize:none; overflow-y:auto;
+           color:var(--text); font-size:1.02rem; line-height:1.5; padding:1.1rem 1.25rem .3rem;
+           max-height:11rem; }
+  #qtext:focus { outline:none; }
+  #qtext::placeholder { color:var(--text-muted); }
+  .composer-bar { display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+                  flex-wrap:wrap; padding:.55rem .75rem .75rem 1rem; }
+  .composer-actions { display:flex; align-items:center; gap:.5rem; margin-left:auto; }
+
+  /* Mic as an icon button — voice is an alternative input, not a rival CTA */
+  .icon-btn { width:2.45rem; height:2.45rem; border-radius:50%; border:1px solid var(--border);
+              background:var(--surface-warm); color:var(--text-secondary); font-size:1rem; cursor:pointer;
+              display:inline-flex; align-items:center; justify-content:center; line-height:1;
+              transition:background .16s, color .16s, border-color .16s; }
+  .icon-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); background:var(--green-bg); }
+  .icon-btn:disabled { opacity:.45; cursor:default; }
+  .icon-btn.recording { background:var(--rec); border-color:var(--rec); color:#fff;
+                        animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow:0 0 0 0 rgba(220,38,38,.45); }
+                     50% { box-shadow:0 0 0 .5rem rgba(220,38,38,0); } }
+
+  /* --- Context chip: what this question will actually use, always visible --- */
+  .chip { display:inline-flex; align-items:center; gap:.4rem; padding:.42rem .7rem; border-radius:999px;
+          border:1px solid var(--border); background:var(--surface-warm); color:var(--text-secondary);
+          font-size:.78rem; font-weight:600; cursor:pointer; max-width:100%;
+          transition:border-color .16s, color .16s, background .16s; }
+  .chip:hover { border-color:var(--accent); color:var(--text); background:var(--green-bg); }
+  .chip[aria-expanded="true"] { border-color:var(--accent); color:var(--accent); background:var(--green-bg); }
+  .chip-dot { width:.45rem; height:.45rem; border-radius:50%; background:var(--text-muted); flex:none; }
+  .chip.is-grounded .chip-dot { background:var(--accent); }
+  .chip-sep { color:var(--border); }
+  .chip b { color:var(--text); font-weight:700; }
+  .chip[aria-expanded="true"] b { color:var(--accent); }
+  .chip-caret { font-size:.7rem; transition:transform .16s; }
+  .chip[aria-expanded="true"] .chip-caret { transform:rotate(180deg); }
+
+  /* --- Setup panel: occasional work, folded away until asked for --- */
+  .setup { background:var(--surface); border:1px solid var(--border); border-radius:18px;
+           padding:1.25rem 1.35rem; margin-top:.75rem; box-shadow:0 1px 2px rgba(17,39,29,.04); }
+  .setup[hidden] { display:none; }
+  .setup-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5rem 2rem; }
+  .setup-col h3 { font-family:'Manrope',sans-serif; font-size:.72rem; font-weight:800; letter-spacing:.1em;
+                  text-transform:uppercase; color:var(--text-muted); margin:0 0 .8rem;
+                  padding-bottom:.55rem; border-bottom:1px solid var(--border); }
+  .setup-row { margin-bottom:1.15rem; }
+  .field { display:block; margin-bottom:.5rem; }
+  .field > span { display:block; font-size:.76rem; font-weight:700; color:var(--text-secondary); margin-bottom:.35rem; }
+  .field-hint { color:var(--text-muted); font-size:.76rem; margin:.4rem 0 .9rem; line-height:1.45; }
+  #symbol, #model { width:100%; padding:.62rem .8rem; border:1px solid var(--border); border-radius:10px;
+                    background:var(--surface-warm); color:var(--text); font-size:.88rem; }
+  #symbol { text-transform:uppercase; font-weight:600; letter-spacing:.02em; }
+  #model { font-weight:600; cursor:pointer; max-width:16rem; }
+  #symbol:focus, #model:focus { border-color:var(--accent); background:#fff; outline:none; }
+
+  .fetch-opts { display:flex; gap:.9rem; align-items:center; flex-wrap:wrap; margin-bottom:.9rem; }
+  .opt { display:flex; align-items:center; gap:.4rem; font-size:.82rem; color:var(--text-secondary); }
+  .opt input[type=number] { width:3.4rem; padding:.38rem .45rem; border:1px solid var(--border);
+                            border-radius:8px; background:var(--surface-warm); text-align:center;
+                            font-variant-numeric:tabular-nums; }
   .opt.chk { cursor:pointer; }
   .opt.chk input { width:1.05rem; height:1.05rem; accent-color:var(--accent); }
 
-  /* Uploaded context documents */
-  .doc-list { display:flex; flex-direction:column; gap:.35rem; margin-bottom:.8rem; }
+  .doc-list { display:flex; flex-direction:column; gap:.35rem; margin-bottom:.75rem; }
   .doc-item { display:flex; align-items:center; gap:.55rem; padding:.45rem .6rem;
               border:1px solid var(--border); border-radius:10px; background:var(--surface-warm);
-              font-size:.83rem; }
-  .doc-item input[type=checkbox] { width:1.05rem; height:1.05rem; accent-color:var(--accent); cursor:pointer; }
+              font-size:.82rem; }
+  .doc-item input[type=checkbox] { width:1.05rem; height:1.05rem; accent-color:var(--accent); cursor:pointer; flex:none; }
   .doc-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
-  .doc-meta { color:var(--text-muted); font-size:.74rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .doc-del { border:0; background:none; color:var(--text-muted); cursor:pointer; font-size:.9rem;
-             line-height:1; padding:.2rem .35rem; border-radius:6px; }
+  .doc-meta { color:var(--text-muted); font-size:.72rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .doc-del { border:0; background:none; color:var(--text-muted); cursor:pointer; font-size:.85rem;
+             line-height:1; padding:.2rem .35rem; border-radius:6px; flex:none; }
   .doc-del:hover { color:var(--rec); background:rgba(0,0,0,.04); }
-  .doc-empty { color:var(--text-muted); font-size:.82rem; margin-bottom:.8rem; }
-  input[type=file] { font-size:.82rem; color:var(--text-secondary); max-width:100%; }
+  .doc-empty { color:var(--text-muted); font-size:.8rem; padding:.6rem 0 .2rem; }
+  .upload-row { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  input[type=file] { font-size:.8rem; color:var(--text-secondary); max-width:100%; min-width:0; flex:1; }
   input[type=file]::file-selector-button {
-    font:inherit; font-weight:600; font-size:.82rem; margin-right:.6rem; cursor:pointer;
-    padding:.5rem .9rem; border-radius:10px; border:1px solid var(--border);
+    font:inherit; font-weight:600; font-size:.8rem; margin-right:.55rem; cursor:pointer;
+    padding:.45rem .8rem; border-radius:9px; border:1px solid var(--border);
     background:var(--surface); color:var(--text-secondary); }
 
-  .status { color:var(--text-secondary); min-height:1.4em; margin:1rem 0 1.4rem; font-size:.9rem; }
-  .status b { color:var(--text); }
+  /* --- Status line: one live region, close to the composer --- */
+  .status { color:var(--text-secondary); min-height:1.4em; margin:1rem 0 0; font-size:.86rem;
+            display:flex; align-items:center; gap:.5rem; }
+  .status b { color:var(--text); font-weight:700; }
+  .status.is-busy::before { content:''; width:.85rem; height:.85rem; border-radius:50%; flex:none;
+    border:2px solid var(--border); border-top-color:var(--accent); animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
 
-  .entry { margin-bottom:1.2rem; }
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:16px;
-          padding:1rem 1.15rem; margin-bottom:.8rem; box-shadow:0 1px 2px rgba(17,39,29,.04); }
-  .card h2 { font-size:.68rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted);
-             font-weight:800; margin:0 0 .5rem; }
-  .q { font-weight:600; color:var(--ink); }
-  .a { white-space:pre-wrap; line-height:1.6; }
-  audio { width:100%; margin-top:.7rem; }
-  .sources { color:var(--text-muted); font-size:.78rem; margin-top:.55rem; word-break:break-word;
-             font-family:'JetBrains Mono',monospace; }
-  .hint { color:var(--text-muted); font-size:.82rem; }
-  .footnote { color:var(--text-muted); font-size:.78rem; margin-top:2rem; }
+  /* --- Conversation --- */
+  .convo-head { display:flex; align-items:center; justify-content:space-between; gap:1rem;
+                margin:2.4rem 0 1rem; padding-bottom:.7rem; border-bottom:1px solid var(--border); }
+  .convo-head h3 { font-family:'Manrope',sans-serif; font-size:.78rem; font-weight:800; letter-spacing:.1em;
+                   text-transform:uppercase; color:var(--text-muted); margin:0; }
+  .convo-empty { color:var(--text-muted); font-size:.88rem; text-align:center; padding:2.5rem 1rem;
+                 border:1px dashed var(--border); border-radius:16px; line-height:1.6; }
 
+  /* One turn = one card. Question and answer were two floating cards before,
+     which read as unrelated objects rather than a single exchange. */
+  .entry { background:var(--surface); border:1px solid var(--border); border-radius:16px;
+           margin-bottom:1rem; overflow:hidden; box-shadow:0 1px 2px rgba(17,39,29,.04); }
+  .entry-q { padding:.95rem 1.2rem; background:var(--surface-warm); border-bottom:1px solid var(--border); }
+  .entry-a { padding:1.1rem 1.2rem 1.2rem; }
+  .entry-label { display:flex; align-items:center; gap:.5rem; font-size:.66rem; text-transform:uppercase;
+                 letter-spacing:.1em; color:var(--text-muted); font-weight:800; margin-bottom:.45rem; }
+  .entry-tag { font-family:'JetBrains Mono',monospace; font-size:.62rem; font-weight:600; letter-spacing:.02em;
+               color:var(--accent); background:var(--green-bg); border-radius:5px; padding:.14rem .38rem; }
+  .q { font-weight:600; color:var(--ink); line-height:1.45; }
+  .a { white-space:pre-wrap; line-height:1.65; }
+  audio { width:100%; margin-top:.85rem; height:2.2rem; }
+  .sources { color:var(--text-muted); font-size:.74rem; margin-top:.6rem; word-break:break-word;
+             font-family:'JetBrains Mono',monospace; line-height:1.5; }
+  .footnote { color:var(--text-muted); font-size:.76rem; margin-top:2.2rem; line-height:1.6; }
+
+  @media (max-width:720px) {
+    .setup-grid { grid-template-columns:1fr; gap:1.4rem; }
+  }
   @media (max-width:640px) {
     .header-inner, .container { padding-left:16px; padding-right:16px; }
+    .container { padding-top:26px; }
     .top-nav-link { padding:.45rem .55rem; font-size:.76rem; }
     .brand-subtitle { display:none; }
+    .page-sub { margin-bottom:1.3rem; }
+    .composer-bar { padding:.5rem .6rem .65rem .7rem; }
+    .composer-actions { width:100%; margin-left:0; }
+    .composer-actions .btn { flex:1; }
+    #qtext { font-size:1rem; padding:.95rem 1rem .3rem; }
   }
 </style></head>
 <body>
@@ -154,50 +219,79 @@
   <main class="container">
     <div class="eyebrow">Research assistant</div>
     <h2 class="page-title">Chat</h2>
-    <p class="page-sub">Enter a symbol to ask its filings — transcripts, presentations and annual report. Leave the symbol blank for a free conversation on any topic.</p>
+    <p class="page-sub">Ask anything, by text or by voice. Ground the answer in a company's filings or in your own documents.</p>
 
-    <div class="console">
-      <div class="row">
-        <input id="symbol" type="text" placeholder="Symbol — optional (e.g. VENUSPIPES)" autocomplete="off">
-        <select id="model" title="Reasoning model used to answer">
-          {% for m in models %}
-          <option value="{{ m.id }}"{% if m.id == default_model %} selected{% endif %}>{{ m.label }}</option>
-          {% endfor %}
-        </select>
-        <button id="rec" class="btn btn-rec">🎙️ Ask a question</button>
-        <button id="newConv" class="btn btn-ghost" title="Clear conversation memory">🔄 New conversation</button>
-      </div>
-      <div class="row">
-        <input id="qtext" type="text" placeholder="…or type your question, then Enter / Ask" autocomplete="off">
-        <button id="askText" class="btn btn-primary">Ask</button>
-      </div>
-
-      <div class="fetch-block">
-        <div class="fetch-label">Not indexed yet? Pull filings from screener.in</div>
-        <div class="fetch-opts">
-          <label class="opt">Transcripts <input type="number" id="optTranscripts" min="0" max="12" value="2"></label>
-          <label class="opt">PPTs <input type="number" id="optPpts" min="0" max="12" value="1"></label>
-          <label class="opt chk"><input type="checkbox" id="optAnnual" checked> Annual report</label>
-        </div>
-        <div class="row">
-          <button id="fetchFilings" class="btn btn-ghost" title="Download this symbol's filings into the chat index">⬇︎ Fetch filings for this symbol</button>
-        </div>
-      </div>
-
-      <div class="fetch-block">
-        <div class="fetch-label">Your own context — .txt, .md or .pdf</div>
-        <div id="docList" class="doc-list"></div>
-        <div class="row">
-          <input id="docFiles" type="file" accept=".txt,.md,.text,.pdf" multiple>
-          <button id="uploadDocs" class="btn btn-ghost" title="Extract text and attach to the conversation">⬆︎ Upload</button>
+    <div class="composer">
+      <textarea id="qtext" rows="1" placeholder="Ask a question…" autocomplete="off"
+                aria-label="Your question"></textarea>
+      <div class="composer-bar">
+        <!-- Single source of truth for what the next question will use. Also the
+             disclosure control for the setup panel — state and its editor in one place. -->
+        <button type="button" class="chip" id="ctxToggle" aria-expanded="false" aria-controls="setupPanel">
+          <span class="chip-dot" aria-hidden="true"></span>
+          <span id="chipSymbol">General</span>
+          <span class="chip-sep" aria-hidden="true">·</span>
+          <span id="chipModel">—</span>
+          <span class="chip-sep" aria-hidden="true">·</span>
+          <span id="chipDocs">no documents</span>
+          <span class="chip-caret" aria-hidden="true">⌄</span>
+        </button>
+        <div class="composer-actions">
+          <button id="rec" class="icon-btn" title="Ask by voice" aria-label="Ask by voice">🎙</button>
+          <button id="askText" class="btn btn-primary">Ask</button>
         </div>
       </div>
     </div>
 
-    <div class="status" id="status">Type a question and hit <b>Ask</b>, or click <b>Ask a question</b> to speak. Add a symbol to ground the answer in that company's filings.</div>
+    <section class="setup" id="setupPanel" hidden aria-label="Context settings">
+      <div class="setup-row">
+        <label class="field" for="model"><span>Reasoning model</span>
+          <select id="model" title="Model used to answer">
+            {% for m in models %}
+            <option value="{{ m.id }}"{% if m.id == default_model %} selected{% endif %}>{{ m.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
 
+      <div class="setup-grid">
+        <div class="setup-col">
+          <h3>Company filings</h3>
+          <label class="field" for="symbol"><span>Symbol</span>
+            <input id="symbol" type="text" placeholder="e.g. VENUSPIPES" autocomplete="off">
+          </label>
+          <p class="field-hint">Leave blank for a general conversation on any topic.</p>
+          <div class="fetch-opts">
+            <label class="opt">Transcripts <input type="number" id="optTranscripts" min="0" max="12" value="2"></label>
+            <label class="opt">PPTs <input type="number" id="optPpts" min="0" max="12" value="1"></label>
+            <label class="opt chk"><input type="checkbox" id="optAnnual"> Annual report</label>
+          </div>
+          <button id="fetchFilings" class="btn btn-ghost btn-sm"
+                  title="Download this symbol's filings into the chat index">Fetch from screener.in</button>
+        </div>
+
+        <div class="setup-col">
+          <h3>Your documents</h3>
+          <div id="docList" class="doc-list"></div>
+          <div class="upload-row">
+            <input id="docFiles" type="file" accept=".txt,.md,.text,.pdf" multiple aria-label="Choose documents">
+            <button id="uploadDocs" class="btn btn-ghost btn-sm"
+                    title="Extract text and attach to the conversation">Upload</button>
+          </div>
+          <p class="field-hint">.txt, .md or .pdf — text is extracted on upload. Tick a document to include it.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="status" id="status" role="status" aria-live="polite">Type a question, or tap the mic to speak it.</div>
+
+    <div class="convo-head">
+      <h3>Conversation</h3>
+      <button id="newConv" class="btn btn-ghost btn-sm" title="Clear conversation memory">New conversation</button>
+    </div>
+    <div class="convo-empty" id="convoEmpty">Nothing asked yet — your questions and spoken answers will appear here.</div>
     <div id="log"></div>
-    <p class="footnote">With a symbol, reasoning is grounded in that company's filings; without one, it's a general conversation · Speech-to-text and spoken answers via the voice pipeline.</p>
+    <p class="footnote">With a symbol, answers are grounded in that company's filings; without one it's a general conversation. Speech-to-text in, spoken answer out.</p>
   </main>
 
 <script>
@@ -220,8 +314,53 @@ try {
 } catch (e) { /* private mode / storage disabled — just use the default */ }
 modelEl.addEventListener("change", () => {
   try { localStorage.setItem("chatModel", modelEl.value); } catch (e) {}
+  updateContext();
   setStatus(`Model set to ${modelLabel(modelEl.value)} — applies from your next question.`);
 });
+
+// --- Context chip + setup disclosure ----------------------------------------
+// The chip states what the NEXT question will actually use. Without it the
+// grounding is invisible: you can't tell from the composer whether an answer
+// will come from filings, your documents, or neither.
+// Declared here, not with the upload code below, because updateContext() runs at
+// init and `typeof` on a let in its temporal dead zone throws rather than
+// returning "undefined".
+let docs = [];                    // upload index entries from the server
+let attached = new Set();         // ids ticked for the current conversation
+
+const setupPanel = document.getElementById("setupPanel");
+const ctxToggle = document.getElementById("ctxToggle");
+const chipSymbol = document.getElementById("chipSymbol");
+const chipModel = document.getElementById("chipModel");
+const chipDocs = document.getElementById("chipDocs");
+
+function updateContext() {
+  const sym = symbolEl.value.trim().toUpperCase();
+  chipSymbol.textContent = sym || "General";
+  chipModel.textContent = modelLabel(modelEl.value) || "Model";
+  const n = attached.size;
+  chipDocs.textContent = n ? `${n} document${n === 1 ? "" : "s"}` : "no documents";
+  // Filled dot = the answer will be grounded in something specific.
+  ctxToggle.classList.toggle("is-grounded", Boolean(sym) || n > 0);
+}
+
+ctxToggle.addEventListener("click", () => {
+  const open = setupPanel.hidden;
+  setupPanel.hidden = !open;
+  ctxToggle.setAttribute("aria-expanded", String(open));
+  if (open) symbolEl.focus();
+});
+symbolEl.addEventListener("input", updateContext);
+
+// Grow the composer with the question instead of scrolling a one-line box.
+const qtextEl = document.getElementById("qtext");
+function autosize() {
+  qtextEl.style.height = "auto";
+  qtextEl.style.height = Math.min(qtextEl.scrollHeight, 176) + "px";
+}
+qtextEl.addEventListener("input", autosize);
+
+updateContext();   // paint the chip immediately, before docs load
 
 // Safari/iOS MediaRecorder with no mimeType records mp4/AAC but we used to hardcode
 // "audio/webm" — STT then got mp4 bytes labeled webm → garbage on iPhone. Pick a mime
@@ -249,7 +388,12 @@ function extFor(mime) {
 let history = [];
 let historySymbol = null;   // null only before the first question
 
-function setStatus(t) { statusEl.textContent = t; }
+// `busy` shows a spinner in the status line, so a minute-long wait looks alive
+// rather than hung. Every terminal state clears it.
+function setStatus(t, busy) {
+  statusEl.textContent = t;
+  statusEl.classList.toggle("is-busy", Boolean(busy));
+}
 
 function resetHistory(sym) {
   history = [];
@@ -260,25 +404,39 @@ function resetHistory(sym) {
 document.getElementById("newConv").addEventListener("click", () => {
   resetHistory(symbolEl.value.trim().toUpperCase());
   document.getElementById("log").innerHTML = "";
+  document.getElementById("convoEmpty").hidden = false;
   setStatus("New conversation — ask your first question.");
 });
 
 // Append a Q&A entry to the log (newest on top); each keeps its own audio.
+// One card per exchange: question and answer were separate floating cards
+// before, which read as two unrelated objects rather than a single turn.
 function addEntry(j) {
+  const label = (text, tag) => {
+    const el = document.createElement("div");
+    el.className = "entry-label";
+    el.append(document.createTextNode(text));
+    if (tag) {
+      const t = document.createElement("span");
+      t.className = "entry-tag"; t.textContent = tag;   // textContent — never innerHTML
+      el.append(t);
+    }
+    return el;
+  };
+
   const el = document.createElement("div");
   el.className = "entry";
-  const q = document.createElement("div"); q.className = "card";
-  const qh = document.createElement("h2");
-  qh.textContent = "You asked · " + (j.symbol || "General");
+
+  const q = document.createElement("div"); q.className = "entry-q";
   const qt = document.createElement("div"); qt.className = "q"; qt.textContent = j.question;
-  q.append(qh, qt);
-  const a = document.createElement("div"); a.className = "card";
-  // Label which model produced this answer — the dropdown can change between turns.
-  const ah = document.createElement("h2");
-  ah.textContent = "Answer" + (j.model ? " · " + (modelLabel(j.model) || j.model) : "");
+  q.append(label("You asked", j.symbol || null), qt);
+
+  const a = document.createElement("div"); a.className = "entry-a";
   const at = document.createElement("div"); at.className = "a"; at.textContent = j.answer;
   const player = document.createElement("audio"); player.controls = true; player.src = j.audio;
-  a.append(ah, at, player);
+  // Tag which model produced this — the dropdown can change between turns.
+  a.append(label("Answer", j.model ? (modelLabel(j.model) || j.model) : null), at, player);
+
   // Free conversation has no filings behind it — don't render an empty Sources line.
   const sources = j.sources || [];
   if (sources.length) {
@@ -286,9 +444,10 @@ function addEntry(j) {
     src.textContent = "Sources: " + sources.join(", ");
     a.append(src);
   }
+
   el.append(q, a);
-  const log = document.getElementById("log");
-  log.prepend(el);
+  document.getElementById("log").prepend(el);
+  document.getElementById("convoEmpty").hidden = true;
   player.play().catch(() => {});
 }
 
@@ -324,15 +483,17 @@ async function startRec() {
   recording = true;
   starting = false;
   recBtn.classList.add("recording");
-  recBtn.textContent = "⏹ Stop & send";
-  setStatus("🔴 Recording… speak your question, then click Stop & send.");
+  recBtn.textContent = "⏹";
+  recBtn.title = recBtn.ariaLabel = "Stop and send";
+  setStatus("Recording… tap again to stop and send.");
 }
 
 function stopRec() {
   if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
   recording = false;
   recBtn.classList.remove("recording");
-  recBtn.textContent = "🎙️ Ask a question";
+  recBtn.textContent = "🎙";
+  recBtn.title = recBtn.ariaLabel = "Ask by voice";
 }
 
 // One button: click to start recording, click again to stop and send.
@@ -342,7 +503,6 @@ recBtn.addEventListener("click", () => {
 });
 
 const textBtn = document.getElementById("askText");
-const qtextEl = document.getElementById("qtext");
 
 // --- Async job flow ---------------------------------------------------------
 // A question takes up to a minute, and a phone that sleeps mid-request tears
@@ -453,7 +613,7 @@ async function submit(fd) {
   acquireWakeLock();
   setStatus(symbol || attached.size
     ? "Reasoning over the attached material and generating audio… (can take up to ~1 min)"
-    : "Thinking and generating audio… (can take up to ~1 min)");
+    : "Thinking and generating audio… (can take up to ~1 min)", true);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 120000);  // the upload itself, not the answer
   try {
@@ -480,7 +640,7 @@ async function submit(fd) {
   if (!readJob()) return;
   inFlight = true;
   recBtn.disabled = textBtn.disabled = true;
-  setStatus("Reconnecting to your question…");
+  setStatus("Reconnecting to your question…", true);
   acquireWakeLock();
   pollJob();
 })();
@@ -529,7 +689,7 @@ fetchBtn.addEventListener("click", async () => {
   };
   fetching = true;
   fetchBtn.disabled = true;
-  setStatus(`Fetching filings for ${symbol} from screener.in… (can take ~30–60s)`);
+  setStatus(`Fetching filings for ${symbol} from screener.in… (can take ~30–60s)`, true);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 180000);
   try {
@@ -562,8 +722,6 @@ fetchBtn.addEventListener("click", async () => {
 const docListEl = document.getElementById("docList");
 const docFilesEl = document.getElementById("docFiles");
 const uploadBtn = document.getElementById("uploadDocs");
-let docs = [];                    // index entries from the server
-let attached = new Set();         // ids ticked for the current conversation
 let uploading = false;
 
 function fmtChars(n) {
@@ -571,6 +729,7 @@ function fmtChars(n) {
 }
 
 function renderDocs() {
+  updateContext();
   if (!docs.length) {
     docListEl.innerHTML = `<div class="doc-empty">No documents uploaded yet.</div>`;
     return;
@@ -586,6 +745,7 @@ function renderDocs() {
     cb.title = "Include this document as context";
     cb.addEventListener("change", () => {
       if (cb.checked) attached.add(d.id); else attached.delete(d.id);
+      updateContext();
     });
 
     const name = document.createElement("span");
@@ -645,7 +805,7 @@ uploadBtn.addEventListener("click", async () => {
   for (const f of files) fd.append("files", f);
   uploading = true;
   uploadBtn.disabled = true;
-  setStatus(`Extracting text from ${files.length} file${files.length === 1 ? "" : "s"}…`);
+  setStatus(`Extracting text from ${files.length} file${files.length === 1 ? "" : "s"}…`, true);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 180000);
   try {
