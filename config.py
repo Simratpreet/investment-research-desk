@@ -56,6 +56,20 @@ CHECK_INTERVAL_MINUTES = 60     # How often to run checks
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "")
 
+# --- Auth / sessions ---
+# APP_PASSWORD gates the ENTIRE app (single shared password -> signed session
+# cookie). Empty => the server refuses to start (fail closed) so we can never
+# accidentally deploy open. SECRET_KEY signs the session cookie; if unset, a
+# random per-process key is generated (sessions reset on restart — set it in
+# prod to keep users logged in across deploys). COOKIE_SECURE=1 marks the
+# session cookie Secure (set it in production, where TLS terminates at the proxy).
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")
+SECRET_KEY   = os.getenv("SECRET_KEY", "")
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "").strip().lower() in ("1", "true", "yes")
+
+# Reject uploads larger than this (voice audio). Bounds cost/DoS on /api/voice/ask.
+MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(25 * 1024 * 1024)))
+
 # --- Paths ---
 WATCHLIST_FILE = os.path.join(os.path.dirname(__file__), "watchlist.json")
 ALERT_LOG_FILE = os.path.join(os.path.dirname(__file__), "alert_log.json")

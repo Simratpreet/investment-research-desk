@@ -16,26 +16,40 @@ import base64
 import glob
 import io
 import json
+import logging
 import os
+import random
 import re
+import threading
+import time
 import wave
 from pathlib import Path
+
+log = logging.getLogger(__name__)
 
 HISTORY_TURNS = 12  # cap prior turns fed back (6 Q&A pairs) to bound token growth
 
 import requests
 from flask import Blueprint, jsonify, render_template, request
 
+from security import client_ip, rate_limit_ok
+
+# Bound concurrent expensive pipelines (STT + high-effort reasoning + parallel
+# TTS) so a burst can't fan out unbounded OpenRouter spend / memory. Per-worker.
+_VOICE_SEMA = threading.BoundedSemaphore(2)
+
 OR_URL = "https://openrouter.ai/api/v1"
 STT_MODEL = "openai/gpt-4o-transcribe"
 # REASON_MODEL = "google/gemini-3.1-pro-preview:online"
-REASON_MODEL = "openai/gpt-5.6-sol:online"
+REASON_MODEL = "x-ai/grok-4.5:online"
 TTS_MODEL = "google/gemini-3.1-flash-tts-preview"
 TTS_VOICE = "Charon"          # steady "informative" narrator
 TTS_PCM_RATE = 24000
 TTS_CHAR_LIMIT = 1000         # ~85s/chunk — safely under Gemini TTS's ~120s cap
 TTS_WORKERS = 6              # synthesize answer chunks in parallel
 MAX_CONTEXT_CHARS = 800_000   # generous; gemini-3.6-flash has a 1M-token window
+MAX_TYPED_CHARS = 2000        # a typed question longer than this is abuse, not a question
+TTS_RETRIES = 3               # attempts per chunk before giving up on that chunk
 
 CONTEXT_DIRS = [
     Path("/Users/simrat/Desktop/screener_scraper/Q4FY26/downloads"),
@@ -103,11 +117,13 @@ def reason(question: str, context: str, symbol: str, history=None) -> str:
         "'the same quarter' or 'and the margin?' against the earlier turns below. "
         "Keep the answer tight and conversational since it will be read aloud. "
         "Do NOT use markdown, bullet points, headers or asterisks — reply in flowing "
-        "spoken prose, and say numbers naturally (e.g. 'twelve point nine percent').\n\n"
+        "spoken prose.\n\n"
         f"===== FILINGS FOR {symbol.upper()} =====\n{context}"
     )
     messages = [{"role": "system", "content": system}]
     for turn in (history or []):
+        if not isinstance(turn, dict):
+            continue  # malformed history element (e.g. [1, null]) — don't crash on .get
         role = turn.get("role")
         content = (turn.get("content") or "").strip()
         if role in ("user", "assistant") and content:
@@ -124,7 +140,9 @@ def reason(question: str, context: str, symbol: str, history=None) -> str:
         timeout=300,
     )
     resp.raise_for_status()
-    return resp.json()["choices"][0]["message"]["content"].strip()
+    # content can be null on a refusal or reasoning-only turn — coalesce, don't .strip(None).
+    msg = (resp.json().get("choices") or [{}])[0].get("message") or {}
+    return (msg.get("content") or "").strip()
 
 
 def _chunk(text: str, limit: int):
@@ -149,14 +167,33 @@ def _chunk(text: str, limit: int):
 
 
 def _tts_pcm(text: str) -> bytes:
-    resp = requests.post(
-        f"{OR_URL}/audio/speech",
-        headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
-        json={"model": TTS_MODEL, "input": text, "voice": TTS_VOICE, "response_format": "pcm"},
-        timeout=180,
-    )
-    resp.raise_for_status()
-    return resp.content
+    """Synthesize one chunk to raw PCM, retrying transient failures with backoff.
+
+    Guards against the two silent-corruption modes: a 429/5xx (retry) and a 200
+    whose body is empty or a JSON error blob (which, written as PCM, becomes noise).
+    """
+    last_err = None
+    for attempt in range(TTS_RETRIES):
+        try:
+            resp = requests.post(
+                f"{OR_URL}/audio/speech",
+                headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
+                json={"model": TTS_MODEL, "input": text, "voice": TTS_VOICE, "response_format": "pcm"},
+                timeout=180,
+            )
+            if resp.status_code in (429, 500, 502, 503, 504):
+                raise requests.HTTPError(f"TTS status {resp.status_code}", response=resp)
+            resp.raise_for_status()
+            pcm = resp.content
+            ctype = resp.headers.get("Content-Type", "").lower()
+            if not pcm or "json" in ctype or "text" in ctype:
+                raise ValueError(f"empty or non-PCM TTS body (ctype={ctype!r}, len={len(pcm)})")
+            return pcm
+        except (requests.RequestException, ValueError) as e:
+            last_err = e
+            if attempt < TTS_RETRIES - 1:
+                time.sleep((2 ** attempt) * 0.5 + random.random() * 0.3)  # exp backoff + jitter
+    raise last_err
 
 
 def synthesize_wav(text: str) -> bytes:
@@ -165,11 +202,25 @@ def synthesize_wav(text: str) -> bytes:
 
     cleaned = re.sub(r"[\[\]*`#]", " ", text)  # strip markup TTS reads oddly
     chunks = _chunk(cleaned, TTS_CHAR_LIMIT)
+    if not chunks:
+        raise ValueError("nothing to synthesize")
     if len(chunks) == 1:
         pcm = _tts_pcm(chunks[0])
     else:
+        # Synthesize in parallel but isolate failures: a chunk that fails after
+        # retries drops to b"" (a small gap) instead of discarding the other five.
+        pieces = [b""] * len(chunks)
         with concurrent.futures.ThreadPoolExecutor(max_workers=TTS_WORKERS) as ex:
-            pcm = b"".join(ex.map(_tts_pcm, chunks))  # ex.map preserves order
+            futs = {ex.submit(_tts_pcm, c): i for i, c in enumerate(chunks)}
+            for fut in concurrent.futures.as_completed(futs):
+                i = futs[fut]
+                try:
+                    pieces[i] = fut.result()
+                except Exception as e:
+                    log.warning("TTS chunk %d/%d failed, dropping: %s", i + 1, len(chunks), e)
+        pcm = b"".join(pieces)  # index order preserved regardless of completion order
+        if not pcm:
+            raise RuntimeError("all TTS chunks failed")
     buf = io.BytesIO()
     with wave.open(buf, "wb") as w:
         w.setnchannels(1)
@@ -186,11 +237,17 @@ def voice_page():
 
 @voice_bp.route("/api/voice/ask", methods=["POST"])
 def voice_ask():
+    if not rate_limit_ok(f"voice:{client_ip(request)}", 20, 60):
+        return jsonify({"error": "Too many requests — slow down a moment."}), 429
+
     symbol = (request.form.get("symbol") or "").strip()
-    if not re.fullmatch(r"[A-Za-z0-9._-]{1,20}", symbol):
+    # Must start alnum and contain no "..", so it can't traverse out of a download dir.
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,19}", symbol) or ".." in symbol:
         return jsonify({"error": "enter a valid symbol"}), 400
 
     typed = (request.form.get("text") or "").strip()
+    if len(typed) > MAX_TYPED_CHARS:
+        return jsonify({"error": "question too long"}), 400
     audio = request.files.get("audio")
     if not typed and not audio:
         return jsonify({"error": "no question — type or record one"}), 400
@@ -202,8 +259,8 @@ def voice_ask():
 
     audio_b64 = fmt = None
     if not typed:
-        fmt = (audio.filename.rsplit(".", 1)[-1] or "webm").lower()
-        if fmt not in {"webm", "wav", "mp3", "m4a", "ogg", "flac", "aac"}:
+        fmt = ((audio.filename or "").rsplit(".", 1)[-1] or "webm").lower()
+        if fmt not in {"webm", "wav", "mp3", "mp4", "m4a", "ogg", "flac", "aac"}:
             fmt = "webm"
         audio_b64 = base64.b64encode(audio.read()).decode("ascii")
 
@@ -217,25 +274,35 @@ def voice_ask():
         except (ValueError, TypeError):
             history = []
 
+    if not _VOICE_SEMA.acquire(blocking=False):
+        return jsonify({"error": "Server busy with another request — "
+                                 "try again in a moment."}), 429
     try:
-        if typed:
-            question = typed
-        else:
-            question = transcribe(audio_b64, fmt)
-            if not question:
-                return jsonify({"error": "couldn't understand the audio — try again"}), 422
-        answer = reason(question, context, symbol, history)
-        wav = synthesize_wav(answer)
-    except requests.HTTPError as e:
-        body = e.response.text[:300] if e.response is not None else str(e)
-        return jsonify({"error": f"upstream error: {body}"}), 502
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        try:
+            if typed:
+                question = typed
+            else:
+                question = transcribe(audio_b64, fmt)
+                if not question:
+                    return jsonify({"error": "couldn't understand the audio — try again"}), 422
+            answer = reason(question, context, symbol, history)
+            if not answer:
+                return jsonify({"error": "the model returned an empty answer — try rephrasing"}), 502
+            wav = synthesize_wav(answer)
+        except requests.HTTPError as e:
+            status = e.response.status_code if e.response is not None else "?"
+            log.warning("voice upstream error (status=%s): %s", status, e)
+            return jsonify({"error": "upstream service error — try again in a moment."}), 502
+        except Exception as e:
+            log.exception("voice pipeline error: %s", e)
+            return jsonify({"error": "internal error while processing your question"}), 500
 
-    return jsonify({
-        "symbol": symbol.upper(),
-        "sources": sources,
-        "question": question,
-        "answer": answer,
-        "audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii"),
-    })
+        return jsonify({
+            "symbol": symbol.upper(),
+            "sources": sources,
+            "question": question,
+            "answer": answer,
+            "audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii"),
+        })
+    finally:
+        _VOICE_SEMA.release()

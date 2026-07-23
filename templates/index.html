@@ -8,6 +8,7 @@
     <meta name="theme-color" content="#153e2e">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1644,6 +1645,20 @@
             })[char]);
         }
 
+        // Render untrusted markdown safely: parse, then strip any active
+        // content (scripts, event handlers, javascript: URLs) via DOMPurify.
+        function renderMarkdown(md) {
+            return DOMPurify.sanitize(marked.parse(String(md ?? '')));
+        }
+
+        // Allowlist http(s) links only; anything else (javascript:, data:, …)
+        // collapses to '#'. Caller must still escapeHtml() the result for the
+        // href attribute.
+        function safeUrl(value) {
+            const s = String(value ?? '').trim();
+            return /^https?:\/\//i.test(s) ? s : '#';
+        }
+
         function filterWatchlist() {
             watchlistQuery = document.getElementById('watchlist-search').value.trim().toLowerCase();
             renderWatchlist();
@@ -1973,13 +1988,13 @@
 
             document.getElementById('research-ticker-view').classList.remove('active');
             document.getElementById('research-note-view').classList.add('active');
-            document.getElementById('research-note-title').innerHTML = `<span style="color:var(--accent);font-family:'JetBrains Mono',monospace;">${ticker}</span> / ${slug}`;
+            document.getElementById('research-note-title').innerHTML = `<span style="color:var(--accent);font-family:'JetBrains Mono',monospace;">${escapeHtml(ticker)}</span> / ${escapeHtml(slug)}`;
 
             const backBtn = document.getElementById('research-note-back');
             backBtn.textContent = `← ${ticker}`;
             backBtn.onclick = () => backToTickerFromNote();
 
-            document.getElementById('research-rendered').innerHTML = marked.parse(data.content);
+            document.getElementById('research-rendered').innerHTML = renderMarkdown(data.content);
             document.getElementById('research-textarea').value = data.content;
             document.getElementById('research-rendered').style.display = '';
             document.getElementById('research-editor').classList.remove('active');
@@ -2027,7 +2042,7 @@
             });
             if (res.ok) {
                 showToast(`Saved ${currentSlug}`);
-                document.getElementById('research-rendered').innerHTML = marked.parse(content);
+                document.getElementById('research-rendered').innerHTML = renderMarkdown(content);
                 cancelResearchEdit();
             } else {
                 showToast('Failed to save', 'error');
@@ -2193,10 +2208,10 @@
                     ? new Date(run.ts).toLocaleString('en-GB',
                         { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                     : '';
-                const digestHtml = run.digest ? marked.parse(run.digest) : '<em>No summary.</em>';
+                const digestHtml = run.digest ? renderMarkdown(run.digest) : '<em>No summary.</em>';
                 const items = (run.items || []).map(it => {
-                    const blurb = it.blurb ? ` — <span class="ann-blurb">${it.blurb}</span>` : '';
-                    return `<li><a href="${it.url}" target="_blank" rel="noopener">${it.company}: ${it.title}</a>${blurb}</li>`;
+                    const blurb = it.blurb ? ` — <span class="ann-blurb">${escapeHtml(it.blurb)}</span>` : '';
+                    return `<li><a href="${escapeHtml(safeUrl(it.url))}" target="_blank" rel="noopener">${escapeHtml(it.company)}: ${escapeHtml(it.title)}</a>${blurb}</li>`;
                 }).join('');
                 const sources = items
                     ? `<details class="ann-sources"><summary>${run.items.length} source filing${run.items.length === 1 ? '' : 's'}</summary><ul>${items}</ul></details>`
@@ -2321,21 +2336,21 @@
                     : '';
                 const articles = (it.articles || []).map(a => {
                     const ir = a.ir ? '<span class="ir-tag">IR</span>' : '';
-                    const src = a.source ? `<span class="art-src">${a.source}</span>` : '';
-                    return `<li>${ir}<a href="${a.link}" target="_blank" rel="noopener">${a.title}</a>${src}</li>`;
+                    const src = a.source ? `<span class="art-src">${escapeHtml(a.source)}</span>` : '';
+                    return `<li>${ir}<a href="${escapeHtml(safeUrl(a.link))}" target="_blank" rel="noopener">${escapeHtml(a.title)}</a>${src}</li>`;
                 }).join('');
                 const summary = it.summary
-                    ? `<p class="news-summary">${it.summary}</p>`
-                    : `<p class="news-summary muted">⚠ ${it.summary_error || 'No summary'} — headlines below.</p>`;
+                    ? `<p class="news-summary">${escapeHtml(it.summary)}</p>`
+                    : `<p class="news-summary muted">⚠ ${escapeHtml(it.summary_error || 'No summary')} — headlines below.</p>`;
                 const reason = it.significance_reason
-                    ? `<div class="sig-reason">${it.significance_reason}</div>` : '';
+                    ? `<div class="sig-reason">${escapeHtml(it.significance_reason)}</div>` : '';
                 return `
                     <div class="news-card">
                         <div class="news-card-head">
                             <div>
-                                <span class="news-ticker">${it.ticker}</span>
-                                <span class="exchange-badge ${it.exchange.toLowerCase()}">${it.exchange}</span>
-                                ${it.company ? `<span class="news-company">${it.company}</span>` : ''}
+                                <span class="news-ticker">${escapeHtml(it.ticker)}</span>
+                                <span class="exchange-badge ${escapeHtml(String(it.exchange ?? '').toLowerCase())}">${escapeHtml(it.exchange)}</span>
+                                ${it.company ? `<span class="news-company">${escapeHtml(it.company)}</span>` : ''}
                             </div>
                             <div class="news-card-right">
                                 ${sigBadge(it.significance)}

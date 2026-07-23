@@ -61,7 +61,27 @@
 const recBtn = document.getElementById("rec");
 const statusEl = document.getElementById("status");
 const symbolEl = document.getElementById("symbol");
-let mediaRecorder, chunks = [], stream;
+let mediaRecorder, chunks = [], stream, recMime = "";
+
+// Safari/iOS MediaRecorder with no mimeType records mp4/AAC but we used to hardcode
+// "audio/webm" — STT then got mp4 bytes labeled webm → garbage on iPhone. Pick a mime
+// the browser actually supports, and label the blob with its true extension.
+function pickMime() {
+  const cands = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4",
+                 "audio/aac", "audio/ogg;codecs=opus", "audio/ogg"];
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported) {
+    for (const m of cands) { if (MediaRecorder.isTypeSupported(m)) return m; }
+  }
+  return "";  // let the browser choose; extFor() still resolves a sane extension
+}
+function extFor(mime) {
+  mime = (mime || "").toLowerCase();
+  if (mime.includes("mp4") || mime.includes("m4a")) return "mp4";
+  if (mime.includes("aac")) return "aac";
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("wav")) return "wav";
+  return "webm";
+}
 
 // Multi-turn memory: prior Q&A for the current symbol, sent back each request.
 let history = [];
@@ -103,19 +123,38 @@ function addEntry(j) {
 }
 
 let recording = false;
+let starting = false;   // synchronous latch: blocks a double-tap before `recording` flips
+let inFlight = false;   // a request is mid-flight: block new records/asks that would race history
 
 async function startRec() {
+  // Synchronous guards FIRST — `recording` only flips after an await, so without
+  // `starting` a fast double-click opens a second mic stream and leaks it.
+  if (starting || recording || inFlight) return;
   const symbol = symbolEl.value.trim();
   if (!symbol) { setStatus("Enter a symbol first."); return; }
+  starting = true;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (e) { setStatus("Mic permission denied — allow the microphone and try again."); return; }
+  } catch (e) {
+    setStatus("Mic permission denied — allow the microphone and try again.");
+    starting = false;
+    return;
+  }
   chunks = [];
-  mediaRecorder = new MediaRecorder(stream);
+  recMime = pickMime();
+  try {
+    mediaRecorder = recMime ? new MediaRecorder(stream, { mimeType: recMime })
+                            : new MediaRecorder(stream);
+  } catch (e) {  // some browsers reject the options form for a supported type
+    mediaRecorder = new MediaRecorder(stream);
+    recMime = mediaRecorder.mimeType || "";
+  }
+  if (!recMime) recMime = mediaRecorder.mimeType || "";  // reflect the browser's real choice
   mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); send(); };
   mediaRecorder.start();
   recording = true;
+  starting = false;
   recBtn.classList.add("recording");
   recBtn.textContent = "⏹ Stop & send";
   setStatus("🔴 Recording… speak your question, then click Stop & send.");
@@ -139,6 +178,7 @@ const qtextEl = document.getElementById("qtext");
 
 // Shared submit for both audio and typed questions.
 async function submit(fd) {
+  if (inFlight) return;  // block a concurrent duplicate that would scramble history order
   const symbol = symbolEl.value.trim();
   if (!symbol) { setStatus("Enter a symbol first."); return; }
   // A genuinely different symbol at ask-time starts a fresh conversation.
@@ -146,10 +186,13 @@ async function submit(fd) {
   if (sym !== historySymbol) resetHistory(sym);
   fd.append("symbol", symbol);
   fd.append("history", JSON.stringify(history));
+  inFlight = true;
   recBtn.disabled = textBtn.disabled = true;
   setStatus("Reasoning over the filings and generating audio… (can take up to ~1 min)");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 180000);  // don't hang forever on a stalled request
   try {
-    const r = await fetch("/api/voice/ask", { method: "POST", body: fd });
+    const r = await fetch("/api/voice/ask", { method: "POST", body: fd, signal: ctrl.signal });
     const j = await r.json();
     if (!r.ok) { setStatus("✗ " + (j.error || r.status)); return; }
     // Record the turn so the next question can reference it.
@@ -157,19 +200,26 @@ async function submit(fd) {
     history.push({ role: "assistant", content: j.answer });
     addEntry(j);
     setStatus("Done ✓ — ask a follow-up, or start a New conversation.");
-  } catch (e) { setStatus("✗ " + e.message); }
-  finally { recBtn.disabled = textBtn.disabled = false; }
+  } catch (e) {
+    setStatus(e.name === "AbortError" ? "✗ Timed out — try again." : "✗ " + e.message);
+  } finally {
+    clearTimeout(timer);
+    inFlight = false;
+    recBtn.disabled = textBtn.disabled = false;
+  }
 }
 
 function send() {
-  const blob = new Blob(chunks, { type: "audio/webm" });
+  const type = recMime || mediaRecorder?.mimeType || "audio/webm";
+  const blob = new Blob(chunks, { type });
   if (blob.size < 1200) { setStatus("Too short — hold a bit longer."); return; }
   const fd = new FormData();
-  fd.append("audio", blob, "q.webm");
+  fd.append("audio", blob, "q." + extFor(type));  // true extension so STT reads the right codec
   submit(fd);
 }
 
 function sendText() {
+  if (inFlight) return;
   const q = qtextEl.value.trim();
   if (!q) { setStatus("Type a question first."); return; }
   const fd = new FormData();

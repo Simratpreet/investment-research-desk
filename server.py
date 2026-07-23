@@ -4,13 +4,117 @@ Flask web server for managing the stock watchlist.
 
 import json
 import os
+import secrets
 import sys
 import threading
-from flask import Flask, request, jsonify, render_template
-from config import WATCHLIST_FILE, SERVER_HOST, SERVER_PORT, EXCHANGE_SUFFIXES, ALERT_LOG_FILE, RESEARCH_DIR
+from datetime import timedelta
+from flask import (Flask, request, jsonify, render_template,
+                   render_template_string, session, redirect, url_for)
+from config import (WATCHLIST_FILE, SERVER_HOST, SERVER_PORT, EXCHANGE_SUFFIXES,
+                    ALERT_LOG_FILE, RESEARCH_DIR, APP_PASSWORD, SECRET_KEY,
+                    COOKIE_SECURE, MAX_CONTENT_LENGTH)
 from datetime import datetime, timezone
+from security import client_ip, rate_limit_ok, valid_segment, resolve_within
 
 app = Flask(__name__)
+app.secret_key = SECRET_KEY or secrets.token_hex(32)
+app.config.update(
+    MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=COOKIE_SECURE,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+)
+
+# --- Auth gate (single shared password -> signed session cookie) ------------
+# Covers EVERY route, including the voice blueprint and /share/* pages. Only
+# the login page, logout, and the health check are reachable unauthenticated.
+_PUBLIC_ENDPOINTS = {"login", "logout", "healthz", "static"}
+
+
+@app.before_request
+def _require_auth():
+    if request.endpoint in _PUBLIC_ENDPOINTS or session.get("auth"):
+        return
+    # API callers get a clean 401 (their JS surfaces it); browsers get the form.
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "authentication required"}), 401
+    return redirect(url_for("login", next=request.path))
+
+
+_LOGIN_TEMPLATE = """<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in</title><style>
+  :root{color-scheme:light}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       font:16px/1.5 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;background:#f5f0eb;color:#2d2a26}
+  form{background:#fff;padding:2rem;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);width:min(90vw,340px)}
+  h1{font-size:1.15rem;margin:0 0 1.1rem}
+  input{width:100%;box-sizing:border-box;font:inherit;padding:.7rem .8rem;border:1px solid #e5e7eb;
+        border-radius:10px;background:#f9fafb;margin-bottom:.9rem}
+  button{width:100%;font:inherit;font-weight:600;color:#fff;background:#c8553d;border:0;border-radius:10px;
+         padding:.75rem;cursor:pointer}
+  .err{color:#dc2626;font-size:.85rem;margin-bottom:.8rem;min-height:1em}
+</style></head><body>
+<form method="post" action="{{ action }}">
+  <h1>🔒 Stock Watchlist</h1>
+  <div class="err">{{ error }}</div>
+  <input type="password" name="password" placeholder="Password" autofocus autocomplete="current-password">
+  <button type="submit">Sign in</button>
+</form></body></html>"""
+
+
+def _safe_next(raw: str) -> str:
+    """Only allow same-site absolute paths as post-login redirect targets
+    (blocks //evil.com and scheme-relative open redirects)."""
+    if raw and raw.startswith("/") and not raw.startswith("//"):
+        return raw
+    return "/"
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    nxt = _safe_next(request.args.get("next", "/"))
+    action = url_for("login", next=nxt)
+    if request.method == "POST":
+        if not rate_limit_ok(f"login:{client_ip(request)}", 10, 300):
+            return render_template_string(
+                _LOGIN_TEMPLATE, error="Too many attempts — wait a few minutes.",
+                action=action), 429
+        pw = request.form.get("password", "")
+        if APP_PASSWORD and secrets.compare_digest(pw, APP_PASSWORD):
+            session.clear()
+            session["auth"] = True
+            session.permanent = True
+            return redirect(_safe_next(request.form.get("next")
+                                       or request.args.get("next", "/")))
+        return render_template_string(
+            _LOGIN_TEMPLATE, error="Wrong password.", action=action), 401
+    if session.get("auth"):
+        return redirect(nxt)
+    return render_template_string(_LOGIN_TEMPLATE, error="", action=action)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.route("/healthz")
+def healthz():
+    return jsonify({"status": "ok"}), 200
+
+
+def require_auth_configured():
+    """Fail closed: refuse to start serving without a password set, so the app
+    can never be deployed publicly with the auth gate effectively open."""
+    if not APP_PASSWORD:
+        sys.exit(
+            "FATAL: APP_PASSWORD is not set. Refusing to start with an open "
+            "auth gate. Set APP_PASSWORD (and, in production, SECRET_KEY + "
+            "COOKIE_SECURE=1) in the environment. See .env.example.")
+
 
 # Voice research module — GET /voice page + POST /api/voice/ask
 from voice_module import voice_bp
@@ -358,6 +462,8 @@ def clear_alerts():
 @app.route("/api/check-now", methods=["POST"])
 def check_now():
     """Trigger an on-demand alert check."""
+    if not rate_limit_ok(f"check-now:{client_ip(request)}", 5, 60):
+        return jsonify({"error": "Too many checks — wait a minute."}), 429
     from alerts.earnings import check_earnings
     from alerts.price_action import check_price_action
     from notifier import send_batch_alerts
@@ -392,6 +498,7 @@ def start_server():
     """Start the Flask dashboard (no scheduler). Port comes from the first
     CLI arg or the PORT env var, else config.SERVER_PORT — e.g.
     `python server.py 8092` to run alongside the main.py daemon."""
+    require_auth_configured()
     os.makedirs(RESEARCH_DIR, exist_ok=True)
     port = SERVER_PORT
     if len(sys.argv) > 1:
@@ -402,6 +509,21 @@ def start_server():
 
 
 # --- Research Notes API (folder-per-ticker) ---
+
+def _note_path(ticker, slug):
+    """Resolve RESEARCH_DIR/<ticker>/<slug>.md, or None if ticker/slug is
+    unsafe or the resolved path escapes RESEARCH_DIR (path-traversal guard)."""
+    if not (valid_segment(ticker) and valid_segment(slug)):
+        return None
+    return resolve_within(RESEARCH_DIR, ticker, f"{slug}.md")
+
+
+def _ticker_dir(ticker):
+    """Resolve RESEARCH_DIR/<ticker>, or None if unsafe / escapes RESEARCH_DIR."""
+    if not valid_segment(ticker):
+        return None
+    return resolve_within(RESEARCH_DIR, ticker)
+
 
 def _note_meta(ticker_dir, filename):
     """Extract metadata from a single note file."""
@@ -460,8 +582,8 @@ def list_research():
 def get_research(ticker, slug):
     """Get a single note's content."""
     ticker = ticker.upper()
-    filepath = os.path.join(RESEARCH_DIR, ticker, f"{slug}.md")
-    if not os.path.exists(filepath):
+    filepath = _note_path(ticker, slug)
+    if not filepath or not os.path.exists(filepath):
         return jsonify({"error": "Note not found"}), 404
     with open(filepath, "r") as f:
         content = f.read()
@@ -478,13 +600,14 @@ def get_research(ticker, slug):
 def save_research(ticker, slug):
     """Create or update a note."""
     ticker = ticker.upper()
-    ticker_dir = os.path.join(RESEARCH_DIR, ticker)
-    os.makedirs(ticker_dir, exist_ok=True)
+    filepath = _note_path(ticker, slug)
+    if not filepath:
+        return jsonify({"error": "Invalid ticker or note name"}), 400
     data = request.get_json()
     content = data.get("content", "")
     if not content.strip():
         return jsonify({"error": "Content cannot be empty"}), 400
-    filepath = os.path.join(ticker_dir, f"{slug}.md")
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     with open(filepath, "w") as f:
         f.write(content)
     return jsonify({"ticker": ticker, "slug": slug, "message": "Saved"}), 200
@@ -494,13 +617,13 @@ def save_research(ticker, slug):
 def delete_note(ticker, slug):
     """Delete a single note."""
     ticker = ticker.upper()
-    filepath = os.path.join(RESEARCH_DIR, ticker, f"{slug}.md")
-    if not os.path.exists(filepath):
+    filepath = _note_path(ticker, slug)
+    if not filepath or not os.path.exists(filepath):
         return jsonify({"error": "Not found"}), 404
     os.remove(filepath)
     # Remove ticker folder if empty
-    ticker_dir = os.path.join(RESEARCH_DIR, ticker)
-    if not os.listdir(ticker_dir):
+    ticker_dir = _ticker_dir(ticker)
+    if ticker_dir and os.path.isdir(ticker_dir) and not os.listdir(ticker_dir):
         os.rmdir(ticker_dir)
     return jsonify({"message": f"Deleted {slug} from {ticker}"}), 200
 
@@ -510,8 +633,13 @@ def delete_ticker(ticker):
     """Delete all notes for a ticker."""
     import shutil
     ticker = ticker.upper()
-    ticker_dir = os.path.join(RESEARCH_DIR, ticker)
-    if not os.path.isdir(ticker_dir):
+    ticker_dir = _ticker_dir(ticker)
+    # Never rmtree RESEARCH_DIR itself or anything outside it (path-traversal
+    # guard): _ticker_dir returns None for unsafe names, and we require the
+    # resolved path to be a strict child of RESEARCH_DIR.
+    if (not ticker_dir
+            or ticker_dir == os.path.realpath(RESEARCH_DIR)
+            or not os.path.isdir(ticker_dir)):
         return jsonify({"error": "Not found"}), 404
     shutil.rmtree(ticker_dir)
     return jsonify({"message": f"Deleted all research for {ticker}"}), 200
@@ -527,6 +655,7 @@ SHARE_TEMPLATE = """<!DOCTYPE html>
     <title>{{ ticker }} — {{ title }}</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -617,18 +746,17 @@ SHARE_TEMPLATE = """<!DOCTYPE html>
     <div class="footer">Shared from Stock Watchlist</div>
     <script>
         const md = {{ content_json|safe }};
-        document.getElementById('content').innerHTML = marked.parse(md);
+        document.getElementById('content').innerHTML = DOMPurify.sanitize(marked.parse(md));
     </script>
 </body>
 </html>"""
 
 @app.route("/share/<ticker>/<slug>")
 def share_note(ticker, slug):
-    """Public read-only page for a single note."""
-    from flask import render_template_string
+    """Read-only page for a single note (login required)."""
     ticker = ticker.upper()
-    filepath = os.path.join(RESEARCH_DIR, ticker, f"{slug}.md")
-    if not os.path.exists(filepath):
+    filepath = _note_path(ticker, slug)
+    if not filepath or not os.path.exists(filepath):
         return "Note not found", 404
     with open(filepath, "r") as f:
         content = f.read()
@@ -649,7 +777,9 @@ def share_note(ticker, slug):
         ticker=ticker,
         title=title,
         updated=updated,
-        content_json=json.dumps(content),
+        # Escape "</" so a note containing </script> can't break out of the
+        # inline <script> block (json.dumps alone does not escape "/").
+        content_json=json.dumps(content).replace("</", "<\\/"),
     )
 
 
@@ -663,6 +793,7 @@ COMPANY_TEMPLATE = """<!DOCTYPE html>
     <title>{{ ticker }} — Research Notes</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -806,7 +937,8 @@ COMPANY_TEMPLATE = """<!DOCTYPE html>
     <script>
         const notes = {{ notes_json|safe }};
         notes.forEach((n, i) => {
-            document.getElementById('note-' + (i + 1)).innerHTML = marked.parse(n.content);
+            document.getElementById('note-' + (i + 1)).innerHTML =
+                DOMPurify.sanitize(marked.parse(n.content));
         });
     </script>
 </body>
@@ -815,11 +947,10 @@ COMPANY_TEMPLATE = """<!DOCTYPE html>
 
 @app.route("/share/<ticker>")
 def share_company(ticker):
-    """Combined page with all notes for a ticker."""
-    from flask import render_template_string
+    """Combined page with all notes for a ticker (login required)."""
     ticker = ticker.upper()
-    ticker_dir = os.path.join(RESEARCH_DIR, ticker)
-    if not os.path.isdir(ticker_dir):
+    ticker_dir = _ticker_dir(ticker)
+    if not ticker_dir or not os.path.isdir(ticker_dir):
         return "Ticker not found", 404
     notes = []
     for fname in sorted(os.listdir(ticker_dir)):
@@ -841,7 +972,9 @@ def share_company(ticker):
         note_count=len(notes),
         generated=generated,
         notes=notes,
-        notes_json=json.dumps([{"slug": n["slug"], "content": n["content"]} for n in notes]),
+        notes_json=json.dumps(
+            [{"slug": n["slug"], "content": n["content"]} for n in notes]
+        ).replace("</", "<\\/"),
     )
 
 

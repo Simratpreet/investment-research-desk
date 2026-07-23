@@ -29,8 +29,14 @@ app; stored XSS on /share; secrets to rotate). Do those before the migration ste
    - AWS creds available in `/Users/simrat/Desktop/coding-practice/tts-chat/.env`
      (user `polly-agent`, has S3FullAccess). Use boto3.
    - ⚠️ Filings must be UPLOADED to the bucket first (downloaders currently write local).
-2. **Auth gate** covering ALL routes (app is currently open). Simple password /
-   Flask session or Basic Auth env-var check.
+2. ~~**Auth gate** covering ALL routes.~~ ✓ DONE 2026-07-23 — session-cookie
+   login (`APP_PASSWORD` env, fail-closed). See CODE-REVIEW.md TIER 0.1. Also
+   done: 0.2 path-traversal guard, 0.3 XSS sanitization. Set `APP_PASSWORD` in
+   `.env` before running locally (server now refuses to start without it).
+   ~~TIER 1 correctness bugs~~ ✓ DONE 2026-07-23 too — Safari mp4/webm mislabel,
+   malformed-history/`content:null`/`audio.filename`-None crashes, TTS-429
+   answer-loss (retry + per-chunk isolation), client re-entrancy, fetch timeout,
+   error-body leak. See CODE-REVIEW.md TIER 1.
 3. **Navigation** between watchlist index (`/`) and `/voice`. Add a nav bar to both
    templates (index template + voice.html).
 4. **Dockerfile + pinned requirements.txt.** Deps: flask, requests, yfinance, numpy,

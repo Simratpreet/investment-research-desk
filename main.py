@@ -15,7 +15,7 @@ from config import WATCHLIST_FILE, CHECK_INTERVAL_MINUTES
 from alerts.earnings import check_earnings
 from alerts.price_action import check_price_action
 from notifier import send_batch_alerts
-from server import app, SERVER_HOST, SERVER_PORT
+from server import app, SERVER_HOST, SERVER_PORT, require_auth_configured
 
 
 def load_watchlist() -> list[dict]:
@@ -70,6 +70,7 @@ def run_checks():
 
 
 def main():
+    require_auth_configured()
     print("=" * 55)
     print("  📡 Stock Watchlist & Alert System")
     print("=" * 55)

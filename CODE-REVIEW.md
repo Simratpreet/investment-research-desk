@@ -9,7 +9,26 @@ Line numbers are from the review snapshot — verify against current code before
 
 ## TIER 0 — BLOCKS PUBLIC DEPLOY (do these first, in order)
 
-### 0.1 No authentication on ANY route
+> **Status (2026-07-23, this session): 0.1, 0.2, 0.3 DONE and tested. 0.4 is a
+> user action (rotate secrets) — still outstanding.** See `security.py` (new
+> shared helpers), the auth gate + `_note_path`/`_ticker_dir` guards in
+> `server.py`, DOMPurify+escaping in `templates/index.html` and both share
+> templates, and the concurrency/rate-limit caps in `voice_module.py`.
+> ⚠️ `APP_PASSWORD` is now REQUIRED — the server fails closed without it, so add
+> it to your local `.env` before running (`.env.example` documents it).
+
+### 0.1 No authentication on ANY route  ✓ DONE
+Session-cookie login gate (chosen over Basic Auth for mobile UX). `/login` page
++ `secrets.compare_digest` password check → signed session; one `before_request`
+hook gates EVERY route (API → 401 JSON, pages → 302 /login). Only `/login`,
+`/logout`, `/healthz`, `static` are public. `/share/*` is gated too (user chose
+this over keeping it public). Brute-force rate-limit on `/login` (10/5min per IP);
+per-IP rate-limit + `BoundedSemaphore(2)` concurrency cap on `/api/voice/ask`;
+rate-limit on `/api/check-now`; scans already single-flight. `MAX_CONTENT_LENGTH`
+caps upload size. Fail-closed startup guard (`require_auth_configured()`) in both
+`server.start_server()` and `main.main()`.
+
+<details><summary>Original finding</summary>
 The app has zero auth. Going public means anyone can spend your money and mutate/delete
 your data. Worst offenders:
 - `POST /api/voice/ask` (voice_module.py) — STT + high-effort `gpt-5.6-sol` reasoning +
@@ -21,8 +40,17 @@ your data. Worst offenders:
 **Fix:** gate the ENTIRE app behind auth (a `before_request` token/session check, or
 reverse-proxy basic-auth/SSO). Add per-IP rate limiting + a global concurrency cap on
 voice/ask and the scan endpoints. Do not deploy public without this.
+</details>
 
-### 0.2 Destructive path traversal → rmtree of the whole project
+### 0.2 Destructive path traversal → rmtree of the whole project  ✓ DONE
+Shared containment helpers in `security.py`: `valid_segment()`
+(`^[A-Za-z0-9_-]{1,64}$`, no dots → `..` impossible) + `resolve_within()`
+(realpath must stay inside base). Applied via `_note_path()`/`_ticker_dir()` to
+all 6 research/share routes. `delete_ticker` additionally refuses to rmtree
+`RESEARCH_DIR` itself. Verified: `DELETE /api/research/%2e%2e` → 404 (no rmtree),
+`GET/PUT /api/research/%2e%2e/<x>` → 404/400, legit `ASML/asml_2627` still 200.
+
+<details><summary>Original finding</summary>
 `DELETE /api/research/<ticker>` → `shutil.rmtree(os.path.join(RESEARCH_DIR, ticker))`
 with no sanitization (server.py ~508-517). `DELETE /api/research/%2e%2e` resolves to
 `rmtree("/Users/simrat/Desktop/stock-watchlist")` — deletes the entire app incl. `.env`.
@@ -31,8 +59,20 @@ in the project root (server.py ~459-490). (Verified by routing analysis, NOT exe
 **Fix:** one shared path-containment helper — validate `ticker`/`slug` against
 `^[A-Za-z0-9_-]+$`, reject `..`, and `os.path.realpath`-confirm the resolved path stays
 inside `RESEARCH_DIR` before any open/rmtree. Apply to every research route.
+</details>
 
-### 0.3 Stored XSS on public /share pages + dashboard
+### 0.3 Stored XSS on /share pages + dashboard  ✓ DONE
+Both share templates + `index.html` now load DOMPurify; every `marked.parse(...)`
+sink is wrapped `DOMPurify.sanitize(marked.parse(...))` (share note, share
+company, research note view/save, announcement digest). Inline `<script>` JSON in
+the share templates escapes `</` (`json.dumps(x).replace("</","<\\/")`) — verified
+a `</script>` payload can no longer break out. News/announcement fields
+(`summary`, `summary_error`, `significance_reason`, `ticker`, `exchange`,
+`company`, article `title`/`source`/`blurb`) escaped via the existing
+`escapeHtml`; `<a href>` links passed through a new `safeUrl()` http(s) allowlist
+then `escapeHtml`. Research note title `${ticker}/${slug}` also escaped.
+
+<details><summary>Original finding</summary>
 Research note content is attacker-writable (0.1) and rendered unsanitized:
 - `{{ content_json|safe }}` in inline `<script>` (server.py ~619, ~807) — `json.dumps`
   doesn't escape `/`, so a note with `</script><script>…</script>` breaks out → arbitrary JS.
@@ -45,8 +85,9 @@ Research note content is attacker-writable (0.1) and rendered unsanitized:
 **Fix:** escape `</` in the JSON (`json.dumps(x).replace("</","<\\/")`); sanitize
 `marked.parse` output with DOMPurify; escape the news/announcement fields; allowlist
 `http(s)` link schemes.
+</details>
 
-### 0.4 Rotate the three exposed secrets — they've been plaintext on disk
+### 0.4 Rotate the three exposed secrets — they've been plaintext on disk  ⚠ USER ACTION (outstanding)
 `.env` (OpenRouter key, Telegram bot token, chat id), `.env.bak` (second copy), and
 `screener_alerts/cookie.txt` (live screener.in `sessionid`). Now gitignored + dockerignored
 (done this session), but they existed in plaintext, so **rotate all three**:
@@ -57,6 +98,40 @@ via the platform env-var store / an IAM role, never a file.
 ---
 
 ## TIER 1 — CORRECTNESS BUGS (fix before/right after deploy)
+
+**✓ DONE 2026-07-23.** All correctness bugs fixed and verified (`voice_module.py`,
+`templates/voice.html`). Verification: `py_compile` + `node --check` clean; unit tests
+(no network, `requests` monkeypatched) confirm malformed-history no-crash, `content:null`→`""`,
+`_tts_pcm` retry-then-succeed + empty/non-PCM guard raises, `synthesize_wav` drops one failed
+chunk while keeping the rest (and raises only if ALL fail); authenticated test-client confirms
+`..`/leading-dot symbols → 400, typed >2000 chars → 400, no-question → 400, and the route is
+auth-gated (401 unauth). What changed, per original finding:
+
+- **Safari mp4/webm** ✓ — `pickMime()` chooses a browser-supported mime via
+  `MediaRecorder.isTypeSupported`; `MediaRecorder` constructed with it; `send()` uses the real
+  recorded mime + `extFor()` extension; server now accepts `mp4` in the allowed-format set.
+  (Code fix unambiguous; full confirmation still wants a real iPhone.)
+- **Malformed `history` → 500** ✓ — `if not isinstance(turn, dict): continue` in `reason()`.
+- **One TTS 429 nukes the answer** ✓ — `_tts_pcm` retries 429/5xx with exp backoff + jitter
+  (`TTS_RETRIES=3`); `synthesize_wav` uses per-future `as_completed` with index-ordered
+  results so a chunk that fails after retries drops to `b""` instead of killing the answer;
+  raises only if every chunk fails.
+- **`content: null` → 500** ✓ — `(msg.get("content") or "").strip()`; empty answer → 502 with
+  a "try rephrasing" message rather than feeding "" to TTS.
+- **`audio.filename` None → 500** ✓ — `((audio.filename or "").rsplit(...))`.
+- **Length caps** ✓ — typed >`MAX_TYPED_CHARS` (2000) → 400; `MAX_CONTENT_LENGTH` set in TIER 0.
+- **`_tts_pcm` empty/non-PCM guard** ✓ — rejects empty body or `json`/`text` content-type,
+  folded into the retry loop.
+- **Client re-entrancy** ✓ — synchronous `starting` latch at top of `startRec` (blocks the
+  double-tap mic leak); `inFlight` boolean gates `submit`/`sendText`/Enter and record-start so
+  concurrent requests can't scramble `history` order.
+- **Minor** ✓ — client `fetch` now has a 180s `AbortController` timeout; error responses return
+  generic messages and log detail server-side (no upstream-body/`str(e)` leak); `load_context`
+  symbol regex tightened (must start alnum, no `..`).
+- **Log/history cosmetic desync** — LEFT AS-IS (cosmetic only; scrollback of prior-symbol Q&A
+  is arguably desirable; "New conversation" still clears both).
+
+<details><summary>Original TIER 1 findings (pre-fix)</summary>
 
 Public endpoint means these are trivially triggerable, not theoretical.
 
@@ -94,6 +169,8 @@ is intended; history pushed correctly on both paths; no command injection (list-
 subprocess, no user input, no shell=True); no eval/exec/pickle/yaml; Flask debug off.
 The `transcribe()` JSON/base64 call to OpenRouter is VALID — verified live earlier (~0.8s,
 perfect transcription); ignore any review note calling it malformed.
+
+</details>
 
 ---
 
@@ -152,10 +229,12 @@ tools/   data/(volume, gitignored)   main.py  Dockerfile  requirements.txt
 ---
 
 ## Suggested execution order for next session
-1. TIER 0 security (auth → path-containment helper → XSS escaping) — the deploy gate.
-2. Rotate secrets (user action) + delete `.env.bak`.
+1. ~~TIER 0 security (auth → path-containment helper → XSS escaping) — the deploy gate.~~
+   ✓ DONE 2026-07-23 (0.1/0.2/0.3). Not yet committed.
+2. Rotate secrets (user action, **still outstanding**) + delete `.env.bak`.
 3. requirements.txt pin + add numpy/pypdf/boto3 (container won't boot otherwise).
-4. TIER 1 correctness — Safari mime + malformed-history + TTS-429 first.
+4. ~~TIER 1 correctness — Safari mime + malformed-history + TTS-429 first.~~
+   ✓ DONE 2026-07-23. Not yet committed.
 5. TIER 2 refactor (services/ consolidation, template/static extraction, blueprints) —
    ideally BEFORE the S3 migration so load_context and the store paths change in a clean layout.
 6. Then resume cloud migration per HANDOFF.md.
