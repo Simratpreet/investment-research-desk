@@ -27,17 +27,24 @@ from pypdf import PdfReader
 
 CONFIG_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CONFIG_DIR.parent          # stock-watchlist/
+# Mutable state (seen/pending/store/digest/log) persists on the mounted volume
+# (DATA_DIR) in cloud so `seen` survives redeploys — otherwise every deploy wipes
+# it and the next scan re-discovers all announcements as "new". Falls back to
+# CONFIG_DIR locally. Secrets/config (cookie, key) stay in CONFIG_DIR.
+STATE_DIR = (Path(os.environ["DATA_DIR"]) / "screener_alerts"
+             if os.environ.get("DATA_DIR") else CONFIG_DIR)
+STATE_DIR.mkdir(parents=True, exist_ok=True)
 COOKIE_FILE = CONFIG_DIR / "cookie.txt"
 KEY_FILE = CONFIG_DIR / "openrouter_key.txt"
-SEEN_FILE = CONFIG_DIR / "seen.json"
-DIGEST_FILE = CONFIG_DIR / "digest.md"
-PENDING_FILE = CONFIG_DIR / "pending.json"
+SEEN_FILE = STATE_DIR / "seen.json"
+DIGEST_FILE = STATE_DIR / "digest.md"
+PENDING_FILE = STATE_DIR / "pending.json"
 # Structured store the dashboard reads (one entry per scan run, newest last).
-STORE_FILE = CONFIG_DIR / "announcements_store.json"
+STORE_FILE = STATE_DIR / "announcements_store.json"
 MAX_STORE_RUNS = 50
 # Timestamped run log (tail it, or view from the dashboard). Shared by
 # annual_reports.py, which reuses scan.log().
-LOG_FILE = CONFIG_DIR / "scan.log"
+LOG_FILE = STATE_DIR / "scan.log"
 LOG_MAX_BYTES = 2_000_000       # ~2 MB; older lines are trimmed past this
 
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
@@ -211,6 +218,16 @@ def load_text(path):
         return None
     val = path.read_text(encoding="utf-8").strip()
     return val or None
+
+
+def load_cookie():
+    """screener.in session Cookie header, resolved from the environment first
+    (SCREENER_COOKIE — how it's supplied in the cloud, easy to refresh via
+    `fly secrets set`), then a local cookie.txt fallback for dev."""
+    env_val = os.environ.get("SCREENER_COOKIE", "").strip()
+    if env_val:
+        return env_val
+    return load_text(COOKIE_FILE)
 
 
 def load_openrouter_key():
@@ -480,11 +497,12 @@ def main():
         + (f"  limit={args.limit}" if args.limit else "")
         + ("  seed-only" if args.seed_only else ""))
 
-    cookie = load_text(COOKIE_FILE)
+    cookie = load_cookie()
     api_key = load_openrouter_key()
 
     if not cookie:
-        log(f"No cookie found at {COOKIE_FILE}. Paste your screener.in session Cookie header there.")
+        log("No screener.in cookie. Set the SCREENER_COOKIE env var (cloud) or "
+            f"paste the Cookie header into {COOKIE_FILE} (local).")
         sys.exit(1)
 
     try:

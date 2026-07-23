@@ -50,11 +50,19 @@ PRICE_MOVE_THRESHOLD = 5.0     # Alert on daily move >= N% (absolute)
 VOLUME_SPIKE_MULTIPLIER = 2.0  # Alert when volume >= N × 20-day average
 
 # --- Check Schedule ---
-CHECK_INTERVAL_MINUTES = 60     # How often to run checks
+# Alert checks run once a day at ALERT_SCHEDULE_HOUR:MINUTE in ALERT_SCHEDULE_TZ
+# (default 23:00 Europe/London = 11 PM UK time, auto-adjusting BST↔GMT), plus
+# on-demand via the dashboard "Run check" button (/api/check-now). No run on boot.
+ALERT_SCHEDULE_HOUR = int(os.getenv("ALERT_SCHEDULE_HOUR", "23"))
+ALERT_SCHEDULE_MINUTE = int(os.getenv("ALERT_SCHEDULE_MINUTE", "0"))
+ALERT_SCHEDULE_TZ = os.getenv("ALERT_SCHEDULE_TZ", "Europe/London")
 
 # --- Telegram ---
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "")
+# Send alerts to Telegram? Disabled by default — alerts are recorded and shown
+# on the dashboard Alerts page (grouped by run) instead. Set =1 to re-enable.
+ALERTS_TELEGRAM_ENABLED = os.getenv("ALERTS_TELEGRAM_ENABLED", "").strip().lower() in ("1", "true", "yes")
 
 # --- Auth / sessions ---
 # APP_PASSWORD gates the ENTIRE app (single shared password -> signed session
@@ -71,10 +79,32 @@ COOKIE_SECURE = os.getenv("COOKIE_SECURE", "").strip().lower() in ("1", "true", 
 MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(25 * 1024 * 1024)))
 
 # --- Paths ---
-WATCHLIST_FILE = os.path.join(os.path.dirname(__file__), "watchlist.json")
-ALERT_LOG_FILE = os.path.join(os.path.dirname(__file__), "alert_log.json")
-RESEARCH_DIR   = os.path.join(os.path.dirname(__file__), "research")
+# Mutable state lives under DATA_DIR so it survives container redeploys on a
+# mounted volume (Fly). Defaults to the repo dir for local dev, where the seed
+# files already sit. SEED_* point at the image-baked copies used to populate an
+# empty volume on first boot (see server.ensure_data_dir).
+_REPO_DIR = os.path.dirname(__file__)
+DATA_DIR = os.getenv("DATA_DIR", _REPO_DIR)
+
+WATCHLIST_FILE = os.path.join(DATA_DIR, "watchlist.json")
+ALERT_LOG_FILE = os.path.join(DATA_DIR, "alert_log.json")
+RESEARCH_DIR   = os.path.join(DATA_DIR, "research")
+SEED_WATCHLIST = os.path.join(_REPO_DIR, "watchlist.json")  # baked default
+
+# --- Voice context source (S3) ---
+# When VOICE_S3_BUCKET is set, voice_module.load_context reads <SYMBOL>/*.txt
+# filings from S3 instead of the local CONTEXT_DIRS (which only exist on the
+# dev Mac). The scraper microservice populates this bucket.
+VOICE_S3_BUCKET = os.getenv("VOICE_S3_BUCKET", "")
+AWS_REGION      = os.getenv("AWS_REGION", "us-east-1")
+
+# --- Scraper microservice (populates VOICE_S3_BUCKET on demand) ---
+# The dashboard's "Fetch filings" form proxies to this service server-side so
+# the token never reaches the browser. Empty SCRAPER_URL => the form is disabled.
+SCRAPER_URL   = os.getenv("SCRAPER_URL", "").rstrip("/")
+SCRAPER_TOKEN = os.getenv("SCRAPER_TOKEN", "")
 
 # --- Server ---
 SERVER_HOST = "0.0.0.0"
-SERVER_PORT = 8088
+# Honor $PORT if the platform injects one; otherwise the app's native 8088.
+SERVER_PORT = int(os.getenv("PORT", "8088"))

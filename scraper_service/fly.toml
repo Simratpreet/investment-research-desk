@@ -1,0 +1,23 @@
+# fly.toml app configuration file generated for stock-scraper on 2026-07-23T16:06:10+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'stock-scraper'
+primary_region = 'iad'
+
+[build]
+[env]
+  AWS_REGION = 'us-east-1'
+  VOICE_S3_BUCKET = 'simrat-company-docs'
+
+[http_service]
+  internal_port = 8090
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

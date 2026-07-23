@@ -1,0 +1,6 @@
+# Scraper microservice deps. Pinned to match the main app's tested versions.
+Flask==3.1.3
+requests==2.33.0
+beautifulsoup4==4.14.3
+pypdf==6.14.2
+boto3>=1.35

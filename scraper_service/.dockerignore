@@ -1,0 +1,8 @@
+.env
+.env.*
+__pycache__/
+*.py[cod]
+.git/
+.DS_Store
+fly.toml
+README.md

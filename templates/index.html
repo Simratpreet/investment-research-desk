@@ -599,6 +599,62 @@
 
         .alert-item:last-child { border-bottom: none; }
 
+        .alert-group { margin-bottom: 1.1rem; }
+        .alert-group-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: var(--surface-warm);
+            border-top: 2px solid var(--accent);
+            border-radius: 8px 8px 0 0;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            color: var(--text);
+        }
+        .alert-group-count { color: var(--text-muted); font-weight: 600; }
+
+        /* --- Alerts sub-tabs (filter by alert type) --- */
+        .alert-subtabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface-warm);
+        }
+        .alert-subtab {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.35rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            background: var(--surface);
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .alert-subtab:hover { border-color: var(--accent); color: var(--text); }
+        .alert-subtab.is-active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        .alert-subtab-count {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+        }
+        .alert-subtab.is-active .alert-subtab-count { color: rgba(255,255,255,0.85); }
+
         .alert-msg {
             font-size: 0.82rem;
             line-height: 1.4;
@@ -1323,6 +1379,16 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; }
         }
+
+        /* Primary nav (Watchlist / Voice / Sign out) */
+        .top-nav { display:flex; align-items:center; gap:.35rem; }
+        .top-nav-link { font-size:.85rem; font-weight:600; text-decoration:none; color:var(--muted,#6b7280);
+            padding:.45rem .7rem; border-radius:9px; line-height:1; transition:color .15s, background .15s; }
+        .top-nav-link:hover { color:var(--ink,#1f2328); background:rgba(0,0,0,.05); }
+        .top-nav-link.is-active { color:var(--ink,#1f2328); background:rgba(0,0,0,.06); }
+        .top-nav-signout { color:#c8553d; }
+        .top-nav-signout:hover { color:#a8412d; background:rgba(200,85,61,.1); }
+        @media (max-width:640px) { .top-nav { gap:.1rem; } .top-nav-link { padding:.4rem .5rem; font-size:.8rem; } }
     </style>
 </head>
 <body>
@@ -1338,6 +1404,11 @@
                 </a>
             </div>
             <div class="header-right">
+                <nav class="top-nav" aria-label="Primary">
+                    <a href="/" class="top-nav-link is-active" aria-current="page">Watchlist</a>
+                    <a href="/voice" class="top-nav-link">Voice</a>
+                    <a href="/logout" class="top-nav-link top-nav-signout">Sign out</a>
+                </nav>
                 <div class="status-pill" title="Background monitor is active">
                     <span class="dot"></span>
                     Monitoring
@@ -1406,11 +1477,13 @@
                 <button class="btn btn-ghost" id="clear-alerts-btn" style="display:none;" onclick="clearAlerts()">Clear history</button>
                 <div class="view-actions" id="news-actions" style="display:none;">
                     <button class="btn btn-ghost" id="clear-news-btn" onclick="clearNews()">Clear news</button>
+                    <button class="btn btn-ghost" id="stop-news-btn" style="display:none;" onclick="stopNews()">■ Stop</button>
                     <button class="btn btn-primary" id="scan-news-btn" onclick="scanNews()">Scan news</button>
                 </div>
                 <div class="view-actions" id="announcements-actions" style="display:none;">
                     <button class="btn btn-ghost" id="ann-log-btn" onclick="toggleAnnLog()">View log</button>
                     <button class="btn btn-ghost" id="clear-ann-btn" onclick="clearAnnouncements()">Clear</button>
+                    <button class="btn btn-ghost" id="stop-ann-btn" style="display:none;" onclick="stopAnnouncements()">■ Stop</button>
                     <button class="btn btn-primary" id="scan-ann-btn" onclick="scanAnnouncements()">Scan announcements</button>
                 </div>
             </div>
@@ -1433,6 +1506,7 @@
             </div>
 
             <div class="table-container" id="alerts-view" role="tabpanel" style="display: none;">
+                <div class="alert-subtabs" id="alert-subtabs"></div>
                 <div id="alerts-list"></div>
             </div>
 
@@ -1735,25 +1809,75 @@
             }).join('');
         }
 
+        // Alert type sub-tabs. `types: null` = all; otherwise the raw alert
+        // types that fall under this category.
+        const ALERT_CATEGORIES = [
+            { key: 'all',      label: 'All',         types: null },
+            { key: 'price',    label: 'Price moves', types: ['big_move'] },
+            { key: 'volume',   label: 'Volume',      types: ['volume_spike'] },
+            { key: 'ema',      label: 'EMA cross',   types: ['ema_crossover_bullish', 'ema_crossover_bearish'] },
+            { key: 'earnings', label: 'Earnings',    types: ['earnings_imminent', 'earnings_soon'] },
+        ];
+        let alertFilter = 'all';
+        function setAlertFilter(key) { alertFilter = key; renderAlerts(); }
+
         function renderAlerts() {
             const container = document.getElementById('alerts-list');
-            if (alerts.length === 0) {
+            const tabsEl = document.getElementById('alert-subtabs');
+
+            // Sub-tab bar with a live count per category.
+            tabsEl.innerHTML = ALERT_CATEGORIES.map(c => {
+                const n = c.types === null ? alerts.length
+                    : alerts.filter(a => c.types.includes(a.type)).length;
+                const active = c.key === alertFilter ? ' is-active' : '';
+                return `<button class="alert-subtab${active}" onclick="setAlertFilter('${c.key}')">
+                            ${c.label}<span class="alert-subtab-count">${n}</span>
+                        </button>`;
+            }).join('');
+
+            // Filter to the active category.
+            const cat = ALERT_CATEGORIES.find(c => c.key === alertFilter) || ALERT_CATEGORIES[0];
+            const filtered = cat.types === null ? alerts
+                : alerts.filter(a => cat.types.includes(a.type));
+
+            if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="icon">🔔</div>
-                        <p>No alerts yet. They'll show up here when triggered.</p>
+                        <p>No ${alertFilter === 'all' ? '' : cat.label.toLowerCase() + ' '}alerts yet.</p>
                     </div>`;
                 return;
             }
 
-            container.innerHTML = alerts.map(a => {
-                const time = new Date(a.timestamp).toLocaleString('en-GB', {
-                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                });
-                return `
+            // Within the active category, group by the run that generated them
+            // (generated_at, falling back to the per-alert timestamp truncated to
+            // the minute for old entries), newest run first, datetime header each.
+            const groups = new Map();
+            for (const a of filtered) {
+                const key = a.generated_at || (a.timestamp || '').slice(0, 16) || 'unknown';
+                if (!groups.has(key)) groups.set(key, []);
+                groups.get(key).push(a);
+            }
+            const keys = [...groups.keys()].sort().reverse();
+            container.innerHTML = keys.map(key => {
+                const items = groups.get(key);
+                const stamp = items[0].generated_at || items[0].timestamp;
+                const when = stamp ? new Date(stamp).toLocaleString('en-GB', {
+                    weekday: 'short', day: 'numeric', month: 'short',
+                    hour: '2-digit', minute: '2-digit'
+                }) : 'Unknown time';
+                const rows = items.map(a => `
                     <div class="alert-item">
-                        <span class="alert-msg">${a.message}</span>
-                        <span class="alert-time">${time}</span>
+                        <span class="alert-msg">${escapeHtml(a.message || '')}</span>
+                        <span class="alert-time">${escapeHtml((a.type || '').replace(/_/g, ' '))}</span>
+                    </div>`).join('');
+                return `
+                    <div class="alert-group">
+                        <div class="alert-group-header">
+                            <span>${when}</span>
+                            <span class="alert-group-count">${items.length} alert${items.length === 1 ? '' : 's'}</span>
+                        </div>
+                        ${rows}
                     </div>`;
             }).join('');
         }
@@ -2189,6 +2313,8 @@
             const meta = document.getElementById('announcements-meta');
             const list = document.getElementById('announcements-list');
             const scanning = data.scan && data.scan.running;
+            document.getElementById('stop-ann-btn').style.display = scanning ? '' : 'none';
+            document.getElementById('scan-ann-btn').style.display = scanning ? 'none' : '';
             const gen = data.generated_at
                 ? new Date(data.generated_at).toLocaleString('en-GB',
                     { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -2245,6 +2371,20 @@
                 showToast('Could not start scan', 'error');
             } finally {
                 setTimeout(() => { btn.disabled = false; btn.textContent = 'Scan announcements'; }, 1500);
+            }
+        }
+
+        async function stopAnnouncements() {
+            const btn = document.getElementById('stop-ann-btn');
+            btn.disabled = true; btn.textContent = 'Stopping…';
+            try {
+                const res = await fetch('/api/announcements/scan/stop', { method: 'POST' });
+                showToast(res.ok ? 'Stopping scan…' : 'No scan is running', res.ok ? 'success' : 'error');
+                fetchAnnouncements();
+            } catch (e) {
+                showToast('Could not stop scan', 'error');
+            } finally {
+                setTimeout(() => { btn.disabled = false; btn.textContent = '■ Stop'; }, 1500);
             }
         }
 
@@ -2316,6 +2456,8 @@
             const meta = document.getElementById('news-meta');
             const list = document.getElementById('news-list');
             const scanning = data.scan && data.scan.running;
+            document.getElementById('stop-news-btn').style.display = scanning ? '' : 'none';
+            document.getElementById('scan-news-btn').style.display = scanning ? 'none' : '';
             const gen = data.generated_at
                 ? new Date(data.generated_at).toLocaleString('en-GB',
                     { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -2400,6 +2542,20 @@
                     btn.disabled = false;
                     btn.textContent = 'Scan news';
                 }, 1500);
+            }
+        }
+
+        async function stopNews() {
+            const btn = document.getElementById('stop-news-btn');
+            btn.disabled = true; btn.textContent = 'Stopping…';
+            try {
+                const res = await fetch('/api/news/scan/stop', { method: 'POST' });
+                showToast(res.ok ? 'Stopping scan…' : 'No scan is running', res.ok ? 'success' : 'error');
+                fetchNews();
+            } catch (e) {
+                showToast('Could not stop scan', 'error');
+            } finally {
+                setTimeout(() => { btn.disabled = false; btn.textContent = '■ Stop'; }, 1500);
             }
         }
 

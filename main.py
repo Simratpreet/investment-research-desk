@@ -9,13 +9,14 @@ import time
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
-from config import WATCHLIST_FILE, CHECK_INTERVAL_MINUTES
+from config import (WATCHLIST_FILE, ALERT_SCHEDULE_HOUR, ALERT_SCHEDULE_MINUTE,
+                    ALERT_SCHEDULE_TZ)
 from alerts.earnings import check_earnings
 from alerts.price_action import check_price_action
 from notifier import send_batch_alerts
-from server import app, SERVER_HOST, SERVER_PORT, require_auth_configured
+from server import app, SERVER_HOST, SERVER_PORT, require_auth_configured, ensure_data_dir
 
 
 def load_watchlist() -> list[dict]:
@@ -71,28 +72,36 @@ def run_checks():
 
 def main():
     require_auth_configured()
+    ensure_data_dir()
     print("=" * 55)
     print("  📡 Stock Watchlist & Alert System")
     print("=" * 55)
     print(f"  Web UI:    http://localhost:{SERVER_PORT}")
-    print(f"  Interval:  Every {CHECK_INTERVAL_MINUTES} minutes")
+    print(f"  Schedule:  Daily at {ALERT_SCHEDULE_HOUR:02d}:{ALERT_SCHEDULE_MINUTE:02d} "
+          f"{ALERT_SCHEDULE_TZ} (+ on-demand)")
     print(f"  Watchlist: {WATCHLIST_FILE}")
     print("=" * 55)
 
-    # Set up scheduler
-    scheduler = BackgroundScheduler()
+    # Set up scheduler: run once a day at the configured local time. No
+    # next_run_time -> it does NOT run on boot; use the dashboard "Run check"
+    # button (/api/check-now) for an immediate/on-demand check.
+    import pytz
+    scheduler = BackgroundScheduler(timezone=pytz.timezone(ALERT_SCHEDULE_TZ))
     scheduler.add_job(
         run_checks,
-        trigger=IntervalTrigger(minutes=CHECK_INTERVAL_MINUTES),
+        trigger=CronTrigger(hour=ALERT_SCHEDULE_HOUR, minute=ALERT_SCHEDULE_MINUTE,
+                            timezone=pytz.timezone(ALERT_SCHEDULE_TZ)),
         id="alert_checks",
-        name="Stock Alert Checks",
-        next_run_time=datetime.now(),  # Run immediately on start
+        name="Daily Stock Alert Checks",
     )
     scheduler.start()
 
-    # Start Flask web server (blocking)
+    # Start Flask web server (blocking). threaded=True so a ~1-min voice request
+    # doesn't stall the dashboard; single process keeps the scheduler + in-memory
+    # rate-limit/semaphore state coherent (do NOT run multiple workers).
     try:
-        app.run(host=SERVER_HOST, port=SERVER_PORT, debug=False, use_reloader=False)
+        app.run(host=SERVER_HOST, port=SERVER_PORT, debug=False,
+                use_reloader=False, threaded=True)
     except KeyboardInterrupt:
         print("\nShutting down...")
         scheduler.shutdown()

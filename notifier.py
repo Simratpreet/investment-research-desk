@@ -18,7 +18,8 @@ import threading
 import time
 import requests
 from datetime import datetime, timezone
-from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ALERT_LOG_FILE
+from config import (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ALERT_LOG_FILE,
+                    ALERTS_TELEGRAM_ENABLED)
 
 # --- Rate-limit / batching tunables ---
 TELEGRAM_MIN_INTERVAL = 1.1     # seconds between messages (per-chat ~1/sec)
@@ -82,7 +83,10 @@ def send_telegram(message: str) -> bool:
 
 
 def log_alert(alert: dict):
-    """Append alert to alert_log.json (rolling last 500)."""
+    """Append alert to alert_log.json (rolling last 500). Ensures a
+    `generated_at` timestamp so the dashboard can group alerts by run."""
+    if "generated_at" not in alert:
+        alert = {**alert, "generated_at": datetime.now(timezone.utc).isoformat()}
     try:
         with open(ALERT_LOG_FILE, "r") as f:
             log = json.load(f)
@@ -113,7 +117,7 @@ def send_alert(alert: dict):
     use; batch sends go through send_batch_alerts.)"""
     message = alert.get("message", "Unknown alert")
     log_alert(alert)
-    sent = send_telegram(message)
+    sent = send_telegram(message) if ALERTS_TELEGRAM_ENABLED else False
     print(f"[ALERT{' → Telegram' if sent else ''}] {message}")
 
 
@@ -172,11 +176,17 @@ def send_batch_alerts(alerts: list[dict]):
         return
 
     # Persist every new alert first (history + tomorrow's dedup) so a delivery
-    # failure never loses the record.
+    # failure never loses the record. All alerts in this run share one
+    # `generated_at` so the dashboard groups them under a single datetime header.
+    run_ts = datetime.now(timezone.utc).isoformat()
     for alert in new_alerts:
-        log_alert(alert)
+        log_alert({**alert, "generated_at": run_ts})
 
     n = len(new_alerts)
+    if not ALERTS_TELEGRAM_ENABLED:
+        print(f"[notifier] Telegram disabled — {n} alert(s) logged to history only.")
+        return
+
     if n <= DIGEST_THRESHOLD:
         print(f"[notifier] Sending {n} alert(s) individually...")
         for alert in new_alerts:

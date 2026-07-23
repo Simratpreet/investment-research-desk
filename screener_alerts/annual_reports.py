@@ -180,11 +180,12 @@ def main():
     parser.add_argument("--limit", type=int, default=None, help="Only analyze the first N new reports (for testing)")
     args = parser.parse_args()
 
-    cookie = scan.load_text(scan.COOKIE_FILE)
+    cookie = scan.load_cookie()
     api_key = scan.load_openrouter_key()
 
     if not cookie:
-        scan.log(f"No cookie found at {scan.COOKIE_FILE}.")
+        scan.log("No screener.in cookie. Set SCREENER_COOKIE (cloud) or "
+                 f"paste the Cookie header into {scan.COOKIE_FILE} (local).")
         sys.exit(1)
 
     _, body = scan.fetch(ANNUAL_REPORTS_URL, cookie=cookie)

@@ -5,11 +5,16 @@ Pipeline (all via OpenRouter, one key):
             --> gemini-3.6-flash, high reasoning, grounded in local .txt filings
             --> gemini-3.1 TTS --> spoken answer
 
-Context lives locally, one company at a time, from:
-  screener_scraper/Q4FY26/downloads/<SYMBOL>/*.txt
-  fiscal-agent/downloads/<SYMBOL>/*.txt
+Context comes from up to three places, any combination of which may be empty:
+  * S3 <SYMBOL>/*.txt when VOICE_S3_BUCKET is set (cloud), else the local
+    download trees (screener_scraper/…, fiscal-agent/… — dev Mac only);
+  * documents the user uploads (.txt/.md/.pdf), stored as extracted text under
+    DATA_DIR/uploads and attached per-question;
+  * nothing at all — with no symbol and no attachments it's a free conversation
+    on any topic.
 
-Exposed as a Flask blueprint: GET /voice (page), POST /api/voice/ask.
+Exposed as a Flask blueprint: GET /voice (page), POST /api/voice/ask,
+GET|POST /api/voice/docs, DELETE /api/voice/docs/<id>.
 """
 
 import base64
@@ -22,7 +27,9 @@ import random
 import re
 import threading
 import time
+import uuid
 import wave
+from datetime import datetime, timezone
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -32,7 +39,35 @@ HISTORY_TURNS = 12  # cap prior turns fed back (6 Q&A pairs) to bound token grow
 import requests
 from flask import Blueprint, jsonify, render_template, request
 
+from config import VOICE_S3_BUCKET, AWS_REGION, DATA_DIR
 from security import client_ip, rate_limit_ok
+
+# --- User-uploaded context documents ----------------------------------------
+# Extracted plain text lives on the volume so uploads survive a redeploy and can
+# be re-attached to later conversations. One .txt per doc plus a JSON index.
+UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+UPLOAD_INDEX = os.path.join(UPLOAD_DIR, "index.json")
+UPLOAD_EXTS = {".txt", ".md", ".text", ".pdf"}
+MAX_DOC_CHARS = 400_000       # truncate a single document's extracted text
+MAX_DOCS_CHARS = 800_000      # total upload text fed into one prompt
+MAX_ATTACHED_DOCS = 10        # docs attachable to a single question
+MIN_DOC_CHARS = 20            # below this a PDF is almost certainly scanned/empty
+_uploads_lock = threading.Lock()
+_DOC_ID_RE = re.compile(r"[0-9a-f]{32}\Z")
+
+# Lazily-created, reused S3 client (boto3 clients are thread-safe).
+_s3_lock = threading.Lock()
+_s3_client_obj = None
+
+
+def _s3():
+    global _s3_client_obj
+    if _s3_client_obj is None:
+        with _s3_lock:
+            if _s3_client_obj is None:
+                import boto3  # imported lazily so local dev without boto3 still runs
+                _s3_client_obj = boto3.client("s3", region_name=AWS_REGION)
+    return _s3_client_obj
 
 # Bound concurrent expensive pipelines (STT + high-effort reasoning + parallel
 # TTS) so a burst can't fan out unbounded OpenRouter spend / memory. Per-worker.
@@ -40,8 +75,21 @@ _VOICE_SEMA = threading.BoundedSemaphore(2)
 
 OR_URL = "https://openrouter.ai/api/v1"
 STT_MODEL = "openai/gpt-4o-transcribe"
+
+# Reasoning models offered in the Chat page dropdown. This is an allowlist, not
+# a suggestion list: voice_ask only ever forwards an id found here, so a crafted
+# request can't bill an arbitrary (or far more expensive) OpenRouter model.
+# The ":online" suffix is OpenRouter's web-search plugin shorthand.
+REASON_MODELS = [
+    {"id": "x-ai/grok-4.5:online",          "label": "Grok 4.5"},
+    {"id": "moonshotai/kimi-k3:online",     "label": "Kimi K3"},
+    {"id": "openai/gpt-5.6-sol:online",     "label": "GPT-5.6 Sol"},
+    {"id": "anthropic/claude-sonnet-5:online", "label": "Claude Sonnet 5"},
+    {"id": "z-ai/glm-5.2:online",           "label": "GLM-5.2"},
+]
+REASON_MODEL_IDS = {m["id"] for m in REASON_MODELS}
 # REASON_MODEL = "google/gemini-3.1-pro-preview:online"
-REASON_MODEL = "x-ai/grok-4.5:online"
+REASON_MODEL = REASON_MODELS[0]["id"]   # default when none is chosen
 TTS_MODEL = "google/gemini-3.1-flash-tts-preview"
 TTS_VOICE = "Charon"          # steady "informative" narrator
 TTS_PCM_RATE = 24000
@@ -71,11 +119,42 @@ def _api_key() -> str:
     return key
 
 
-def load_context(symbol: str):
-    """Read all .txt filings for a symbol from both download trees."""
-    sym = symbol.strip().upper()
+def _load_context_s3(sym: str):
+    """Read <SYMBOL>/*.txt filings from the S3 bucket the scraper populates."""
+    s3 = _s3()
+    keys = []
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=VOICE_S3_BUCKET, Prefix=f"{sym}/"):
+        for obj in page.get("Contents", []):
+            if obj["Key"].lower().endswith(".txt"):
+                keys.append(obj["Key"])
     parts, names = [], []
-    total = 0
+    for key in sorted(keys):  # stable order regardless of listing order
+        try:
+            body = s3.get_object(Bucket=VOICE_S3_BUCKET, Key=key)["Body"].read()
+        except Exception as e:
+            log.warning("S3 get_object failed for %s: %s", key, e)
+            continue
+        text = body.decode("utf-8", errors="replace")
+        if not text.strip():
+            continue
+        parts.append(f"===== {key.split('/')[-1]} =====\n{text}")
+        names.append(key)
+    joined = "\n\n".join(parts)[:MAX_CONTEXT_CHARS]
+    return joined, names
+
+
+def load_context(symbol: str):
+    """All .txt filings for a symbol. Source: S3 when VOICE_S3_BUCKET is set
+    (cloud), else the local download trees (dev Mac)."""
+    sym = symbol.strip().upper()
+    if VOICE_S3_BUCKET:
+        try:
+            return _load_context_s3(sym)
+        except Exception as e:
+            log.warning("S3 context load failed for %s: %s", sym, e)
+            return "", []
+    parts, names = [], []
     for base in CONTEXT_DIRS:
         for path in sorted(glob.glob(str(base / sym / "*.txt"))):
             try:
@@ -87,9 +166,116 @@ def load_context(symbol: str):
             label = f"{Path(path).parent.parent.name}/{sym}/{Path(path).name}"
             parts.append(f"===== {Path(path).name} =====\n{text}")
             names.append(label)
-            total += len(text)
     joined = "\n\n".join(parts)[:MAX_CONTEXT_CHARS]
     return joined, names
+
+
+# --- Uploaded documents -----------------------------------------------------
+
+def _read_index() -> list:
+    """The upload index, newest first. Caller holds _uploads_lock for writes."""
+    try:
+        with open(UPLOAD_INDEX, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return []
+
+
+def _write_index(entries: list):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    tmp = UPLOAD_INDEX + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(entries, f, indent=2)
+    os.replace(tmp, UPLOAD_INDEX)   # atomic: never leave a half-written index
+
+
+def _doc_path(doc_id: str) -> str:
+    return os.path.join(UPLOAD_DIR, f"{doc_id}.txt")
+
+
+def extract_upload_text(filename: str, raw: bytes) -> str:
+    """Plain text from an uploaded .txt/.md or .pdf. Raises ValueError with a
+    user-facing message when the file is unusable."""
+    ext = os.path.splitext(filename or "")[1].lower()
+    if ext not in UPLOAD_EXTS:
+        raise ValueError("only .txt, .md and .pdf files are supported")
+    if not raw:
+        raise ValueError("file is empty")
+
+    if ext == ".pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(raw))
+            text = "\n".join((p.extract_text() or "") for p in reader.pages)
+        except Exception as e:
+            log.warning("PDF extract failed for %r: %s", filename, e)
+            raise ValueError("could not read this PDF (encrypted or corrupt?)")
+    else:
+        text = raw.decode("utf-8", errors="replace")
+
+    text = text.strip()
+    if len(text) < MIN_DOC_CHARS:
+        raise ValueError("no extractable text — a scanned PDF needs OCR first")
+    return text[:MAX_DOC_CHARS]
+
+
+def save_upload(filename: str, text: str) -> dict:
+    """Persist extracted text under a fresh id and return its index entry."""
+    doc_id = uuid.uuid4().hex
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    with open(_doc_path(doc_id), "w", encoding="utf-8") as f:
+        f.write(text)
+    entry = {
+        "id": doc_id,
+        # Display name only — the id, not this, determines the path on disk.
+        "name": os.path.basename(filename or "document")[:120],
+        "chars": len(text),
+        "uploaded_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with _uploads_lock:
+        _write_index([entry] + _read_index())
+    return entry
+
+
+def delete_upload(doc_id: str) -> bool:
+    if not _DOC_ID_RE.fullmatch(doc_id or ""):
+        return False
+    with _uploads_lock:
+        entries = _read_index()
+        remaining = [e for e in entries if e.get("id") != doc_id]
+        if len(remaining) == len(entries):
+            return False
+        _write_index(remaining)
+    try:
+        os.remove(_doc_path(doc_id))
+    except OSError:
+        pass
+    return True
+
+
+def load_uploads(doc_ids):
+    """Concatenated text for the given upload ids, plus their display names.
+    Unknown or malformed ids are skipped rather than failing the question."""
+    if not doc_ids:
+        return "", []
+    by_id = {e.get("id"): e for e in _read_index()}
+    parts, names = [], []
+    for doc_id in doc_ids[:MAX_ATTACHED_DOCS]:
+        entry = by_id.get(doc_id)
+        if not entry or not _DOC_ID_RE.fullmatch(doc_id or ""):
+            continue
+        try:
+            with open(_doc_path(doc_id), "r", encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError:
+            continue
+        if not text.strip():
+            continue
+        name = entry.get("name") or doc_id
+        parts.append(f"===== {name} =====\n{text}")
+        names.append(name)
+    return "\n\n".join(parts)[:MAX_DOCS_CHARS], names
 
 
 def transcribe(audio_b64: str, fmt: str) -> str:
@@ -107,19 +293,51 @@ def transcribe(audio_b64: str, fmt: str) -> str:
     return (resp.json().get("text") or "").strip()
 
 
-def reason(question: str, context: str, symbol: str, history=None) -> str:
-    system = (
-        f"You are an expert equity-research analyst answering a spoken question about {symbol.upper()}. "
-        "Answer from the company filings provided below — quarterly transcripts, slides and reports. Use web search if asked"
-        "Be precise and specific with numbers, guidance and management commentary; cite the quarter when relevant. "
-        "If the answer is not in any filings or web search, say so plainly rather than guessing "
-        "This is an ongoing spoken conversation: resolve follow-up references like 'that', 'those', "
-        "'the same quarter' or 'and the margin?' against the earlier turns below. "
-        "Keep the answer tight and conversational since it will be read aloud. "
-        "Do NOT use markdown, bullet points, headers or asterisks — reply in flowing "
-        "spoken prose.\n\n"
-        f"===== FILINGS FOR {symbol.upper()} =====\n{context}"
-    )
+_SPOKEN_STYLE = (
+    "This is an ongoing spoken conversation: resolve follow-up references like 'that', "
+    "'those', 'the same quarter' or 'and the margin?' against the earlier turns below. "
+    "Keep the answer tight and conversational since it will be read aloud. "
+    "Do NOT use markdown, bullet points, headers or asterisks — reply in flowing "
+    "spoken prose."
+)
+
+
+def resolve_model(requested: str) -> str:
+    """Map a requested model id onto the allowlist; anything else -> default."""
+    requested = (requested or "").strip()
+    return requested if requested in REASON_MODEL_IDS else REASON_MODEL
+
+
+def reason(question: str, context: str, symbol: str, history=None, model=None) -> str:
+    """`context` is pre-assembled labelled blocks (filings and/or uploaded
+    documents) built by voice_ask — it may be empty in free conversation."""
+    if symbol:
+        system = (
+            f"You are an expert equity-research analyst answering a spoken question about {symbol.upper()}. "
+            "Answer from the reference material provided below — quarterly transcripts, slides, reports "
+            "and any documents the user has uploaded. Use web search if asked. "
+            "Be precise and specific with numbers, guidance and management commentary; cite the quarter when relevant. "
+            "If the answer is not in the material or web search, say so plainly rather than guessing. "
+            + _SPOKEN_STYLE + "\n\n" + context
+        )
+    else:
+        # Free-conversation mode: no symbol, so no filings corpus. Same analyst
+        # persona and spoken style, answering on any topic from general knowledge
+        # — plus any documents the user attached.
+        system = (
+            "You are a sharp, well-read research analyst having an open conversation "
+            "on whatever topic the user raises — markets, a company, an industry, or "
+            "anything else. Answer from your own knowledge; use web search if asked. "
+            "Be specific and concrete: name figures, dates and sources where you can, "
+            "and say plainly when you do not know or are unsure rather than guessing. "
+            + _SPOKEN_STYLE
+        )
+        if context:
+            system += (
+                "\n\nThe user has attached the reference material below. When the "
+                "question touches on it, ground the answer in it and prefer it over "
+                "your own recollection.\n\n" + context
+            )
     messages = [{"role": "system", "content": system}]
     for turn in (history or []):
         if not isinstance(turn, dict):
@@ -133,7 +351,7 @@ def reason(question: str, context: str, symbol: str, history=None) -> str:
         f"{OR_URL}/chat/completions",
         headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
         json={
-            "model": REASON_MODEL,
+            "model": resolve_model(model),
             "reasoning": {"effort": "high"},
             "messages": messages,
         },
@@ -232,7 +450,10 @@ def synthesize_wav(text: str) -> bytes:
 
 @voice_bp.route("/voice")
 def voice_page():
-    return render_template("voice.html")
+    # Render the dropdown from the same allowlist the API validates against,
+    # so the two can never drift apart.
+    return render_template("voice.html", models=REASON_MODELS,
+                           default_model=REASON_MODEL)
 
 
 @voice_bp.route("/api/voice/ask", methods=["POST"])
@@ -240,9 +461,12 @@ def voice_ask():
     if not rate_limit_ok(f"voice:{client_ip(request)}", 20, 60):
         return jsonify({"error": "Too many requests — slow down a moment."}), 429
 
+    # Symbol is OPTIONAL. Blank => free conversation: no filings context, general
+    # knowledge only. When present it must start alnum and contain no "..", so it
+    # can't traverse out of a download dir / S3 prefix.
     symbol = (request.form.get("symbol") or "").strip()
-    # Must start alnum and contain no "..", so it can't traverse out of a download dir.
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,19}", symbol) or ".." in symbol:
+    if symbol and (not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,19}", symbol)
+                   or ".." in symbol):
         return jsonify({"error": "enter a valid symbol"}), 400
 
     typed = (request.form.get("text") or "").strip()
@@ -252,10 +476,37 @@ def voice_ask():
     if not typed and not audio:
         return jsonify({"error": "no question — type or record one"}), 400
 
-    context, sources = load_context(symbol)
-    if not context:
-        return jsonify({"error": f"no .txt filings found for {symbol.upper()} "
-                                 "(download them first via the bot's /screener or /global)"}), 404
+    # Unknown/absent ids silently fall back to the default rather than 400ing —
+    # a stale dropdown value shouldn't cost you the question you just recorded.
+    model = resolve_model(request.form.get("model"))
+
+    doc_ids = []
+    raw_docs = request.form.get("docs")
+    if raw_docs:
+        try:
+            parsed = json.loads(raw_docs)
+            if isinstance(parsed, list):
+                doc_ids = [d for d in parsed if isinstance(d, str)][:MAX_ATTACHED_DOCS]
+        except (ValueError, TypeError):
+            doc_ids = []
+
+    docs_text, doc_names = load_uploads(doc_ids)
+
+    blocks, sources = [], []
+    if symbol:
+        filings, filing_names = load_context(symbol)
+        # Attached documents alone are enough context — only insist on filings
+        # when the user gave a symbol and attached nothing.
+        if not filings and not docs_text:
+            return jsonify({"error": f"no .txt filings found for {symbol.upper()} "
+                                     "(fetch them first, or attach a document)"}), 404
+        if filings:
+            blocks.append(f"===== FILINGS FOR {symbol.upper()} =====\n{filings}")
+            sources += filing_names
+    if docs_text:
+        blocks.append("===== UPLOADED DOCUMENTS =====\n" + docs_text)
+        sources += doc_names
+    context = "\n\n".join(blocks)
 
     audio_b64 = fmt = None
     if not typed:
@@ -285,7 +536,7 @@ def voice_ask():
                 question = transcribe(audio_b64, fmt)
                 if not question:
                     return jsonify({"error": "couldn't understand the audio — try again"}), 422
-            answer = reason(question, context, symbol, history)
+            answer = reason(question, context, symbol, history, model)
             if not answer:
                 return jsonify({"error": "the model returned an empty answer — try rephrasing"}), 502
             wav = synthesize_wav(answer)
@@ -298,7 +549,8 @@ def voice_ask():
             return jsonify({"error": "internal error while processing your question"}), 500
 
         return jsonify({
-            "symbol": symbol.upper(),
+            "symbol": symbol.upper(),   # "" in free-conversation mode
+            "model": model,
             "sources": sources,
             "question": question,
             "answer": answer,
@@ -306,3 +558,46 @@ def voice_ask():
         })
     finally:
         _VOICE_SEMA.release()
+
+
+# --- Upload endpoints -------------------------------------------------------
+# All are behind the app-wide auth gate (server._require_auth). Uploads are
+# stored as extracted text only — the original .pdf/.txt bytes are discarded.
+
+@voice_bp.route("/api/voice/docs", methods=["GET"])
+def list_docs():
+    return jsonify({"docs": _read_index()})
+
+
+@voice_bp.route("/api/voice/docs", methods=["POST"])
+def upload_docs():
+    if not rate_limit_ok(f"upload:{client_ip(request)}", 30, 300):
+        return jsonify({"error": "Too many uploads — wait a few minutes."}), 429
+
+    files = request.files.getlist("files")
+    if not files:
+        return jsonify({"error": "no files uploaded"}), 400
+
+    added, errors = [], []
+    for f in files[:MAX_ATTACHED_DOCS]:
+        name = f.filename or "document"
+        try:
+            text = extract_upload_text(name, f.read())
+            added.append(save_upload(name, text))
+        except ValueError as e:
+            errors.append({"name": os.path.basename(name)[:120], "error": str(e)})
+        except OSError as e:
+            log.warning("upload save failed for %r: %s", name, e)
+            errors.append({"name": os.path.basename(name)[:120],
+                           "error": "could not save the extracted text"})
+
+    if not added and errors:
+        return jsonify({"added": [], "errors": errors}), 400
+    return jsonify({"added": added, "errors": errors})
+
+
+@voice_bp.route("/api/voice/docs/<doc_id>", methods=["DELETE"])
+def remove_doc(doc_id):
+    if not delete_upload(doc_id):
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"deleted": doc_id})

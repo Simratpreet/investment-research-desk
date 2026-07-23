@@ -12,7 +12,8 @@ from flask import (Flask, request, jsonify, render_template,
                    render_template_string, session, redirect, url_for)
 from config import (WATCHLIST_FILE, SERVER_HOST, SERVER_PORT, EXCHANGE_SUFFIXES,
                     ALERT_LOG_FILE, RESEARCH_DIR, APP_PASSWORD, SECRET_KEY,
-                    COOKIE_SECURE, MAX_CONTENT_LENGTH)
+                    COOKIE_SECURE, MAX_CONTENT_LENGTH, DATA_DIR, SEED_WATCHLIST,
+                    SCRAPER_URL, SCRAPER_TOKEN)
 from datetime import datetime, timezone
 from security import client_ip, rate_limit_ok, valid_segment, resolve_within
 
@@ -114,6 +115,23 @@ def require_auth_configured():
             "FATAL: APP_PASSWORD is not set. Refusing to start with an open "
             "auth gate. Set APP_PASSWORD (and, in production, SECRET_KEY + "
             "COOKIE_SECURE=1) in the environment. See .env.example.")
+
+
+def ensure_data_dir():
+    """Prepare the (possibly volume-mounted) DATA_DIR for writes and seed it.
+
+    On a fresh Fly volume DATA_DIR is empty; copy the image-baked watchlist in
+    so the dashboard isn't blank on first boot. No-op locally (DATA_DIR == repo).
+    """
+    import shutil
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(RESEARCH_DIR, exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "screener_alerts"), exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "uploads"), exist_ok=True)
+    if (WATCHLIST_FILE != SEED_WATCHLIST
+            and not os.path.exists(WATCHLIST_FILE)
+            and os.path.exists(SEED_WATCHLIST)):
+        shutil.copy(SEED_WATCHLIST, WATCHLIST_FILE)
 
 
 # Voice research module — GET /voice page + POST /api/voice/ask
@@ -283,6 +301,59 @@ _news_scan_lock = threading.Lock()
 
 _SIG_ORDER = {"High": 0, "Medium": 1, "Low": 2, "": 3}
 
+# Live handles for the running scan subprocesses so a stop endpoint can kill them.
+# (subprocess.run gave no handle; Popen + communicate does.)
+_scan_procs = {"news": None, "ann": None}
+_scan_procs_lock = threading.Lock()
+
+
+def _run_scan(kind, argv, cwd, state, lock, timeout, ok_msg="Scan complete."):
+    """Run a scan subprocess, tracking its handle so it can be stopped, and
+    record the outcome in `state`. SIGTERM on stop — scan.py checkpoints its
+    `seen` set periodically, so partial progress persists."""
+    import subprocess
+    with lock:
+        state.update(running=True, started_at=datetime.now(timezone.utc).isoformat(),
+                     finished_at=None, returncode=None, message="Scanning…", stopped=False)
+    rc, tail = -1, ""
+    try:
+        proc = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True)
+        with _scan_procs_lock:
+            _scan_procs[kind] = proc
+        try:
+            out, err = proc.communicate(timeout=timeout)
+            rc = proc.returncode
+            lines = (err or out or "").strip().splitlines()
+            tail = lines[-1] if lines else ""
+        except subprocess.TimeoutExpired:
+            proc.kill(); proc.communicate()
+            rc, tail = -1, f"Scan timed out after {timeout // 60} min."
+    except Exception as e:
+        rc, tail = -1, f"Scan failed to launch: {e}"
+    finally:
+        with _scan_procs_lock:
+            _scan_procs[kind] = None
+    with lock:
+        stopped = state.get("stopped")
+        state.update(running=False, finished_at=datetime.now(timezone.utc).isoformat(),
+                     returncode=rc,
+                     message=("Scan stopped by user." if stopped else
+                              ok_msg if rc == 0 else
+                              f"Scan finished with issues (code {rc}). {tail}".strip()[:300]))
+
+
+def _stop_scan(kind, state, lock):
+    with lock:
+        if not state["running"]:
+            return jsonify({"message": "No scan is running"}), 409
+        state["stopped"] = True
+    with _scan_procs_lock:
+        proc = _scan_procs.get(kind)
+    if proc is not None:
+        proc.terminate()
+    return jsonify({"message": "Stopping scan…"}), 202
+
 
 @app.route("/api/news", methods=["GET"])
 def get_news():
@@ -305,26 +376,14 @@ def get_news():
 
 
 def _run_news_scan():
-    import subprocess
-    with _news_scan_lock:
-        _news_scan.update(running=True, started_at=datetime.now(
-            timezone.utc).isoformat(), finished_at=None, returncode=None,
-            message="Scanning…")
-    try:
-        proc = subprocess.run(
-            ["python3", NEWS_SCAN_SCRIPT],
-            cwd=os.path.dirname(NEWS_SCAN_SCRIPT),
-            capture_output=True, text=True, timeout=3600)
-        rc, msg = proc.returncode, (proc.stdout or "")[-400:]
-    except subprocess.TimeoutExpired:
-        rc, msg = -1, "Scan timed out after 30 min."
-    except Exception as e:
-        rc, msg = -1, f"Scan failed to launch: {e}"
-    with _news_scan_lock:
-        _news_scan.update(running=False, finished_at=datetime.now(
-            timezone.utc).isoformat(), returncode=rc,
-            message=("Scan complete." if rc == 0 else
-                     f"Scan finished with issues (code {rc})."))
+    _run_scan("news", ["python3", NEWS_SCAN_SCRIPT],
+              os.path.dirname(NEWS_SCAN_SCRIPT), _news_scan, _news_scan_lock, 3600)
+
+
+@app.route("/api/news/scan/stop", methods=["POST"])
+def stop_news_scan():
+    """Stop a running news scan (SIGTERM the subprocess)."""
+    return _stop_scan("news", _news_scan, _news_scan_lock)
 
 
 @app.route("/api/news", methods=["DELETE"])
@@ -357,9 +416,13 @@ def trigger_news_scan():
 # --- Screener.in announcements (India) ---
 
 SCREENER_DIR = os.path.join(os.path.dirname(__file__), "screener_alerts")
-ANN_STORE_FILE = os.path.join(SCREENER_DIR, "announcements_store.json")
 ANN_SCAN_SCRIPT = os.path.join(SCREENER_DIR, "scan.py")
-ANN_LOG_FILE = os.path.join(SCREENER_DIR, "scan.log")
+# Store + log live under DATA_DIR (volume) so they persist across redeploys and
+# match where scan.py writes them (screener_alerts/scan.py STATE_DIR). Locally
+# DATA_DIR == repo dir, so this resolves to the same screener_alerts/ folder.
+_ANN_STATE_DIR = os.path.join(DATA_DIR, "screener_alerts")
+ANN_STORE_FILE = os.path.join(_ANN_STATE_DIR, "announcements_store.json")
+ANN_LOG_FILE = os.path.join(_ANN_STATE_DIR, "scan.log")
 
 _ann_scan = {"running": False, "started_at": None, "finished_at": None,
              "returncode": None, "message": ""}
@@ -393,29 +456,15 @@ def get_announcements_log():
 
 
 def _run_ann_scan():
-    import subprocess
-    with _ann_scan_lock:
-        _ann_scan.update(running=True, started_at=datetime.now(
-            timezone.utc).isoformat(), finished_at=None, returncode=None,
-            message="Scanning…")
-    try:
-        # Use this interpreter (the venv python has pypdf, which scan.py needs).
-        proc = subprocess.run(
-            [sys.executable, ANN_SCAN_SCRIPT],
-            cwd=SCREENER_DIR,
-            capture_output=True, text=True, timeout=3600)
-        rc = proc.returncode
-        msg = (proc.stderr or proc.stdout or "").strip().splitlines()
-        msg = msg[-1] if msg else ""
-    except subprocess.TimeoutExpired:
-        rc, msg = -1, "Scan timed out after 60 min."
-    except Exception as e:
-        rc, msg = -1, f"Scan failed to launch: {e}"
-    with _ann_scan_lock:
-        _ann_scan.update(running=False, finished_at=datetime.now(
-            timezone.utc).isoformat(), returncode=rc,
-            message=("Scan complete." if rc == 0 else
-                     f"Scan finished with issues (code {rc}). {msg}"[:300]))
+    # sys.executable: the venv python has pypdf, which scan.py needs.
+    _run_scan("ann", [sys.executable, ANN_SCAN_SCRIPT], SCREENER_DIR,
+              _ann_scan, _ann_scan_lock, 3600)
+
+
+@app.route("/api/announcements/scan/stop", methods=["POST"])
+def stop_ann_scan():
+    """Stop a running announcement scan (SIGTERM; seen.json checkpoints persist)."""
+    return _stop_scan("ann", _ann_scan, _ann_scan_lock)
 
 
 @app.route("/api/announcements/scan", methods=["POST"])
@@ -448,8 +497,8 @@ def clear_announcements():
 @app.route("/api/alerts", methods=["GET"])
 def get_alerts():
     alerts = load_alert_log()
-    # Return most recent first, limit to 100
-    return jsonify(alerts[-100:][::-1])
+    # Return the full stored history, most recent first (log is capped at 500).
+    return jsonify(alerts[::-1])
 
 
 @app.route("/api/alerts", methods=["DELETE"])
@@ -494,18 +543,57 @@ def check_now():
     return jsonify({"message": f"Check complete", "alerts": len(all_alerts)}), 200
 
 
+@app.route("/api/scrape", methods=["POST"])
+def trigger_scrape():
+    """Proxy a symbol to the scraper microservice, which downloads its filings
+    from screener.in and uploads <SYMBOL>/*.txt to the voice S3 bucket. The
+    service URL + token stay server-side; the browser only sends a symbol."""
+    if not (SCRAPER_URL and SCRAPER_TOKEN):
+        return jsonify({"error": "scraper service is not configured"}), 503
+    if not rate_limit_ok(f"scrape:{client_ip(request)}", 10, 300):
+        return jsonify({"error": "too many scrape requests — slow down"}), 429
+
+    data = request.get_json(silent=True) or {}
+    symbol = (data.get("symbol") or "").strip().upper()
+    if not valid_segment(symbol):
+        return jsonify({"error": "enter a valid symbol"}), 400
+
+    # Pass through the scrape options the Chat form sends (counts + annual toggle).
+    payload_out = {"symbol": symbol, "force": bool(data.get("force"))}
+    for k in ("transcripts", "ppts"):
+        if k in data:
+            payload_out[k] = data[k]
+    if "annual" in data:
+        payload_out["annual"] = bool(data["annual"])
+
+    import requests as _rq
+    try:
+        r = _rq.post(f"{SCRAPER_URL}/scrape",
+                     json=payload_out,
+                     headers={"Authorization": f"Bearer {SCRAPER_TOKEN}"},
+                     timeout=180)
+    except _rq.RequestException as e:
+        return jsonify({"error": f"could not reach scraper: {str(e)[:120]}"}), 502
+    try:
+        payload = r.json()
+    except ValueError:
+        payload = {"error": f"scraper returned status {r.status_code}"}
+    return jsonify(payload), r.status_code
+
+
 def start_server():
     """Start the Flask dashboard (no scheduler). Port comes from the first
     CLI arg or the PORT env var, else config.SERVER_PORT — e.g.
     `python server.py 8092` to run alongside the main.py daemon."""
     require_auth_configured()
-    os.makedirs(RESEARCH_DIR, exist_ok=True)
+    ensure_data_dir()
     port = SERVER_PORT
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
     elif os.environ.get("PORT"):
         port = int(os.environ["PORT"])
-    app.run(port=port, debug=False)
+    # threaded so a ~1-min voice request can't block the dashboard/other calls.
+    app.run(host=SERVER_HOST, port=port, debug=False, threaded=True)
 
 
 # --- Research Notes API (folder-per-ticker) ---

@@ -8,6 +8,7 @@ screener_alerts/cookie.txt
 
 # ─── Runtime-mutable state (belongs on a volume, not in the repo/image) ────
 alert_log.json
+uploads/
 news_alerts/news_store.json
 news_alerts/data/names_cache.json
 screener_alerts/announcements_store.json

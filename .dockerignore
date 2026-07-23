@@ -7,6 +7,8 @@ screener_alerts/cookie.txt
 
 # Runtime state lives on a mounted volume, not baked in
 alert_log.json
+research/
+uploads/
 news_alerts/news_store.json
 news_alerts/data/names_cache.json
 screener_alerts/announcements_store.json
