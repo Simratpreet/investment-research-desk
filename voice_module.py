@@ -23,6 +23,7 @@ GET /api/voice/job/<id>, GET|POST /api/voice/docs, DELETE /api/voice/docs/<id>.
 
 import base64
 import glob
+import hashlib
 import io
 import json
 import logging
@@ -635,6 +636,47 @@ def synthesize_wav(text: str) -> bytes:
     return buf.getvalue()
 
 
+# --- TTS audio cache (S3) ---------------------------------------------------
+# TTS is the expensive step (an OpenRouter call per ~50s chunk). Cache each
+# rendered WAV in S3, content-addressed by the exact text + voice parameters, so
+# the same answer is never synthesized twice — a replay of an old answer is a
+# cheap S3 GET, and an answer generated during /ask is already warm for replay.
+# Under its own prefix so it never collides with the <SYMBOL>/*.txt filings the
+# voice loader reads. No S3 configured (local dev) => transparent passthrough.
+TTS_CACHE_PREFIX = "tts-cache/"
+
+
+def _tts_cache_key(text: str) -> str:
+    # Voice signature in the hash so a model/voice/prompt change invalidates old
+    # audio automatically instead of serving a stale rendering.
+    sig = f"{TTS_MODEL}|{TTS_VOICE}|{TTS_PCM_RATE}|{TTS_DIRECTION}"
+    digest = hashlib.sha256((sig + "\x00" + text).encode("utf-8")).hexdigest()
+    return f"{TTS_CACHE_PREFIX}{digest}.wav"
+
+
+def synthesize_wav_cached(text: str) -> bytes:
+    """WAV for `text`, served from the S3 cache when present, else synthesized
+    and cached. Any cache error degrades to a plain (uncached) synthesis so a
+    flaky bucket can never break playback."""
+    if not VOICE_S3_BUCKET:
+        return synthesize_wav(text)
+    key = _tts_cache_key(text)
+    try:
+        obj = _s3().get_object(Bucket=VOICE_S3_BUCKET, Key=key)
+        data = obj["Body"].read()
+        if data:
+            return data
+    except Exception:
+        pass  # miss (NoSuchKey) or transient error — fall through to synthesize
+    wav = synthesize_wav(text)
+    try:
+        _s3().put_object(Bucket=VOICE_S3_BUCKET, Key=key, Body=wav,
+                         ContentType="audio/wav")
+    except Exception as e:
+        log.warning("TTS cache write failed for %s: %s", key, e)
+    return wav
+
+
 @voice_bp.route("/voice")
 def voice_page():
     # Render the dropdown from the same allowlist the API validates against,
@@ -711,7 +753,7 @@ def _run_speak(job_id, text):
     """Synthesize off-request and stash the result in the job store. Never raises."""
     try:
         try:
-            wav = synthesize_wav(text)
+            wav = synthesize_wav_cached(text)
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else "?"
             log.warning("TTS upstream error (status=%s): %s", status, e)
@@ -846,7 +888,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             answer = reason(question, context, symbol, history, model)
             if not answer:
                 return _finish_job(job_id, {"error": "the model returned an empty answer — try rephrasing"}, "error")
-            wav = synthesize_wav(answer)
+            wav = synthesize_wav_cached(answer)
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else "?"
             log.warning("voice upstream error (status=%s): %s", status, e)
