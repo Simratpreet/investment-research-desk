@@ -233,6 +233,11 @@
   .p-scrub::-moz-range-thumb { width:13px; height:13px; border:0; border-radius:50%; background:var(--accent); }
   .p-time { flex:none; font-family:'JetBrains Mono',monospace; font-size:.7rem; color:var(--text-muted);
             font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .p-speed { flex:none; min-width:2.5rem; font-family:'JetBrains Mono',monospace; font-size:.7rem;
+             font-weight:700; color:var(--text-secondary); border:1px solid var(--border);
+             border-radius:7px; padding:.28rem .4rem; background:var(--surface-warm);
+             font-variant-numeric:tabular-nums; }
+  .p-speed:hover { color:var(--accent); border-color:var(--accent); background:var(--green-bg); }
   .footnote { color:var(--text-muted); font-size:.76rem; margin-top:2.2rem; line-height:1.6; }
 
   @media (max-width:900px) {

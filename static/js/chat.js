@@ -291,6 +291,16 @@ function fmtTime(s) {
   return m + ":" + String(sec).padStart(2, "0");
 }
 
+// Playback speed cycles through these. Remembered across answers so a long
+// session doesn't reset to 1× every turn.
+const SPEEDS = [1, 1.25, 1.5, 2];
+function loadSpeed() {
+  const v = parseFloat(localStorage.getItem("chatSpeed"));
+  return SPEEDS.includes(v) ? v : 1;
+}
+function saveSpeed(v) { try { localStorage.setItem("chatSpeed", String(v)); } catch (e) {} }
+const fmtSpeed = (v) => (Number.isInteger(v) ? v + "×" : v + "×");
+
 // A compact custom player driving a hidden <audio>. Native controls only appear
 // at the very bottom of the answer, so on a long answer you had to scroll past
 // all the text to reach Play. This bar sticks to the top of the answer instead.
@@ -310,6 +320,16 @@ function buildPlayer(src) {
   const back = mk("p-skip", "«15", "Back 15 seconds");
   const play = mk("p-play", ICON.play, "Play");
   const fwd  = mk("p-skip", "15»", "Forward 15 seconds");
+
+  // Speed toggle — starts at the remembered rate, cycles on each click.
+  audio.playbackRate = loadSpeed();
+  const speed = mk("p-speed", fmtSpeed(audio.playbackRate), "Playback speed");
+  speed.onclick = () => {
+    const next = SPEEDS[(SPEEDS.indexOf(audio.playbackRate) + 1) % SPEEDS.length] || 1;
+    audio.playbackRate = next;
+    speed.textContent = fmtSpeed(next);
+    saveSpeed(next);
+  };
 
   const scrub = document.createElement("input");
   scrub.type = "range"; scrub.className = "p-scrub";
@@ -355,7 +375,7 @@ function buildPlayer(src) {
   audio.addEventListener("pause", () => { play.innerHTML = ICON.play; play.title = play.ariaLabel = "Play"; wrap.classList.remove("is-playing"); });
   audio.addEventListener("ended", () => { play.innerHTML = ICON.play; play.title = play.ariaLabel = "Play"; wrap.classList.remove("is-playing"); });
 
-  wrap.append(back, play, fwd, scrub, time);
+  wrap.append(back, play, fwd, scrub, time, speed);
   return { wrap, audio };
 }
 
