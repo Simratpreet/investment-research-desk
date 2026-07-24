@@ -178,9 +178,40 @@
                color:var(--accent); background:var(--green-bg); border-radius:5px; padding:.14rem .38rem; }
   .q { font-weight:600; color:var(--ink); line-height:1.45; }
   .a { white-space:pre-wrap; line-height:1.65; }
-  audio { width:100%; margin-top:.85rem; height:2.2rem; }
   .sources { color:var(--text-muted); font-size:.74rem; margin-top:.6rem; word-break:break-word;
              font-family:'JetBrains Mono',monospace; line-height:1.5; }
+
+  /* --- Custom audio player ---------------------------------------------------
+     Sits at the TOP of the answer (right under the label) and sticks there
+     while you read, so Play/skip are always reachable without scrolling to the
+     end of a long answer. Drives a hidden <audio>. */
+  .player { position:sticky; top:80px; z-index:2; display:flex; align-items:center; gap:.5rem;
+            margin:0 0 .9rem; padding:.5rem .6rem; border:1px solid var(--border); border-radius:12px;
+            background:rgba(247,248,245,.92); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+  .player.is-playing { border-color:var(--accent); }
+  .p-btn { flex:none; border:0; background:none; cursor:pointer; color:var(--text-secondary);
+           border-radius:8px; padding:.3rem; line-height:0; transition:color .15s, background .15s; }
+  .p-btn:hover { color:var(--accent); background:var(--green-bg); }
+  .p-btn svg { display:block; width:1.15rem; height:1.15rem; }
+  .p-play { width:2.3rem; height:2.3rem; border-radius:50%; background:var(--accent); color:#fff;
+            display:inline-flex; align-items:center; justify-content:center; }
+  .p-play:hover { background:var(--accent-hover); color:#fff; }
+  .p-play svg { width:1.05rem; height:1.05rem; }
+  .p-skip { position:relative; font-size:.56rem; font-weight:800; color:var(--text-secondary);
+            font-family:'JetBrains Mono',monospace; width:2.05rem; height:2.05rem; border-radius:8px;
+            display:inline-flex; align-items:center; justify-content:center; letter-spacing:-.02em; }
+  .p-skip:hover { color:var(--accent); background:var(--green-bg); }
+  .p-scrub { flex:1; min-width:3rem; height:1.4rem; -webkit-appearance:none; appearance:none;
+             background:none; cursor:pointer; }
+  .p-scrub::-webkit-slider-runnable-track { height:4px; border-radius:99px;
+             background:linear-gradient(var(--accent),var(--accent)) 0/var(--p,0%) 100% no-repeat, var(--border); }
+  .p-scrub::-moz-range-track { height:4px; border-radius:99px; background:var(--border); }
+  .p-scrub::-moz-range-progress { height:4px; border-radius:99px; background:var(--accent); }
+  .p-scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:13px; height:13px;
+             margin-top:-4.5px; border-radius:50%; background:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .p-scrub::-moz-range-thumb { width:13px; height:13px; border:0; border-radius:50%; background:var(--accent); }
+  .p-time { flex:none; font-family:'JetBrains Mono',monospace; font-size:.7rem; color:var(--text-muted);
+            font-variant-numeric:tabular-nums; white-space:nowrap; }
   .footnote { color:var(--text-muted); font-size:.76rem; margin-top:2.2rem; line-height:1.6; }
 
   @media (max-width:720px) {
@@ -196,6 +227,10 @@
     .composer-actions { width:100%; margin-left:0; }
     .composer-actions .btn { flex:1; }
     #qtext { font-size:1rem; padding:.95rem 1rem .3rem; }
+    .player { top:76px; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    * { scroll-behavior:auto !important; }
   }
 </style></head>
 <body>
@@ -408,6 +443,88 @@ document.getElementById("newConv").addEventListener("click", () => {
   setStatus("New conversation — ask your first question.");
 });
 
+const SKIP_SECONDS = 15;
+const ICON = {
+  play: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 4 11l7 7"/><path d="M4 11h11a5 5 0 0 1 0 10h-1"/></svg>',
+  fwd: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m13 4 7 7-7 7"/><path d="M20 11H9a5 5 0 0 0 0 10h1"/></svg>',
+};
+
+function fmtTime(s) {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return m + ":" + String(sec).padStart(2, "0");
+}
+
+// A compact custom player driving a hidden <audio>. Native controls only appear
+// at the very bottom of the answer, so on a long answer you had to scroll past
+// all the text to reach Play. This bar sticks to the top of the answer instead.
+function buildPlayer(src) {
+  const audio = new Audio(src);
+  audio.preload = "metadata";
+
+  const wrap = document.createElement("div");
+  wrap.className = "player";
+
+  const mk = (cls, html, label) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "p-btn " + cls; b.innerHTML = html;
+    b.setAttribute("aria-label", label); b.title = label;
+    return b;
+  };
+  const back = mk("p-skip", "«15", "Back 15 seconds");
+  const play = mk("p-play", ICON.play, "Play");
+  const fwd  = mk("p-skip", "15»", "Forward 15 seconds");
+
+  const scrub = document.createElement("input");
+  scrub.type = "range"; scrub.className = "p-scrub";
+  scrub.min = 0; scrub.max = 1000; scrub.value = 0;
+  scrub.setAttribute("aria-label", "Seek");
+  let scrubbing = false;
+
+  const time = document.createElement("span");
+  time.className = "p-time"; time.textContent = "0:00 / 0:00";
+
+  const seekTo = (t) => {
+    const d = audio.duration;
+    if (isFinite(d) && d > 0) audio.currentTime = Math.max(0, Math.min(d, t));
+  };
+  back.onclick = () => seekTo(audio.currentTime - SKIP_SECONDS);
+  fwd.onclick  = () => seekTo(audio.currentTime + SKIP_SECONDS);
+  play.onclick = () => { if (audio.paused) audio.play().catch(() => {}); else audio.pause(); };
+
+  const paint = () => {
+    const d = audio.duration || 0, t = audio.currentTime || 0;
+    if (!scrubbing) {
+      scrub.value = d > 0 ? Math.round((t / d) * 1000) : 0;
+      scrub.style.setProperty("--p", (d > 0 ? (t / d) * 100 : 0) + "%");
+    }
+    time.textContent = fmtTime(t) + " / " + fmtTime(d);
+  };
+
+  scrub.addEventListener("input", () => {
+    scrubbing = true;
+    scrub.style.setProperty("--p", (scrub.value / 10) + "%");
+    const d = audio.duration;
+    if (isFinite(d) && d > 0) time.textContent = fmtTime((scrub.value / 1000) * d) + " / " + fmtTime(d);
+  });
+  scrub.addEventListener("change", () => {
+    const d = audio.duration;
+    if (isFinite(d) && d > 0) audio.currentTime = (scrub.value / 1000) * d;
+    scrubbing = false;
+  });
+
+  audio.addEventListener("loadedmetadata", paint);
+  audio.addEventListener("timeupdate", paint);
+  audio.addEventListener("play", () => { play.innerHTML = ICON.pause; play.title = play.ariaLabel = "Pause"; wrap.classList.add("is-playing"); });
+  audio.addEventListener("pause", () => { play.innerHTML = ICON.play; play.title = play.ariaLabel = "Play"; wrap.classList.remove("is-playing"); });
+  audio.addEventListener("ended", () => { play.innerHTML = ICON.play; play.title = play.ariaLabel = "Play"; wrap.classList.remove("is-playing"); });
+
+  wrap.append(back, play, fwd, scrub, time);
+  return { wrap, audio };
+}
+
 // Append a Q&A entry to the log (newest on top); each keeps its own audio.
 // One card per exchange: question and answer were separate floating cards
 // before, which read as two unrelated objects rather than a single turn.
@@ -433,9 +550,10 @@ function addEntry(j) {
 
   const a = document.createElement("div"); a.className = "entry-a";
   const at = document.createElement("div"); at.className = "a"; at.textContent = j.answer;
-  const player = document.createElement("audio"); player.controls = true; player.src = j.audio;
+  const { wrap, audio } = buildPlayer(j.audio);
   // Tag which model produced this — the dropdown can change between turns.
-  a.append(label("Answer", j.model ? (modelLabel(j.model) || j.model) : null), at, player);
+  // Player sits between the label and the text so it's the first thing reachable.
+  a.append(label("Answer", j.model ? (modelLabel(j.model) || j.model) : null), wrap, at);
 
   // Free conversation has no filings behind it — don't render an empty Sources line.
   const sources = j.sources || [];
@@ -448,7 +566,7 @@ function addEntry(j) {
   el.append(q, a);
   document.getElementById("log").prepend(el);
   document.getElementById("convoEmpty").hidden = true;
-  player.play().catch(() => {});
+  audio.play().catch(() => {});
 }
 
 let recording = false;
