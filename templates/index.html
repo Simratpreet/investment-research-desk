@@ -9,8 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-        <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/watchlist.css') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ asset_v }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/watchlist.css') }}?v={{ asset_v }}">
 </head>
 <body>
     <header class="header">
@@ -227,6 +227,6 @@
 
     <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
-        <script src="{{ url_for('static', filename='js/watchlist.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/watchlist.js') }}?v={{ asset_v }}"></script>
 </body>
 </html>

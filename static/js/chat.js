@@ -240,12 +240,16 @@ const Conversations = {
     this.closeDrawer();
     setStatus(turns.length ? "Resumed — ask a follow-up." : "Empty chat — ask a question.");
     // On mobile the drawer closes over a short viewport still scrolled to the
-    // composer, so the loaded chat sits below the fold and looks empty. Bring
-    // the conversation into view. rAF so it runs after the drawer transition.
+    // composer, so the loaded chat sits below the fold and looks empty. Scroll
+    // it into view. iOS Safari is flaky with scrollIntoView({smooth}) right
+    // after a layout change, so compute the offset and jump with a short delay
+    // to let the drawer-close reflow settle.
     if (turns.length) {
-      requestAnimationFrame(() => {
-        document.querySelector(".convo-head").scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+      const head = document.querySelector(".convo-head");
+      setTimeout(() => {
+        const y = head.getBoundingClientRect().top + window.pageYOffset - 84;
+        window.scrollTo(0, Math.max(0, y));
+      }, 80);
     }
   },
 

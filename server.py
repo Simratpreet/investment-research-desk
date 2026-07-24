@@ -27,6 +27,32 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
 )
 
+
+# --- Static asset cache-busting ---------------------------------------------
+# Mobile Safari caches JS/CSS hard and offers no easy hard-refresh, so a fix
+# could sit undelivered for days. Stamp every static URL with a version derived
+# from the newest static file's mtime; a deploy that changes any asset changes
+# the version, forcing a fresh fetch. The HTML itself is a dynamic response and
+# isn't cached, so it always carries the current version.
+def _asset_version() -> str:
+    latest = 0
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    for root, _, files in os.walk(static_dir):
+        for f in files:
+            try:
+                latest = max(latest, int(os.path.getmtime(os.path.join(root, f))))
+            except OSError:
+                pass
+    return str(latest)
+
+
+ASSET_VERSION = _asset_version()
+
+
+@app.context_processor
+def _inject_asset_version():
+    return {"asset_v": ASSET_VERSION}
+
 # --- Auth gate (single shared password -> signed session cookie) ------------
 # Covers EVERY route, including the voice blueprint and /share/* pages. Only
 # the login page, logout, and the health check are reachable unauthenticated.
