@@ -1,0 +1,80 @@
+/* Signalbook — shared design system.
+ *
+ * One palette and one set of primitives for every page. Page-specific styles
+ * (watchlist.css, chat.css) build on these tokens; changing a token here
+ * cascades everywhere, which is the whole point — the two pages used to run
+ * different palettes (orange dashboard, green chat) and read as separate apps.
+ *
+ * Palette is a calm paper-and-forest green. Data-viz hues (green/red for
+ * direction, blue/amber/purple for alert categories) stay distinct but muted
+ * so they sit quietly against the neutral surfaces. */
+
+:root {
+  /* Surfaces & ink */
+  --bg: #f1f4ef;
+  --surface: #ffffff;
+  --surface-warm: #f7f8f5;
+  --border: #dfe5dc;
+  --border-light: #edf0eb;
+  --text: #14221b;
+  --text-secondary: #5f6d65;
+  --text-muted: #8b978f;
+  --ink: #11271d;
+
+  /* Brand accent (forest green) */
+  --accent: #1f6a4a;
+  --accent-hover: #17563c;
+  --accent-light: rgba(31, 106, 74, 0.09);
+  --lime: #dcf879;
+  --rec: #dc2626;   /* recording / destructive */
+
+  /* Data-viz / semantic — distinct but muted against the neutral surfaces. */
+  --green: #1f7a52;
+  --green-bg: #e8f6ee;
+  --red: #c73a49;
+  --red-bg: #fff0f1;
+  --blue: #4263c7;
+  --blue-bg: #eef2ff;
+  --amber: #a76608;
+  --amber-bg: #fff6e3;
+  --purple: #7251aa;
+  --purple-bg: #f3edff;
+
+  /* Elevation — soft, green-tinted, restrained. */
+  --shadow-sm: 0 1px 2px rgba(20, 34, 27, 0.04);
+  --shadow-md: 0 12px 30px rgba(20, 34, 27, 0.07);
+  --shadow-lg: 0 20px 50px rgba(20, 34, 27, 0.12);
+  --radius: 16px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, select, textarea { font: inherit; }
+
+/* One consistent, on-brand focus ring everywhere. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(31, 106, 74, 0.22);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
