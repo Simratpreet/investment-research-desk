@@ -805,11 +805,12 @@ function addEntry(j, opts = {}) {
 let recording = false;
 let starting = false;   // synchronous latch: blocks a double-tap before `recording` flips
 let inFlight = false;   // a request is mid-flight: block new records/asks that would race history
+let transcribing = false;  // STT of a recording is running (voice → textbox)
 
 async function startRec() {
   // Synchronous guards FIRST — `recording` only flips after an await, so without
   // `starting` a fast double-click opens a second mic stream and leaks it.
-  if (starting || recording || inFlight) return;
+  if (starting || recording || inFlight || transcribing) return;
   starting = true;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1005,13 +1006,42 @@ async function submit(fd) {
   pollJob();
 })();
 
-function send() {
+// Voice is an input method for the question box, not a direct submit: transcribe
+// the recording, drop the text into the composer for review/edit, and let the
+// user press Ask. Transcription is misheard often enough (and the answer is
+// expensive enough) that sending it unseen is the wrong default.
+async function send() {
+  if (transcribing || inFlight) return;
   const type = recMime || mediaRecorder?.mimeType || "audio/webm";
   const blob = new Blob(chunks, { type });
   if (blob.size < 1200) { setStatus("Too short — hold a bit longer."); return; }
   const fd = new FormData();
   fd.append("audio", blob, "q." + extFor(type));  // true extension so STT reads the right codec
-  submit(fd);
+
+  transcribing = true;
+  recBtn.disabled = true;
+  setStatus("Transcribing…", true);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 60000);
+  try {
+    const r = await fetch("/api/voice/transcribe", { method: "POST", body: fd, signal: ctrl.signal });
+    const j = await r.json();
+    if (!r.ok) { setStatus("✗ " + (j.error || r.status)); return; }
+    // Append to whatever's already typed rather than clobbering it.
+    const cur = qtextEl.value.trim();
+    qtextEl.value = cur ? cur + " " + j.text : j.text;
+    autosize();
+    qtextEl.focus();
+    // Put the caret at the end so an edit continues the transcript.
+    qtextEl.setSelectionRange(qtextEl.value.length, qtextEl.value.length);
+    setStatus("Review and edit if needed, then press Ask.");
+  } catch (e) {
+    setStatus(e.name === "AbortError" ? "✗ Transcription timed out — try again." : "✗ " + e.message);
+  } finally {
+    clearTimeout(timer);
+    transcribing = false;
+    recBtn.disabled = false;
+  }
 }
 
 function sendText() {

@@ -342,6 +342,14 @@ def load_uploads(doc_ids):
     return "\n\n".join(parts)[:MAX_DOCS_CHARS], names
 
 
+# Biases the transcriber toward English financial vocabulary. `language: "en"`
+# alone has been seen to fail on short clips (returning the words spelled out in
+# another script); the prompt is a second, softer nudge. The textbox review step
+# on the client is the real backstop when both miss.
+_STT_PROMPT = ("An English-language question about a public company's quarterly "
+               "results, guidance and management commentary.")
+
+
 def transcribe(audio_b64: str, fmt: str) -> str:
     resp = requests.post(
         f"{OR_URL}/audio/transcriptions",
@@ -350,6 +358,7 @@ def transcribe(audio_b64: str, fmt: str) -> str:
             "model": STT_MODEL,
             "input_audio": {"data": audio_b64, "format": fmt},
             "language": "en",
+            "prompt": _STT_PROMPT,
         },
         timeout=120,
     )
@@ -632,6 +641,41 @@ def voice_page():
     # so the two can never drift apart.
     return render_template("voice.html", models=REASON_MODELS,
                            default_model=REASON_MODEL)
+
+
+def _audio_fmt(audio) -> str:
+    """Resolve an uploaded recording's format from its filename, falling back to
+    webm. Shared by transcribe-only and (historically) the ask pipeline."""
+    fmt = ((audio.filename or "").rsplit(".", 1)[-1] or "webm").lower()
+    if fmt not in {"webm", "wav", "mp3", "mp4", "m4a", "ogg", "flac", "aac"}:
+        fmt = "webm"
+    return fmt
+
+
+@voice_bp.route("/api/voice/transcribe", methods=["POST"])
+def voice_transcribe():
+    """Speech-to-text only. The client shows the result in the question box for
+    review/edit before the (expensive) answer pipeline runs, so a misheard
+    question can be corrected instead of being reasoned over and spoken back.
+    Fast enough (~seconds) to be a plain synchronous request, unlike /ask."""
+    if not rate_limit_ok(f"stt:{client_ip(request)}", 30, 60):
+        return jsonify({"error": "Too many requests — slow down a moment."}), 429
+    audio = request.files.get("audio")
+    if not audio:
+        return jsonify({"error": "no audio"}), 400
+    try:
+        audio_b64 = base64.b64encode(audio.read()).decode("ascii")
+        text = transcribe(audio_b64, _audio_fmt(audio))
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else "?"
+        log.warning("STT upstream error (status=%s): %s", status, e)
+        return jsonify({"error": "transcription service error — try again"}), 502
+    except Exception as e:
+        log.exception("STT error: %s", e)
+        return jsonify({"error": "could not transcribe the audio"}), 500
+    if not text:
+        return jsonify({"error": "couldn't understand the audio — try again"}), 422
+    return jsonify({"text": text})
 
 
 @voice_bp.route("/api/voice/ask", methods=["POST"])
