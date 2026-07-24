@@ -238,6 +238,12 @@
              border-radius:7px; padding:.28rem .4rem; background:var(--surface-warm);
              font-variant-numeric:tabular-nums; }
   .p-speed:hover { color:var(--accent); border-color:var(--accent); background:var(--green-bg); }
+  .synth-btn { display:inline-flex; align-items:center; gap:.4rem; margin:0 0 .9rem; padding:.5rem .85rem;
+               border:1px solid var(--border); border-radius:12px; background:var(--surface-warm);
+               color:var(--text-secondary); font-size:.82rem; font-weight:600; cursor:pointer;
+               transition:color .15s, border-color .15s, background .15s; }
+  .synth-btn:hover:not(:disabled) { color:var(--accent); border-color:var(--accent); background:var(--green-bg); }
+  .synth-btn.is-busy, .synth-btn:disabled { opacity:.7; cursor:default; }
   .footnote { color:var(--text-muted); font-size:.76rem; margin-top:2.2rem; line-height:1.6; }
 
   @media (max-width:900px) {

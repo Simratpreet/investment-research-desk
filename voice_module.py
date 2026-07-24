@@ -678,6 +678,39 @@ def voice_transcribe():
     return jsonify({"text": text})
 
 
+@voice_bp.route("/api/voice/speak", methods=["POST"])
+def voice_speak():
+    """Text-to-speech for an existing answer. Saved chats are stored text-only,
+    so replaying an old answer's audio means re-synthesizing it on demand. The
+    text is a stored answer (already citation-sanitised); synthesize_wav cleans
+    it again regardless."""
+    if not rate_limit_ok(f"speak:{client_ip(request)}", 12, 300):
+        return jsonify({"error": "Too many requests — slow down a moment."}), 429
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "nothing to speak"}), 400
+    if len(text) > 20000:
+        return jsonify({"error": "text too long to synthesize"}), 400
+
+    # Bound concurrent TTS the same way /ask does — a burst can't fan out
+    # unbounded parallel synthesis.
+    if not _VOICE_SEMA.acquire(blocking=False):
+        return jsonify({"error": "Server busy with another request — try again in a moment."}), 429
+    try:
+        wav = synthesize_wav(text)
+    except requests.HTTPError as e:
+        status = e.response.status_code if e.response is not None else "?"
+        log.warning("TTS upstream error (status=%s): %s", status, e)
+        return jsonify({"error": "speech service error — try again in a moment."}), 502
+    except Exception as e:
+        log.exception("TTS error: %s", e)
+        return jsonify({"error": "could not synthesize audio"}), 500
+    finally:
+        _VOICE_SEMA.release()
+    return jsonify({"audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii")})
+
+
 @voice_bp.route("/api/voice/ask", methods=["POST"])
 def voice_ask():
     if not rate_limit_ok(f"voice:{client_ip(request)}", 20, 60):

@@ -239,6 +239,14 @@ const Conversations = {
     this.setActive(id);
     this.closeDrawer();
     setStatus(turns.length ? "Resumed — ask a follow-up." : "Empty chat — ask a question.");
+    // On mobile the drawer closes over a short viewport still scrolled to the
+    // composer, so the loaded chat sits below the fold and looks empty. Bring
+    // the conversation into view. rAF so it runs after the drawer transition.
+    if (turns.length) {
+      requestAnimationFrame(() => {
+        document.querySelector(".convo-head").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
   },
 
   async doRename(c) {
@@ -379,6 +387,46 @@ function buildPlayer(src) {
   return { wrap, audio };
 }
 
+// A "Play (synthesize)" control for a historical answer that has no stored
+// audio. Generates it on demand, then replaces itself with a real player.
+function buildSynthButton(text) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "synth-btn";
+  btn.textContent = "🔊 Play answer";
+  btn.addEventListener("click", async () => {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = "Synthesizing…";
+    btn.classList.add("is-busy");
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 180000);
+    try {
+      const r = await fetch("/api/voice/speak", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }), signal: ctrl.signal,
+      });
+      const j = await r.json();
+      if (!r.ok || !j.audio) {
+        btn.textContent = "🔊 Retry";
+        btn.disabled = false; btn.classList.remove("is-busy");
+        setStatus("✗ " + (j.error || "could not synthesize"));
+        return;
+      }
+      const { wrap, audio } = buildPlayer(j.audio);
+      btn.replaceWith(wrap);
+      audio.play().catch(() => {});
+    } catch (e) {
+      btn.textContent = "🔊 Retry";
+      btn.disabled = false; btn.classList.remove("is-busy");
+      setStatus(e.name === "AbortError" ? "✗ Synthesis timed out — try again." : "✗ " + e.message);
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+  return btn;
+}
+
 // Append a Q&A entry to the log (newest on top); each keeps its own audio.
 // One card per exchange: question and answer were separate floating cards
 // before, which read as two unrelated objects rather than a single turn.
@@ -413,6 +461,10 @@ function addEntry(j, opts = {}) {
   if (j.audio) {
     const p = buildPlayer(j.audio); audio = p.audio;
     a.append(p.wrap);
+  } else if (opts.historical && j.answer) {
+    // Saved chats store text only. Offer to (re)generate the spoken audio for
+    // this answer on demand; on success the button becomes a real player.
+    a.append(buildSynthButton(j.answer));
   }
   a.append(at);
 
