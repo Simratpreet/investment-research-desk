@@ -681,9 +681,12 @@ def voice_transcribe():
 @voice_bp.route("/api/voice/speak", methods=["POST"])
 def voice_speak():
     """Text-to-speech for an existing answer. Saved chats are stored text-only,
-    so replaying an old answer's audio means re-synthesizing it on demand. The
-    text is a stored answer (already citation-sanitised); synthesize_wav cleans
-    it again regardless."""
+    so replaying an old answer's audio means re-synthesizing it on demand.
+
+    Async like /ask, and for the same reason: synthesis takes up to a minute, and
+    a phone that sleeps mid-request would otherwise lose it. Returns a job id; the
+    client polls /api/voice/job/<id>. The text is a stored answer (already
+    citation-sanitised); synthesize_wav cleans it again regardless."""
     if not rate_limit_ok(f"speak:{client_ip(request)}", 12, 300):
         return jsonify({"error": "Too many requests — slow down a moment."}), 429
     data = request.get_json(silent=True) or {}
@@ -693,22 +696,34 @@ def voice_speak():
     if len(text) > 20000:
         return jsonify({"error": "text too long to synthesize"}), 400
 
-    # Bound concurrent TTS the same way /ask does — a burst can't fan out
-    # unbounded parallel synthesis.
+    # Bound concurrent TTS the same way /ask does; released by the worker.
     if not _VOICE_SEMA.acquire(blocking=False):
         return jsonify({"error": "Server busy with another request — try again in a moment."}), 429
+    job_id = uuid.uuid4().hex
+    with _jobs_lock:
+        _sweep_jobs()
+        _jobs[job_id] = {"status": "running", "created": time.time()}
+    threading.Thread(target=_run_speak, args=(job_id, text), daemon=True).start()
+    return jsonify({"job_id": job_id, "status": "running"}), 202
+
+
+def _run_speak(job_id, text):
+    """Synthesize off-request and stash the result in the job store. Never raises."""
     try:
-        wav = synthesize_wav(text)
-    except requests.HTTPError as e:
-        status = e.response.status_code if e.response is not None else "?"
-        log.warning("TTS upstream error (status=%s): %s", status, e)
-        return jsonify({"error": "speech service error — try again in a moment."}), 502
-    except Exception as e:
-        log.exception("TTS error: %s", e)
-        return jsonify({"error": "could not synthesize audio"}), 500
+        try:
+            wav = synthesize_wav(text)
+        except requests.HTTPError as e:
+            status = e.response.status_code if e.response is not None else "?"
+            log.warning("TTS upstream error (status=%s): %s", status, e)
+            return _finish_job(job_id, {"error": "speech service error — try again in a moment."}, "error")
+        except Exception as e:
+            log.exception("TTS error: %s", e)
+            return _finish_job(job_id, {"error": "could not synthesize audio"}, "error")
+        _finish_job(job_id, {
+            "audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii"),
+        }, "done")
     finally:
         _VOICE_SEMA.release()
-    return jsonify({"audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii")})
 
 
 @voice_bp.route("/api/voice/ask", methods=["POST"])

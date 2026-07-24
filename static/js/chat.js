@@ -388,43 +388,67 @@ function buildPlayer(src) {
 }
 
 // A "Play (synthesize)" control for a historical answer that has no stored
-// audio. Generates it on demand, then replaces itself with a real player.
+// audio. Generates it on demand — async like /ask, so a phone sleeping through
+// the ~minute of synthesis resumes and collects it rather than losing it — then
+// replaces itself with a real player.
+const SYNTH_POLL_MS = 3000;
+const SYNTH_GIVE_UP_MS = 8 * 60 * 1000;
+
 function buildSynthButton(text) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "synth-btn";
   btn.textContent = "🔊 Play answer";
-  btn.addEventListener("click", async () => {
-    if (btn.disabled) return;
-    btn.disabled = true;
-    btn.textContent = "Synthesizing…";
-    btn.classList.add("is-busy");
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 180000);
-    try {
-      const r = await fetch("/api/voice/speak", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }), signal: ctrl.signal,
-      });
-      const j = await r.json();
-      if (!r.ok || !j.audio) {
-        btn.textContent = "🔊 Retry";
-        btn.disabled = false; btn.classList.remove("is-busy");
-        setStatus("✗ " + (j.error || "could not synthesize"));
-        return;
-      }
-      const { wrap, audio } = buildPlayer(j.audio);
-      btn.replaceWith(wrap);
-      audio.play().catch(() => {});
-    } catch (e) {
-      btn.textContent = "🔊 Retry";
-      btn.disabled = false; btn.classList.remove("is-busy");
-      setStatus(e.name === "AbortError" ? "✗ Synthesis timed out — try again." : "✗ " + e.message);
-    } finally {
-      clearTimeout(timer);
-    }
-  });
+  btn.addEventListener("click", () => startSynth(btn, text));
   return btn;
+}
+
+function synthFail(btn, msg) {
+  releaseWakeLock();
+  btn.textContent = "🔊 Retry";
+  btn.disabled = false;
+  btn.classList.remove("is-busy");
+  if (msg) setStatus("✗ " + msg);
+}
+
+async function startSynth(btn, text) {
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = "Synthesizing…";
+  btn.classList.add("is-busy");
+  acquireWakeLock();
+  try {
+    const r = await fetch("/api/voice/speak", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.job_id) { synthFail(btn, j.error || r.status); return; }
+    pollSynth(btn, j.job_id, Date.now());
+  } catch (e) {
+    synthFail(btn, e.message);
+  }
+}
+
+async function pollSynth(btn, jobId, started) {
+  if (Date.now() - started > SYNTH_GIVE_UP_MS) { synthFail(btn, "gave up waiting — try again"); return; }
+  let j;
+  try {
+    const r = await fetch("/api/voice/job/" + encodeURIComponent(jobId), { cache: "no-store" });
+    if (r.status === 401) { synthFail(btn, "signed out — reload"); return; }
+    j = await r.json();
+    if (r.status === 404) { synthFail(btn, j.error || "expired — try again"); return; }
+  } catch (e) {
+    // Offline or asleep — keep the job and retry. Surviving this is the point.
+    setTimeout(() => pollSynth(btn, jobId, started), SYNTH_POLL_MS);
+    return;
+  }
+  if (j.status === "running") { setTimeout(() => pollSynth(btn, jobId, started), SYNTH_POLL_MS); return; }
+  releaseWakeLock();
+  if (j.status === "error" || !j.audio) { synthFail(btn, j.error || "failed"); return; }
+  const { wrap, audio } = buildPlayer(j.audio);
+  btn.replaceWith(wrap);
+  audio.play().catch(() => {});
 }
 
 // Append a Q&A entry to the log (newest on top); each keeps its own audio.
