@@ -9,6 +9,7 @@ screener_alerts/cookie.txt
 alert_log.json
 research/
 uploads/
+conversations/
 news_alerts/news_store.json
 news_alerts/data/names_cache.json
 screener_alerts/announcements_store.json

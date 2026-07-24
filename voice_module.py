@@ -45,6 +45,12 @@ from flask import Blueprint, jsonify, render_template, request
 
 from config import VOICE_S3_BUCKET, AWS_REGION, DATA_DIR
 from security import client_ip, rate_limit_ok
+from conversation_store import ConversationStore
+
+# Persistent chat history (text only). Conversations untouched for 7 days are
+# pruned; the store owns its own directory, locking and retention.
+conversations = ConversationStore(os.path.join(DATA_DIR, "conversations"),
+                                  retention_days=7)
 
 # --- User-uploaded context documents ----------------------------------------
 # Extracted plain text lives on the volume so uploads survive a redeploy and can
@@ -697,6 +703,15 @@ def voice_ask():
         except (ValueError, TypeError):
             history = []
 
+    # Which conversation this turn belongs to. A client resuming an existing
+    # chat sends its id; a new chat sends nothing and we mint one, returning it
+    # so the client can adopt it. The conversation record itself isn't written
+    # until the answer succeeds (in _run_ask), so a failed question leaves no
+    # empty conversation behind.
+    conv_id = (request.form.get("conversation_id") or "").strip()
+    if not re.fullmatch(r"[0-9a-f]{32}", conv_id):
+        conv_id = uuid.uuid4().hex
+
     if not _VOICE_SEMA.acquire(blocking=False):
         return jsonify({"error": "Server busy with another request — "
                                  "try again in a moment."}), 429
@@ -712,10 +727,11 @@ def voice_ask():
         _jobs[job_id] = {"status": "running", "created": time.time()}
     threading.Thread(
         target=_run_ask,
-        args=(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model),
+        args=(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id),
         daemon=True,
     ).start()
-    return jsonify({"job_id": job_id, "status": "running"}), 202
+    return jsonify({"job_id": job_id, "status": "running",
+                    "conversation_id": conv_id}), 202
 
 
 def _finish_job(job_id: str, payload: dict, status: str):
@@ -725,7 +741,7 @@ def _finish_job(job_id: str, payload: dict, status: str):
             job.update(status=status, payload=payload, done=time.time())
 
 
-def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model):
+def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id=None):
     """The STT -> reason -> TTS pipeline, run off-request. Never raises."""
     try:
         try:
@@ -747,12 +763,28 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             log.exception("voice pipeline error: %s", e)
             return _finish_job(job_id, {"error": "internal error while processing your question"}, "error")
 
+        # Persist the completed turn (text only) before delivering it, so a
+        # client that vanished mid-answer still finds the turn saved on reconnect
+        # — the same durability the job store gives the in-flight answer. A
+        # persistence failure must never sink an answer we already paid for.
+        sym = symbol.upper()
+        if conv_id:
+            try:
+                conversations.append_turn(conv_id, {
+                    "question": question, "answer": answer, "symbol": sym,
+                    "model": model, "sources": sources,
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception as e:
+                log.warning("failed to persist turn to %s: %s", conv_id, e)
+
         _finish_job(job_id, {
-            "symbol": symbol.upper(),   # "" in free-conversation mode
+            "symbol": sym,   # "" in free-conversation mode
             "model": model,
             "sources": sources,
             "question": question,
             "answer": answer,
+            "conversation_id": conv_id,
             "audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii"),
         }, "done")
     finally:
@@ -823,3 +855,34 @@ def remove_doc(doc_id):
     if not delete_upload(doc_id):
         return jsonify({"error": "not found"}), 404
     return jsonify({"deleted": doc_id})
+
+
+# --- Conversation history ---------------------------------------------------
+# Text-only persistence for the sidebar. All behind the app-wide auth gate.
+
+@voice_bp.route("/api/voice/conversations", methods=["GET"])
+def list_conversations():
+    return jsonify({"conversations": conversations.list()})
+
+
+@voice_bp.route("/api/voice/conversations/<conv_id>", methods=["GET"])
+def get_conversation(conv_id):
+    conv = conversations.get(conv_id)
+    if conv is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(conv)
+
+
+@voice_bp.route("/api/voice/conversations/<conv_id>", methods=["PATCH"])
+def rename_conversation(conv_id):
+    data = request.get_json(silent=True) or {}
+    if not conversations.rename(conv_id, data.get("title", "")):
+        return jsonify({"error": "not found or invalid title"}), 404
+    return jsonify({"id": conv_id, "title": data.get("title", "").strip()})
+
+
+@voice_bp.route("/api/voice/conversations/<conv_id>", methods=["DELETE"])
+def delete_conversation(conv_id):
+    if not conversations.delete(conv_id):
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"deleted": conv_id})

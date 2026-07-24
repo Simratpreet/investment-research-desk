@@ -128,6 +128,7 @@ def ensure_data_dir():
     os.makedirs(RESEARCH_DIR, exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "screener_alerts"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "uploads"), exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "conversations"), exist_ok=True)
     if (WATCHLIST_FILE != SEED_WATCHLIST
             and not os.path.exists(WATCHLIST_FILE)
             and os.path.exists(SEED_WATCHLIST)):

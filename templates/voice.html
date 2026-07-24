@@ -48,7 +48,43 @@
   .top-nav-signout { color:var(--accent); }
   .top-nav-signout:hover { color:var(--accent-hover); background:var(--green-bg); }
 
-  .container { max-width:1080px; margin:0 auto; padding:36px 28px 64px; }
+  /* Two-column shell: conversation sidebar + main column. */
+  .shell { display:flex; align-items:flex-start; max-width:1340px; margin:0 auto; }
+  .container { flex:1; min-width:0; max-width:940px; margin:0 auto; padding:36px 28px 64px; }
+
+  /* --- Conversation sidebar --- */
+  .sidebar { position:sticky; top:72px; align-self:flex-start; flex:none; width:266px;
+             height:calc(100vh - 72px); overflow-y:auto; display:flex; flex-direction:column;
+             gap:.7rem; padding:1.1rem .8rem; border-right:1px solid var(--border);
+             background:var(--surface); }
+  .sidebar-title { font-family:'Manrope',sans-serif; font-size:.68rem; font-weight:800;
+                   letter-spacing:.11em; text-transform:uppercase; color:var(--text-muted);
+                   padding:0 .3rem; }
+  .conv-new { width:100%; }
+  .conv-list { display:flex; flex-direction:column; gap:2px; overflow-y:auto; }
+  .conv-empty-list { color:var(--text-muted); font-size:.8rem; padding:.6rem .3rem; line-height:1.5; }
+  .conv-item { display:flex; align-items:center; gap:.4rem; padding:.5rem .55rem; border-radius:10px;
+               cursor:pointer; transition:background .13s; }
+  .conv-item:hover { background:var(--surface-warm); }
+  .conv-item.is-active { background:var(--green-bg); }
+  .conv-item-body { flex:1; min-width:0; }
+  .conv-item-title { font-size:.83rem; font-weight:600; color:var(--text); white-space:nowrap;
+                     overflow:hidden; text-overflow:ellipsis; }
+  .conv-item.is-active .conv-item-title { color:var(--ink); }
+  .conv-item-meta { font-size:.67rem; color:var(--text-muted); margin-top:.1rem;
+                    display:flex; align-items:center; gap:.35rem; }
+  .conv-item-sym { font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--accent); }
+  .conv-actions { display:flex; gap:.05rem; flex:none; opacity:0; transition:opacity .13s; }
+  .conv-item:hover .conv-actions, .conv-item.is-active .conv-actions,
+  .conv-item:focus-within .conv-actions { opacity:1; }
+  .conv-act { border:0; background:none; cursor:pointer; color:var(--text-muted); font-size:.78rem;
+              line-height:1; padding:.28rem .32rem; border-radius:6px; }
+  .conv-act:hover { background:rgba(0,0,0,.07); color:var(--text); }
+  .conv-act.del:hover { color:var(--rec); }
+
+  /* Mobile: sidebar collapses to an off-canvas drawer behind a scrim. */
+  .conv-toggle { display:none; }
+  .scrim { display:none; }
   .eyebrow { display:flex; align-items:center; gap:9px; color:var(--accent); font-size:.68rem; font-weight:800;
              letter-spacing:.12em; text-transform:uppercase; margin-bottom:9px; }
   .eyebrow::before { content:''; width:24px; height:2px; background:var(--accent); border-radius:99px; }
@@ -214,6 +250,15 @@
             font-variant-numeric:tabular-nums; white-space:nowrap; }
   .footnote { color:var(--text-muted); font-size:.76rem; margin-top:2.2rem; line-height:1.6; }
 
+  @media (max-width:900px) {
+    .sidebar { position:fixed; top:0; left:0; height:100vh; z-index:40; width:min(84vw,300px);
+               padding-top:1.1rem; transform:translateX(-100%); transition:transform .22s ease;
+               box-shadow:0 12px 40px rgba(0,0,0,.18); }
+    .sidebar.open { transform:none; }
+    .scrim.show { display:block; position:fixed; inset:0; background:rgba(0,0,0,.34); z-index:35; }
+    .container { max-width:none; }
+    .conv-toggle { display:inline-flex; align-items:center; gap:.4rem; }
+  }
   @media (max-width:720px) {
     .setup-grid { grid-template-columns:1fr; gap:1.4rem; }
   }
@@ -251,7 +296,18 @@
     </div>
   </header>
 
+  <div class="scrim" id="scrim" aria-hidden="true"></div>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" aria-label="Conversations">
+      <span class="sidebar-title">Chats</span>
+      <button class="btn btn-primary conv-new" id="convNew">+ New chat</button>
+      <div class="conv-list" id="convList"></div>
+      <span class="sidebar-title" style="padding-top:.2rem">Kept for 7 days</span>
+    </aside>
+
   <main class="container">
+    <button class="btn btn-ghost btn-sm conv-toggle" id="convToggle"
+            aria-label="Show conversations" aria-controls="sidebar" aria-expanded="false">☰ Chats</button>
     <div class="eyebrow">Research assistant</div>
     <h2 class="page-title">Chat</h2>
     <p class="page-sub">Ask anything, by text or by voice. Ground the answer in a company's filings or in your own documents.</p>
@@ -322,12 +378,13 @@
 
     <div class="convo-head">
       <h3>Conversation</h3>
-      <button id="newConv" class="btn btn-ghost btn-sm" title="Clear conversation memory">New conversation</button>
+      <button id="newConv" class="btn btn-ghost btn-sm" title="Start a fresh conversation">New chat</button>
     </div>
     <div class="convo-empty" id="convoEmpty">Nothing asked yet — your questions and spoken answers will appear here.</div>
     <div id="log"></div>
-    <p class="footnote">With a symbol, answers are grounded in that company's filings; without one it's a general conversation. Speech-to-text in, spoken answer out.</p>
+    <p class="footnote">With a symbol, answers are grounded in that company's filings; without one it's a general conversation. Speech-to-text in, spoken answer out. Chats are saved for 7 days.</p>
   </main>
+  </div>
 
 <script>
 const recBtn = document.getElementById("rec");
@@ -435,13 +492,179 @@ function resetHistory(sym) {
   historySymbol = sym;
 }
 
-// Explicit "New conversation" — clear memory but keep the symbol.
-document.getElementById("newConv").addEventListener("click", () => {
-  resetHistory(symbolEl.value.trim().toUpperCase());
-  document.getElementById("log").innerHTML = "";
-  document.getElementById("convoEmpty").hidden = false;
-  setStatus("New conversation — ask your first question.");
-});
+// --- Conversation sidebar controller ----------------------------------------
+// Owns the saved-chat list, the current conversation id, and load/resume. Kept
+// as one object so all sidebar state and behaviour live in a single place.
+const Conversations = {
+  currentId: null,
+  items: [],
+
+  init() {
+    this.listEl = document.getElementById("convList");
+    this.sidebar = document.getElementById("sidebar");
+    this.scrim = document.getElementById("scrim");
+    this.toggle = document.getElementById("convToggle");
+    document.getElementById("convNew").addEventListener("click", () => this.startNew());
+    document.getElementById("newConv").addEventListener("click", () => this.startNew());
+    this.toggle.addEventListener("click", () => this.openDrawer());
+    this.scrim.addEventListener("click", () => this.closeDrawer());
+    this.refresh();
+  },
+
+  async refresh() {
+    try {
+      const r = await fetch("/api/voice/conversations", { cache: "no-store" });
+      if (!r.ok) return;
+      this.items = (await r.json()).conversations || [];
+    } catch (e) { return; }
+    this.render();
+  },
+
+  fmtWhen(iso) {
+    const t = Date.parse(iso);
+    if (!t) return "";
+    const s = (Date.now() - t) / 1000;
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + "m ago";
+    if (s < 86400) return Math.floor(s / 3600) + "h ago";
+    if (s < 7 * 86400) return Math.floor(s / 86400) + "d ago";
+    return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  },
+
+  render() {
+    this.listEl.innerHTML = "";
+    if (!this.items.length) {
+      const e = document.createElement("div");
+      e.className = "conv-empty-list";
+      e.textContent = "No saved chats yet. Ask something and it'll appear here.";
+      this.listEl.append(e);
+      return;
+    }
+    for (const c of this.items) {
+      const row = document.createElement("div");
+      row.className = "conv-item" + (c.id === this.currentId ? " is-active" : "");
+      row.tabIndex = 0;
+      row.addEventListener("click", (ev) => {
+        if (ev.target.closest(".conv-act")) return;   // action buttons handle themselves
+        this.open(c.id);
+      });
+      row.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") this.open(c.id);
+      });
+
+      const body = document.createElement("div"); body.className = "conv-item-body";
+      const title = document.createElement("div"); title.className = "conv-item-title";
+      title.textContent = c.title; title.title = c.title;   // textContent — user data
+      const meta = document.createElement("div"); meta.className = "conv-item-meta";
+      const when = document.createElement("span"); when.textContent = this.fmtWhen(c.updated_at);
+      meta.append(when);
+      if (c.symbol) {
+        const sym = document.createElement("span"); sym.className = "conv-item-sym";
+        sym.textContent = c.symbol; meta.append(sym);
+      }
+      body.append(title, meta);
+
+      const acts = document.createElement("div"); acts.className = "conv-actions";
+      const ren = document.createElement("button");
+      ren.className = "conv-act"; ren.textContent = "✎";
+      ren.title = ren.ariaLabel = "Rename"; ren.type = "button";
+      ren.addEventListener("click", () => this.doRename(c));
+      const del = document.createElement("button");
+      del.className = "conv-act del"; del.textContent = "🗑";
+      del.title = del.ariaLabel = "Delete"; del.type = "button";
+      del.addEventListener("click", () => this.doDelete(c));
+      acts.append(ren, del);
+
+      row.append(body, acts);
+      this.listEl.append(row);
+    }
+  },
+
+  setActive(id) {
+    this.currentId = id;
+    this.render();
+  },
+
+  // Adopt the id the server minted for a brand-new chat, so the follow-up turn
+  // lands in the same conversation.
+  adopt(id) { if (id) this.currentId = id; },
+
+  startNew() {
+    this.currentId = null;
+    resetHistory(symbolEl.value.trim().toUpperCase());
+    document.getElementById("log").innerHTML = "";
+    document.getElementById("convoEmpty").hidden = false;
+    this.render();
+    this.closeDrawer();
+    setStatus("New chat — ask your first question.");
+    document.getElementById("qtext").focus();
+  },
+
+  async open(id) {
+    setStatus("Loading conversation…");
+    let conv;
+    try {
+      const r = await fetch("/api/voice/conversations/" + encodeURIComponent(id), { cache: "no-store" });
+      if (!r.ok) { setStatus("✗ That chat is no longer available."); this.refresh(); return; }
+      conv = await r.json();
+    } catch (e) { setStatus("✗ " + e.message); return; }
+
+    // Restore the context this conversation ran under, then replay its turns.
+    symbolEl.value = conv.symbol || "";
+    if (conv.model && modelLabel(conv.model)) modelEl.value = conv.model;
+    const turns = conv.turns || [];
+    history = [];
+    document.getElementById("log").innerHTML = "";
+    for (const t of turns) {                 // oldest→newest; addEntry prepends
+      addEntry({ question: t.question, answer: t.answer, symbol: t.symbol,
+                 model: t.model, sources: t.sources }, { historical: true });
+      history.push({ role: "user", content: t.question });
+      history.push({ role: "assistant", content: t.answer });
+    }
+    history = history.slice(-24);            // bound what the next question carries
+    historySymbol = (conv.symbol || "").toUpperCase();
+    document.getElementById("convoEmpty").hidden = turns.length > 0;
+    updateContext();
+    this.setActive(id);
+    this.closeDrawer();
+    setStatus(turns.length ? "Resumed — ask a follow-up." : "Empty chat — ask a question.");
+  },
+
+  async doRename(c) {
+    const next = window.prompt("Rename chat:", c.title);
+    if (next == null) return;
+    const title = next.trim();
+    if (!title || title === c.title) return;
+    try {
+      const r = await fetch("/api/voice/conversations/" + encodeURIComponent(c.id),
+        { method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }) });
+      if (!r.ok) { setStatus("✗ Could not rename."); return; }
+    } catch (e) { setStatus("✗ " + e.message); return; }
+    this.refresh();
+  },
+
+  async doDelete(c) {
+    if (!window.confirm(`Delete "${c.title}"? This can't be undone.`)) return;
+    try {
+      const r = await fetch("/api/voice/conversations/" + encodeURIComponent(c.id), { method: "DELETE" });
+      if (!r.ok && r.status !== 404) { setStatus("✗ Could not delete."); return; }
+    } catch (e) { setStatus("✗ " + e.message); return; }
+    if (c.id === this.currentId) this.startNew();
+    this.refresh();
+  },
+
+  openDrawer() {
+    this.sidebar.classList.add("open");
+    this.scrim.classList.add("show");
+    this.toggle.setAttribute("aria-expanded", "true");
+  },
+  closeDrawer() {
+    this.sidebar.classList.remove("open");
+    this.scrim.classList.remove("show");
+    this.toggle.setAttribute("aria-expanded", "false");
+  },
+};
 
 const SKIP_SECONDS = 15;
 const ICON = {
@@ -528,7 +751,9 @@ function buildPlayer(src) {
 // Append a Q&A entry to the log (newest on top); each keeps its own audio.
 // One card per exchange: question and answer were separate floating cards
 // before, which read as two unrelated objects rather than a single turn.
-function addEntry(j) {
+// opts.historical: a turn loaded from saved history. Persistence is text-only,
+// so there's no audio to play — render without a player and don't autoplay.
+function addEntry(j, opts = {}) {
   const label = (text, tag) => {
     const el = document.createElement("div");
     el.className = "entry-label";
@@ -550,10 +775,15 @@ function addEntry(j) {
 
   const a = document.createElement("div"); a.className = "entry-a";
   const at = document.createElement("div"); at.className = "a"; at.textContent = j.answer;
-  const { wrap, audio } = buildPlayer(j.audio);
+  a.append(label("Answer", j.model ? (modelLabel(j.model) || j.model) : null));
   // Tag which model produced this — the dropdown can change between turns.
   // Player sits between the label and the text so it's the first thing reachable.
-  a.append(label("Answer", j.model ? (modelLabel(j.model) || j.model) : null), wrap, at);
+  let audio = null;
+  if (j.audio) {
+    const p = buildPlayer(j.audio); audio = p.audio;
+    a.append(p.wrap);
+  }
+  a.append(at);
 
   // Free conversation has no filings behind it — don't render an empty Sources line.
   const sources = j.sources || [];
@@ -564,9 +794,12 @@ function addEntry(j) {
   }
 
   el.append(q, a);
+  // Prepend either way: live answers arrive newest-first, and a loaded
+  // conversation is replayed oldest→newest, so prepending each yields the same
+  // newest-on-top order in both cases.
   document.getElementById("log").prepend(el);
   document.getElementById("convoEmpty").hidden = true;
-  audio.play().catch(() => {});
+  if (audio && !opts.historical) audio.play().catch(() => {});
 }
 
 let recording = false;
@@ -700,7 +933,12 @@ async function pollJob() {
   history.push({ role: "user", content: j.question });
   history.push({ role: "assistant", content: j.answer });
   addEntry(j);
-  setStatus("Done ✓ — ask a follow-up, or start a New conversation.");
+  // The server persisted this turn; refresh the sidebar so a new chat appears
+  // (with its auto-title) or an existing one moves to the top.
+  Conversations.adopt(j.conversation_id);
+  Conversations.setActive(Conversations.currentId);
+  Conversations.refresh();
+  setStatus("Done ✓ — ask a follow-up, or start a new chat.");
   endJob();
 }
 
@@ -721,11 +959,14 @@ async function submit(fd) {
   // A genuinely different symbol at ask-time starts a fresh conversation — and so
   // does switching between a company and the general chat, in either direction.
   const sym = symbol.toUpperCase();
-  if (sym !== historySymbol) resetHistory(sym);
+  // A symbol change resets the in-memory thread; make it start a new SAVED chat
+  // too, so one conversation record never mixes different companies' contexts.
+  if (sym !== historySymbol) { resetHistory(sym); Conversations.currentId = null; }
   fd.append("symbol", symbol);
   fd.append("history", JSON.stringify(history));
   fd.append("docs", JSON.stringify([...attached]));
   fd.append("model", modelEl.value);
+  fd.append("conversation_id", Conversations.currentId || "");
   inFlight = true;
   recBtn.disabled = textBtn.disabled = true;
   acquireWakeLock();
@@ -742,6 +983,7 @@ async function submit(fd) {
       endJob();
       return;
     }
+    Conversations.adopt(j.conversation_id);   // new chat: adopt the server's id
     saveJob(j.job_id);
     pollTimer = setTimeout(pollJob, POLL_MS);
   } catch (e) {
@@ -951,5 +1193,6 @@ uploadBtn.addEventListener("click", async () => {
 });
 
 loadDocs();
+Conversations.init();
 </script>
 </body></html>
