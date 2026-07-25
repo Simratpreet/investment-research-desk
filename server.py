@@ -332,6 +332,34 @@ _news_scan_lock = threading.Lock()
 
 _SIG_ORDER = {"High": 0, "Medium": 1, "Low": 2, "": 3}
 
+# The news store is upsert-only and never evicts, so a name that once had news
+# keeps its old entry forever. Hide entries whose freshest article is older than
+# this at display time, so stale headlines don't linger on the page.
+NEWS_MAX_AGE_DAYS = int(os.getenv("NEWS_MAX_AGE_DAYS", "14"))
+
+
+def _parse_dt(s):
+    try:
+        dt = datetime.fromisoformat(str(s))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def _news_item_is_fresh(item, max_age_days):
+    """A stored news item is fresh if its newest dated article is within the
+    window; if it has no dated article, fall back to when it was scanned."""
+    now = datetime.now(timezone.utc)
+    newest = None
+    for a in item.get("articles") or []:
+        dt = _parse_dt(a.get("published"))
+        if dt and (newest is None or dt > newest):
+            newest = dt
+    ref = newest or _parse_dt(item.get("scanned_at"))
+    if ref is None:
+        return False   # nothing datable — don't show it
+    return (now - ref).days <= max_age_days
+
 # Live handles for the running scan subprocesses so a stop endpoint can kill them.
 # (subprocess.run gave no handle; Popen + communicate does.)
 _scan_procs = {"news": None, "ann": None}
@@ -395,7 +423,8 @@ def get_news():
             store = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return jsonify({"generated_at": None, "items": [], "scan": _news_scan})
-    items = list((store.get("items") or {}).values())
+    items = [it for it in (store.get("items") or {}).values()
+             if _news_item_is_fresh(it, NEWS_MAX_AGE_DAYS)]
     items.sort(key=lambda it: (_SIG_ORDER.get(it.get("significance", ""), 3),
                                it.get("scanned_at", "")),
                reverse=False)
