@@ -1,6 +1,6 @@
 * { box-sizing:border-box; }
   body {
-    margin:0; font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+    margin:0; font-family:'Geist',-apple-system,BlinkMacSystemFont,sans-serif;
     background: radial-gradient(circle at 12% 5%, rgba(220,248,121,0.15), transparent 26rem), var(--bg);
     color:var(--text); min-height:100vh;
   }
@@ -22,7 +22,7 @@
   .logo-mark::before { left:11px; height:10px; }
   .logo-mark::after { left:21px; height:18px; }
   .brand-copy { display:flex; flex-direction:column; line-height:1.05; }
-  .brand-copy h1 { font-family:'Manrope',sans-serif; font-size:1rem; font-weight:800; letter-spacing:-0.035em; margin:0; }
+  .brand-copy h1 { font-family:'Geist',sans-serif; font-size:1rem; font-weight:800; letter-spacing:-0.035em; margin:0; }
   .brand-subtitle { color:var(--text-muted); font-size:.66rem; margin-top:4px; }
 
   .top-nav { display:flex; align-items:center; gap:.3rem; }
@@ -38,11 +38,11 @@
   .container { flex:1; min-width:0; max-width:940px; margin:0 auto; padding:36px 28px 64px; }
 
   /* --- Conversation sidebar --- */
-  .sidebar { position:sticky; top:72px; align-self:flex-start; flex:none; width:266px;
-             height:calc(100vh - 72px); overflow-y:auto; display:flex; flex-direction:column;
+  .sidebar { position:sticky; top:64px; align-self:flex-start; flex:none; width:266px;
+             height:calc(100vh - 64px); overflow-y:auto; display:flex; flex-direction:column;
              gap:.7rem; padding:1.1rem .8rem; border-right:1px solid var(--border);
              background:var(--surface); }
-  .sidebar-title { font-family:'Manrope',sans-serif; font-size:.68rem; font-weight:800;
+  .sidebar-title { font-family:'Geist',sans-serif; font-size:.68rem; font-weight:800;
                    letter-spacing:.11em; text-transform:uppercase; color:var(--text-muted);
                    padding:0 .3rem; }
   .conv-new { width:100%; }
@@ -58,7 +58,7 @@
   .conv-item.is-active .conv-item-title { color:var(--ink); }
   .conv-item-meta { font-size:.67rem; color:var(--text-muted); margin-top:.1rem;
                     display:flex; align-items:center; gap:.35rem; }
-  .conv-item-sym { font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--accent); }
+  .conv-item-sym { font-family:'Geist Mono',monospace; font-weight:600; color:var(--accent); }
   .conv-actions { display:flex; gap:.05rem; flex:none; opacity:0; transition:opacity .13s; }
   .conv-item:hover .conv-actions, .conv-item.is-active .conv-actions,
   .conv-item:focus-within .conv-actions { opacity:1; }
@@ -73,7 +73,7 @@
   .eyebrow { display:flex; align-items:center; gap:9px; color:var(--accent); font-size:.68rem; font-weight:800;
              letter-spacing:.12em; text-transform:uppercase; margin-bottom:9px; }
   .eyebrow::before { content:''; width:24px; height:2px; background:var(--accent); border-radius:99px; }
-  .page-title { font-family:'Manrope',sans-serif; color:var(--ink); font-size:clamp(1.8rem,4vw,2.6rem);
+  .page-title { font-family:'Geist',sans-serif; color:var(--ink); font-size:clamp(1.8rem,4vw,2.6rem);
                 line-height:1.03; letter-spacing:-.05em; margin:0 0 .3rem; }
   .page-sub { color:var(--text-secondary); font-size:.92rem; margin:0 0 1.8rem; }
 
@@ -132,7 +132,7 @@
            padding:1.25rem 1.35rem; margin-top:.75rem; box-shadow:0 1px 2px rgba(17,39,29,.04); }
   .setup[hidden] { display:none; }
   .setup-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5rem 2rem; }
-  .setup-col h3 { font-family:'Manrope',sans-serif; font-size:.72rem; font-weight:800; letter-spacing:.1em;
+  .setup-col h3 { font-family:'Geist',sans-serif; font-size:.72rem; font-weight:800; letter-spacing:.1em;
                   text-transform:uppercase; color:var(--text-muted); margin:0 0 .8rem;
                   padding-bottom:.55rem; border-bottom:1px solid var(--border); }
   .setup-row { margin-bottom:1.15rem; }
@@ -182,7 +182,7 @@
   /* --- Conversation --- */
   .convo-head { display:flex; align-items:center; justify-content:space-between; gap:1rem;
                 margin:2.4rem 0 1rem; padding-bottom:.7rem; border-bottom:1px solid var(--border); }
-  .convo-head h3 { font-family:'Manrope',sans-serif; font-size:.78rem; font-weight:800; letter-spacing:.1em;
+  .convo-head h3 { font-family:'Geist',sans-serif; font-size:.78rem; font-weight:800; letter-spacing:.1em;
                    text-transform:uppercase; color:var(--text-muted); margin:0; }
   .convo-empty { color:var(--text-muted); font-size:.88rem; text-align:center; padding:2.5rem 1rem;
                  border:1px dashed var(--border); border-radius:16px; line-height:1.6; }
@@ -195,18 +195,18 @@
   .entry-a { padding:1.1rem 1.2rem 1.2rem; }
   .entry-label { display:flex; align-items:center; gap:.5rem; font-size:.66rem; text-transform:uppercase;
                  letter-spacing:.1em; color:var(--text-muted); font-weight:800; margin-bottom:.45rem; }
-  .entry-tag { font-family:'JetBrains Mono',monospace; font-size:.62rem; font-weight:600; letter-spacing:.02em;
+  .entry-tag { font-family:'Geist Mono',monospace; font-size:.62rem; font-weight:600; letter-spacing:.02em;
                color:var(--accent); background:var(--green-bg); border-radius:5px; padding:.14rem .38rem; }
   .q { font-weight:600; color:var(--ink); line-height:1.45; }
   .a { white-space:pre-wrap; line-height:1.65; }
   .sources { color:var(--text-muted); font-size:.74rem; margin-top:.6rem; word-break:break-word;
-             font-family:'JetBrains Mono',monospace; line-height:1.5; }
+             font-family:'Geist Mono',monospace; line-height:1.5; }
 
   /* --- Custom audio player ---------------------------------------------------
      Sits at the TOP of the answer (right under the label) and sticks there
      while you read, so Play/skip are always reachable without scrolling to the
      end of a long answer. Drives a hidden <audio>. */
-  .player { position:sticky; top:80px; z-index:2; display:flex; align-items:center; gap:.5rem;
+  .player { position:sticky; top:72px; z-index:2; display:flex; align-items:center; gap:.5rem;
             margin:0 0 .9rem; padding:.5rem .6rem; border:1px solid var(--border); border-radius:12px;
             background:rgba(247,248,245,.92); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
   .player.is-playing { border-color:var(--accent); }
@@ -219,7 +219,7 @@
   .p-play:hover { background:var(--accent-hover); color:#fff; }
   .p-play svg { width:1.05rem; height:1.05rem; }
   .p-skip { position:relative; font-size:.56rem; font-weight:800; color:var(--text-secondary);
-            font-family:'JetBrains Mono',monospace; width:2.05rem; height:2.05rem; border-radius:8px;
+            font-family:'Geist Mono',monospace; width:2.05rem; height:2.05rem; border-radius:8px;
             display:inline-flex; align-items:center; justify-content:center; letter-spacing:-.02em; }
   .p-skip:hover { color:var(--accent); background:var(--green-bg); }
   .p-scrub { flex:1; min-width:3rem; height:1.4rem; -webkit-appearance:none; appearance:none;
@@ -231,9 +231,9 @@
   .p-scrub::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:13px; height:13px;
              margin-top:-4.5px; border-radius:50%; background:var(--accent); box-shadow:0 1px 3px rgba(0,0,0,.2); }
   .p-scrub::-moz-range-thumb { width:13px; height:13px; border:0; border-radius:50%; background:var(--accent); }
-  .p-time { flex:none; font-family:'JetBrains Mono',monospace; font-size:.7rem; color:var(--text-muted);
+  .p-time { flex:none; font-family:'Geist Mono',monospace; font-size:.7rem; color:var(--text-muted);
             font-variant-numeric:tabular-nums; white-space:nowrap; }
-  .p-speed { flex:none; min-width:2.5rem; font-family:'JetBrains Mono',monospace; font-size:.7rem;
+  .p-speed { flex:none; min-width:2.5rem; font-family:'Geist Mono',monospace; font-size:.7rem;
              font-weight:700; color:var(--text-secondary); border:1px solid var(--border);
              border-radius:7px; padding:.28rem .4rem; background:var(--surface-warm);
              font-variant-numeric:tabular-nums; }
@@ -268,7 +268,7 @@
     .composer-actions { width:100%; margin-left:0; }
     .composer-actions .btn { flex:1; }
     #qtext { font-size:1rem; padding:.95rem 1rem .3rem; }
-    .player { top:76px; }
+    .player { top:68px; }
   }
   @media (prefers-reduced-motion:reduce) {
     * { scroll-behavior:auto !important; }

@@ -124,26 +124,46 @@ let watchlist = [];
             return /^https?:\/\//i.test(s) ? s : '#';
         }
 
+        // The watchlist is a scan-list: names to monitor for news and alerts.
+        // Sorted A–Z by ticker and paginated (it can run to hundreds of names).
+        const WATCHLIST_PAGE_SIZE = 50;
+        let watchlistPage = 1;
+
         function filterWatchlist() {
             watchlistQuery = document.getElementById('watchlist-search').value.trim().toLowerCase();
+            watchlistPage = 1;   // a new search starts at page 1
             renderWatchlist();
+        }
+
+        function gotoWatchlistPage(p) {
+            watchlistPage = p;
+            renderWatchlist();
+            const sec = document.querySelector('.workspace-section');
+            if (sec) window.scrollTo({ top: sec.offsetTop - 72, behavior: 'smooth' });
         }
 
         function renderWatchlist() {
             const tbody = document.getElementById('watchlist-body');
+            const pager = document.getElementById('watchlist-pagination');
             const filtered = watchlist.filter(s => {
                 if (!watchlistQuery) return true;
-                return [s.ticker, s.company, s.exchange, s.notes]
+                return [s.ticker, s.company, s.exchange]
                     .some(value => String(value || '').toLowerCase().includes(watchlistQuery));
             });
+            // A–Z by ticker, case-insensitive.
+            filtered.sort((a, b) => String(a.ticker || '').localeCompare(String(b.ticker || ''),
+                undefined, { sensitivity: 'base' }));
+
             const resultCount = document.getElementById('watchlist-result-count');
             resultCount.textContent = watchlistQuery
                 ? `${filtered.length} of ${watchlist.length}`
                 : `${watchlist.length} names`;
 
+            if (pager) pager.innerHTML = '';
+
             if (watchlist.length === 0) {
                 tbody.innerHTML = `
-                    <tr><td colspan="6">
+                    <tr><td colspan="5">
                         <div class="empty-state">
                             <div class="icon">＋</div>
                             <p>Your watchlist is ready for its first stock.</p>
@@ -151,10 +171,9 @@ let watchlist = [];
                     </td></tr>`;
                 return;
             }
-
             if (filtered.length === 0) {
                 tbody.innerHTML = `
-                    <tr><td colspan="6">
+                    <tr><td colspan="5">
                         <div class="empty-state">
                             <div class="icon">⌕</div>
                             <p>No watchlist names match “${escapeHtml(watchlistQuery)}”.</p>
@@ -163,15 +182,19 @@ let watchlist = [];
                 return;
             }
 
-            tbody.innerHTML = filtered.map(s => {
-                const exClass = s.exchange.toLowerCase();
+            const pages = Math.max(1, Math.ceil(filtered.length / WATCHLIST_PAGE_SIZE));
+            if (watchlistPage > pages) watchlistPage = pages;
+            if (watchlistPage < 1) watchlistPage = 1;
+            const start = (watchlistPage - 1) * WATCHLIST_PAGE_SIZE;
+            const pageItems = filtered.slice(start, start + WATCHLIST_PAGE_SIZE);
+
+            tbody.innerHTML = pageItems.map(s => {
                 const added = new Date(s.added_date).toLocaleDateString('en-GB', {
                     day: 'numeric', month: 'short', year: 'numeric'
                 });
                 const ticker = escapeHtml(s.ticker);
                 const exchange = escapeHtml(s.exchange);
                 const companyName = escapeHtml(s.company || '');
-                const notes = escapeHtml(s.notes || '');
                 const company = companyName ? `<div class="company-name" title="${companyName}">${companyName}</div>` : '';
                 const track = s.track || ['news', 'ta'];
                 const newsOn = track.includes('news');
@@ -186,11 +209,10 @@ let watchlist = [];
                 return `
                     <tr>
                         <td class="ticker-cell">${ticker}${company}</td>
-                        <td><span class="exchange-badge ${exClass}">${exchange}</span></td>
-                        <td class="notes-cell" title="${notes}">${notes || '—'}</td>
+                        <td><span class="exchange-badge">${exchange}</span></td>
                         <td class="track-cell">
                             ${toggle('news', newsOn, 'News', 'News scanning')}
-                            ${toggle('ta', taOn, 'Alerts', 'Telegram alerts')}
+                            ${toggle('ta', taOn, 'Alerts', 'Price &amp; earnings alerts')}
                         </td>
                         <td class="date-cell">${added}</td>
                         <td>
@@ -198,6 +220,13 @@ let watchlist = [];
                         </td>
                     </tr>`;
             }).join('');
+
+            if (pager && pages > 1) {
+                pager.innerHTML = `
+                    <button class="btn btn-ghost btn-sm" onclick="gotoWatchlistPage(${watchlistPage - 1})" ${watchlistPage <= 1 ? 'disabled' : ''}>‹ Prev</button>
+                    <span class="pagination-info">${start + 1}–${start + pageItems.length} of ${filtered.length}</span>
+                    <button class="btn btn-ghost btn-sm" onclick="gotoWatchlistPage(${watchlistPage + 1})" ${watchlistPage >= pages ? 'disabled' : ''}>Next ›</button>`;
+            }
         }
 
         // Alert type sub-tabs. `types: null` = all; otherwise the raw alert
@@ -212,11 +241,53 @@ let watchlist = [];
         let alertFilter = 'all';
         function setAlertFilter(key) { alertFilter = key; renderAlerts(); }
 
+        function alertNum(v, dflt) { const n = parseFloat(v); return isFinite(n) ? n : dflt; }
+
+        // How each category ranks so the most useful alert sits on top.
+        const ALERT_SORT = {
+            price:    (a, b) => Math.abs(alertNum(b.change_pct, 0)) - Math.abs(alertNum(a.change_pct, 0)),
+            volume:   (a, b) => alertNum(b.volume_ratio, 0) - alertNum(a.volume_ratio, 0),
+            earnings: (a, b) => alertNum(a.days_until, 9999) - alertNum(b.days_until, 9999),   // soonest first
+            ema:      (a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')),
+        };
+
+        // A compact, colour-coded magnitude chip — the sortable value made visible.
+        function alertBadge(a) {
+            const t = a.type || '';
+            if (t === 'big_move') {
+                const p = alertNum(a.change_pct, 0), up = p >= 0;
+                return `<span class="alert-badge ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(p).toFixed(1)}%</span>`;
+            }
+            if (t === 'volume_spike') {
+                return `<span class="alert-badge vol">${alertNum(a.volume_ratio, 0).toFixed(1)}× vol</span>`;
+            }
+            if (t.startsWith('earnings')) {
+                const d = alertNum(a.days_until, null);
+                const lbl = d === 0 ? 'today' : d === 1 ? 'tomorrow' : d == null ? 'soon' : `in ${d}d`;
+                return `<span class="alert-badge earn">${lbl}</span>`;
+            }
+            if (t.startsWith('ema')) {
+                const bull = t.includes('bullish');
+                return `<span class="alert-badge ${bull ? 'up' : 'down'}">EMA ${bull ? '▲' : '▼'}</span>`;
+            }
+            return '';
+        }
+
+        function alertItem(a, withWhen) {
+            const when = withWhen && a.generated_at
+                ? `<span class="alert-when">${escapeHtml(new Date(a.generated_at).toLocaleString('en-GB',
+                    { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>`
+                : '';
+            return `<div class="alert-item">
+                        <div class="alert-main">${alertBadge(a)}<span class="alert-msg">${escapeHtml(a.message || '')}</span></div>
+                        ${when}
+                    </div>`;
+        }
+
         function renderAlerts() {
             const container = document.getElementById('alerts-list');
             const tabsEl = document.getElementById('alert-subtabs');
 
-            // Sub-tab bar with a live count per category.
             tabsEl.innerHTML = ALERT_CATEGORIES.map(c => {
                 const n = c.types === null ? alerts.length
                     : alerts.filter(a => c.types.includes(a.type)).length;
@@ -226,7 +297,6 @@ let watchlist = [];
                         </button>`;
             }).join('');
 
-            // Filter to the active category.
             const cat = ALERT_CATEGORIES.find(c => c.key === alertFilter) || ALERT_CATEGORIES[0];
             const filtered = cat.types === null ? alerts
                 : alerts.filter(a => cat.types.includes(a.type));
@@ -240,9 +310,15 @@ let watchlist = [];
                 return;
             }
 
-            // Within the active category, group by the run that generated them
-            // (generated_at, falling back to the per-alert timestamp truncated to
-            // the minute for old entries), newest run first, datetime header each.
+            // A specific category ranks by what matters (biggest move, soonest
+            // earnings) as one flat list, each row stamped with when it fired.
+            if (cat.key !== 'all') {
+                const sorted = filtered.slice().sort(ALERT_SORT[cat.key] || (() => 0));
+                container.innerHTML = `<div class="alert-group">${sorted.map(a => alertItem(a, true)).join('')}</div>`;
+                return;
+            }
+
+            // "All" stays chronological — grouped by the run that produced them.
             const groups = new Map();
             for (const a of filtered) {
                 const key = a.generated_at || (a.timestamp || '').slice(0, 16) || 'unknown';
@@ -254,21 +330,15 @@ let watchlist = [];
                 const items = groups.get(key);
                 const stamp = items[0].generated_at || items[0].timestamp;
                 const when = stamp ? new Date(stamp).toLocaleString('en-GB', {
-                    weekday: 'short', day: 'numeric', month: 'short',
-                    hour: '2-digit', minute: '2-digit'
+                    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
                 }) : 'Unknown time';
-                const rows = items.map(a => `
-                    <div class="alert-item">
-                        <span class="alert-msg">${escapeHtml(a.message || '')}</span>
-                        <span class="alert-time">${escapeHtml((a.type || '').replace(/_/g, ' '))}</span>
-                    </div>`).join('');
                 return `
                     <div class="alert-group">
                         <div class="alert-group-header">
                             <span>${when}</span>
                             <span class="alert-group-count">${items.length} alert${items.length === 1 ? '' : 's'}</span>
                         </div>
-                        ${rows}
+                        ${items.map(a => alertItem(a, false)).join('')}
                     </div>`;
             }).join('');
         }
@@ -965,11 +1035,9 @@ let watchlist = [];
             e.preventDefault();
             const ticker = document.getElementById('ticker-input').value.trim();
             const exchange = document.getElementById('exchange-input').value;
-            const notes = document.getElementById('notes-input').value.trim();
             if (ticker) {
-                addStock(ticker, exchange, notes);
+                addStock(ticker, exchange, '');
                 document.getElementById('ticker-input').value = '';
-                document.getElementById('notes-input').value = '';
                 document.getElementById('ticker-input').focus();
             }
         });

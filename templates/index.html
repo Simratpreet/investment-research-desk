@@ -3,50 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Signalbook — Market Watchlist</title>
+    <title>Research Desk — Market Watchlist</title>
     <meta name="description" content="A focused workspace for market monitoring, alerts, news, and investment research.">
     <meta name="theme-color" content="#153e2e">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
         <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ asset_v }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/watchlist.css') }}?v={{ asset_v }}">
 </head>
 <body>
-    <header class="header">
-        <div class="header-inner">
-            <div class="header-left">
-                <a href="/" class="brand" aria-label="Signalbook home">
-                    <span class="logo-mark" aria-hidden="true"></span>
-                    <span class="brand-copy">
-                        <h1>Signalbook</h1>
-                        <span class="brand-subtitle">Private market workspace</span>
-                    </span>
-                </a>
-            </div>
-            <div class="header-right">
-                <nav class="top-nav" aria-label="Primary">
-                    <a href="/" class="top-nav-link is-active" aria-current="page">Watchlist</a>
-                    <a href="/voice" class="top-nav-link">Chat</a>
-                    <a href="/todos" class="top-nav-link">To-do</a>
-                    <a href="/logout" class="top-nav-link top-nav-signout">Sign out</a>
-                </nav>
-                <div class="status-pill" title="Background monitor is active">
-                    <span class="dot"></span>
-                    Monitoring
-                </div>
-                <button class="btn btn-check" id="check-now-btn" onclick="checkNow()"><span class="btn-symbol">↗</span>Run check</button>
-            </div>
-        </div>
-    </header>
+    <header class="appbar">
+  <div class="appbar-inner">
+    <a href="/" class="appbar-brand" aria-label="Research Desk home">
+      <span class="appbar-mark" aria-hidden="true"></span>
+      <span class="appbar-name"><b>Research Desk</b><span>Private market workspace</span></span>
+    </a>
+    <nav class="appbar-nav" aria-label="Primary">
+      <a href="/" class="appbar-link is-active" aria-current="page">Watchlist</a>
+      <a href="/voice" class="appbar-link">Chat</a>
+      <a href="/todos" class="appbar-link">To-do</a>
+      <a href="/logout" class="appbar-link appbar-signout">Sign out</a>
+    </nav>
+  </div>
+</header>
 
     <main class="container">
         <section class="page-heading" aria-labelledby="page-title">
-            <div>
-                <div class="eyebrow">Market intelligence</div>
-                <h2 id="page-title">Your investment desk,<br>kept in focus.</h2>
-            </div>
-            <p>Follow the names that matter, route them to the right monitors, and keep news, alerts, and research together.</p>
+            <div class="eyebrow">Market intelligence</div>
+            <h2 id="page-title">Watchlist</h2>
+            <p>The names you monitor for news and alerts. Add a ticker, choose its exchange.</p>
         </section>
 
         <section class="dashboard-grid" id="dashboard-summary" aria-label="Watchlist overview">
@@ -70,10 +58,6 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="notes-input">Reason for watching <span style="font-weight:500;color:var(--text-muted)">· optional</span></label>
-                        <input type="text" id="notes-input" placeholder="Breakout setup, sector theme, upcoming catalyst…">
-                    </div>
                     <button type="submit" class="btn btn-primary add-submit">Add stock</button>
                 </div>
             </form>
@@ -88,7 +72,7 @@
                     <button class="tab" role="tab" aria-selected="false" data-tab="news" onclick="switchTab('news')">News</button>
                     <button class="tab" role="tab" aria-selected="false" data-tab="announcements" onclick="switchTab('announcements')">Announcements</button>
                     <button class="tab" role="tab" aria-selected="false" data-tab="alerts" onclick="switchTab('alerts')">Alerts <span class="tab-count" id="tab-alerts-count">0</span></button>
-                    <button class="tab" role="tab" aria-selected="false" data-tab="research" onclick="switchTab('research')">Research</button>
+                    <button class="tab" role="tab" aria-selected="false" data-tab="research" onclick="switchTab('research')">Notes</button>
                 </div>
                 <div class="view-actions" id="watchlist-actions">
                     <label class="search-wrap" for="watchlist-search">
@@ -108,6 +92,7 @@
                     <button class="btn btn-ghost" id="stop-ann-btn" style="display:none;" onclick="stopAnnouncements()">■ Stop</button>
                     <button class="btn btn-primary" id="scan-ann-btn" onclick="scanAnnouncements()">Scan announcements</button>
                 </div>
+                <button class="btn btn-ghost btn-check" id="check-now-btn" onclick="checkNow()" style="margin-left:auto;">↗ Check now</button>
             </div>
 
             <div class="table-container" id="watchlist-view" role="tabpanel">
@@ -116,7 +101,6 @@
                     <tr>
                         <th scope="col">Company</th>
                         <th scope="col">Exchange</th>
-                        <th scope="col">Watch note</th>
                         <th scope="col">Monitoring</th>
                         <th scope="col">Added</th>
                         <th scope="col"><span class="sr-only">Actions</span></th>
@@ -125,6 +109,7 @@
                 <tbody id="watchlist-body">
                 </tbody>
                 </table>
+                <div class="pagination" id="watchlist-pagination"></div>
             </div>
 
             <div class="table-container" id="alerts-view" role="tabpanel" style="display: none;">

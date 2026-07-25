@@ -50,7 +50,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -77,4 +77,66 @@ a:focus-visible {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ============================================================
+   Shared app-bar (one header for every page). Namespaced .appbar-*
+   so it can't collide with any page's legacy .header/.top-nav rules.
+   ============================================================ */
+.appbar {
+  position: sticky; top: 0; z-index: 30;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+.appbar-inner {
+  max-width: 1240px; margin: 0 auto; height: 64px;
+  padding: 0 clamp(16px, 4vw, 34px);
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.appbar-brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--ink); }
+.appbar-mark {
+  width: 34px; height: 34px; border-radius: 9px; background: var(--ink);
+  position: relative; overflow: hidden; flex: none;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.appbar-mark::before, .appbar-mark::after {
+  content: ""; position: absolute; bottom: 8px; width: 4px; border-radius: 99px; background: var(--lime);
+}
+.appbar-mark::before { left: 10px; height: 9px; }
+.appbar-mark::after  { left: 18px; height: 16px; }
+.appbar-name { display: flex; flex-direction: column; line-height: 1.02; }
+.appbar-name b {
+  font-family: 'Geist', sans-serif; font-size: 1.02rem; font-weight: 700; letter-spacing: -0.02em;
+}
+.appbar-name span {
+  font-size: .62rem; letter-spacing: .13em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px;
+}
+
+.appbar-nav { display: flex; align-items: center; gap: 2px; }
+.appbar-link {
+  position: relative; font-size: .84rem; font-weight: 550; text-decoration: none;
+  color: var(--text-secondary); padding: .55rem .8rem; border-radius: 8px; line-height: 1;
+  transition: color .15s, background .15s;
+}
+.appbar-link:hover { color: var(--ink); background: var(--surface-warm); }
+.appbar-link.is-active { color: var(--ink); font-weight: 650; }
+/* Active marker: a lime underbar that ties back to the logo's lime strokes. */
+.appbar-link.is-active::after {
+  content: ""; position: absolute; left: .8rem; right: .8rem; bottom: -1px; height: 2.5px;
+  background: var(--lime); border-radius: 3px;
+}
+.appbar-signout {
+  color: var(--text-muted); margin-left: .35rem; padding-left: .9rem;
+  border-left: 1px solid var(--border);
+}
+.appbar-signout:hover { color: var(--accent); background: transparent; }
+
+@media (max-width: 640px) {
+  .appbar-inner { flex-direction: column; height: auto; gap: 8px; padding: 10px 16px; }
+  .appbar-brand { align-self: flex-start; }
+  .appbar-name span { display: none; }
+  .appbar-nav { width: 100%; gap: 0; }
+  .appbar-link { flex: 1; text-align: center; padding: .55rem .3rem; font-size: .8rem; }
+  .appbar-signout { margin-left: 0; padding-left: .3rem; border-left: 0; flex: 0 0 auto; }
 }

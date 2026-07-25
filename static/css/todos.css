@@ -20,7 +20,7 @@ body {
 .logo-mark::before { left:11px; height:10px; }
 .logo-mark::after { left:21px; height:18px; }
 .brand-copy { display:flex; flex-direction:column; line-height:1.05; }
-.brand-copy h1 { font-family:'Manrope',sans-serif; font-size:1rem; font-weight:800; letter-spacing:-.035em; margin:0; }
+.brand-copy h1 { font-family:'Geist',sans-serif; font-size:1rem; font-weight:800; letter-spacing:-.035em; margin:0; }
 .brand-subtitle { color:var(--text-muted); font-size:.66rem; margin-top:4px; }
 .top-nav { display:flex; align-items:center; gap:.3rem; }
 .top-nav-link { font-size:.8rem; font-weight:600; text-decoration:none; color:var(--text-secondary);
@@ -33,7 +33,7 @@ body {
 .eyebrow { display:flex; align-items:center; gap:9px; color:var(--accent); font-size:.68rem; font-weight:800;
            letter-spacing:.12em; text-transform:uppercase; margin-bottom:9px; }
 .eyebrow::before { content:''; width:24px; height:2px; background:var(--accent); border-radius:99px; }
-.page-title { font-family:'Manrope',sans-serif; color:var(--ink); font-size:clamp(1.8rem,4vw,2.6rem);
+.page-title { font-family:'Geist',sans-serif; color:var(--ink); font-size:clamp(1.8rem,4vw,2.6rem);
               line-height:1.03; letter-spacing:-.05em; margin:0 0 .3rem; }
 .page-sub { color:var(--text-secondary); font-size:.92rem; margin:0 0 1.7rem; max-width:60ch; }
 
@@ -49,9 +49,9 @@ body {
 
 /* Week navigation */
 .week-bar { display:flex; align-items:center; gap:.7rem; margin-bottom:1.4rem; flex-wrap:wrap; }
-.week-label { display:flex; align-items:center; gap:.6rem; font-family:'Manrope',sans-serif;
+.week-label { display:flex; align-items:center; gap:.6rem; font-family:'Geist',sans-serif;
               font-weight:700; color:var(--ink); font-size:1rem; min-width:0; }
-.week-badge { font-family:'DM Sans',sans-serif; font-size:.66rem; font-weight:700; letter-spacing:.06em;
+.week-badge { font-family:'Geist',sans-serif; font-size:.66rem; font-weight:700; letter-spacing:.06em;
               text-transform:uppercase; padding:.2rem .5rem; border-radius:999px; }
 .week-badge.current { color:var(--accent); background:var(--green-bg); }
 .week-badge.past { color:var(--text-muted); background:var(--surface-warm); border:1px solid var(--border); }
@@ -74,7 +74,7 @@ body {
 .col-prioritize .col-dot { background:var(--accent); }
 .col-done .col-dot { background:var(--green); }
 .col-rejected .col-dot { background:var(--red); }
-.col-title { font-family:'Manrope',sans-serif; font-weight:800; font-size:.82rem; letter-spacing:.01em;
+.col-title { font-family:'Geist',sans-serif; font-weight:800; font-size:.82rem; letter-spacing:.01em;
              color:var(--ink); }
 .col-count { margin-left:auto; font-size:.72rem; font-weight:700; color:var(--text-muted);
              font-variant-numeric:tabular-nums; background:var(--surface-warm); border:1px solid var(--border);

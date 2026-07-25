@@ -1,7 +1,7 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'DM Sans', -apple-system, sans-serif;
+            font-family: 'Geist', -apple-system, sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -164,7 +164,7 @@
         #ticker-input {
             width: 120px;
             text-transform: uppercase;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
             font-weight: 500;
             letter-spacing: 0.05em;
         }
@@ -245,7 +245,7 @@
             font-size: 1.6rem;
             font-weight: 700;
             color: var(--text);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
         }
 
         .stat-card .label {
@@ -332,14 +332,14 @@
         tbody tr:last-child td { border-bottom: none; }
 
         .ticker-cell {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
             font-weight: 700;
             font-size: 0.85rem;
             color: var(--text);
         }
 
         .company-name {
-            font-family: 'DM Sans', sans-serif;
+            font-family: 'Geist', sans-serif;
             font-weight: 400;
             font-size: 0.72rem;
             color: var(--text-muted);
@@ -350,22 +350,20 @@
             max-width: 200px;
         }
 
+        /* One quiet, uniform style — the exchange code is a label, not a status,
+           so it shouldn't carry meaning-free colour. */
         .exchange-badge {
             display: inline-block;
-            padding: 0.15rem 0.45rem;
-            border-radius: 4px;
-            font-size: 0.65rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            font-family: 'Geist Mono', monospace;
+            font-size: 0.66rem;
             font-weight: 600;
-            letter-spacing: 0.03em;
-            background: var(--blue-bg);
-            color: var(--blue);
+            letter-spacing: 0.02em;
+            background: var(--surface-warm);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
         }
-
-        .exchange-badge.nse { background: var(--green-bg); color: var(--green); }
-        .exchange-badge.tsx { background: var(--amber-bg); color: var(--amber); }
-        .exchange-badge.lse, .exchange-badge.aim { background: var(--purple-bg); color: var(--purple); }
-        .exchange-badge.xetra { background: var(--amber-bg); color: var(--amber); }
-        .exchange-badge.sgx { background: var(--blue-bg); color: var(--blue); }
 
         .notes-cell {
             color: var(--text-secondary);
@@ -457,7 +455,7 @@
         .ann-log {
             background: #1e1e1e;
             color: #d4d4d4;
-            font-family: ui-monospace, 'JetBrains Mono', Menlo, monospace;
+            font-family: ui-monospace, 'Geist Mono', Menlo, monospace;
             font-size: 0.75rem;
             line-height: 1.5;
             padding: 12px 14px;
@@ -477,7 +475,7 @@
         }
         .news-card-right { display: flex; align-items: center; gap: 10px; }
         .news-ticker {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
             font-weight: 700;
             font-size: 1rem;
             margin-right: 6px;
@@ -615,9 +613,26 @@
         }
         .alert-subtab.is-active .alert-subtab-count { color: rgba(255,255,255,0.85); }
 
+        .alert-main { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+        .alert-when {
+            font-family: 'Geist Mono', monospace; font-size: 0.68rem; color: var(--text-muted);
+            white-space: nowrap; font-variant-numeric: tabular-nums; flex: none;
+        }
+        /* Sortable magnitude, made visible: biggest move / soonest earnings reads at a glance. */
+        .alert-badge {
+            flex: none; font-family: 'Geist Mono', monospace; font-size: 0.7rem; font-weight: 700;
+            padding: 0.16rem 0.45rem; border-radius: 6px; white-space: nowrap; letter-spacing: 0;
+            min-width: 3.4rem; text-align: center;
+        }
+        .alert-badge.up   { color: var(--green); background: var(--green-bg); }
+        .alert-badge.down { color: var(--red);   background: var(--red-bg); }
+        .alert-badge.vol  { color: var(--amber); background: var(--amber-bg); }
+        .alert-badge.earn { color: var(--accent); background: var(--accent-light); }
+
         .alert-msg {
             font-size: 0.82rem;
             line-height: 1.4;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
         .alert-time {
@@ -625,7 +640,7 @@
             color: var(--text-muted);
             white-space: nowrap;
             margin-left: 1rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
         }
 
         .empty-state {
@@ -751,7 +766,7 @@
         }
 
         .research-card-ticker {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
             font-weight: 700;
             font-size: 0.9rem;
             color: var(--accent);
@@ -821,7 +836,7 @@
 
         .research-detail-header h2 span {
             color: var(--accent);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
         }
 
         .research-detail-actions {
@@ -864,7 +879,7 @@
             padding: 0.15rem 0.4rem;
             border-radius: 4px;
             font-size: 0.82rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
         }
         .research-rendered table {
             width: 100%;
@@ -945,7 +960,7 @@
             border: 1px solid var(--border);
             border-radius: 0 0 var(--radius) var(--radius);
             padding: 1.25rem;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
             font-size: 0.82rem;
             line-height: 1.6;
             color: var(--text);
@@ -991,7 +1006,7 @@
         .new-note-row #new-research-ticker {
             width: 140px;
             text-transform: uppercase;
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Geist Mono', monospace;
             font-weight: 500;
             letter-spacing: 0.05em;
         }
@@ -1015,7 +1030,7 @@
         html { scroll-behavior: smooth; }
 
         body {
-            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
             background:
                 radial-gradient(circle at 12% 5%, rgba(220, 248, 121, 0.15), transparent 26rem),
                 var(--bg);
@@ -1072,7 +1087,7 @@
         .logo-mark::after { left: 21px; height: 18px; }
         .brand-copy { display:flex; flex-direction:column; line-height:1.05; }
         .header h1 {
-            font-family: 'Manrope', sans-serif;
+            font-family: 'Geist', sans-serif;
             font-size: 1rem;
             font-weight: 800;
             letter-spacing: -0.035em;
@@ -1122,11 +1137,7 @@
 
         .container { max-width: 1240px; padding: 40px 28px 64px; }
         .page-heading {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 24px;
-            margin-bottom: 26px;
+            margin-bottom: 22px;
         }
         .eyebrow {
             display: flex;
@@ -1141,14 +1152,14 @@
         }
         .eyebrow::before { content:''; width:24px; height:2px; background:var(--accent); border-radius:99px; }
         .page-heading h2 {
-            font-family: 'Manrope', sans-serif;
+            font-family: 'Geist', sans-serif;
             color: var(--ink);
-            font-size: clamp(2rem, 4vw, 3.15rem);
-            line-height: 1.02;
-            letter-spacing: -.055em;
-            max-width: 680px;
+            font-size: clamp(1.6rem, 3vw, 2.1rem);
+            line-height: 1.05;
+            letter-spacing: -.04em;
+            margin-bottom: .35rem;
         }
-        .page-heading p { max-width: 420px; color:var(--text-secondary); line-height:1.6; font-size:.9rem; }
+        .page-heading p { max-width: 60ch; color:var(--text-secondary); line-height:1.55; font-size:.9rem; }
 
         .dashboard-grid {
             display: grid;
@@ -1170,7 +1181,7 @@
         }
         .add-form:focus-within { border-color: #cbd7c8; box-shadow: var(--shadow-md); }
         .panel-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
-        .panel-heading h3 { font-family:'Manrope',sans-serif; font-size:1rem; letter-spacing:-.025em; }
+        .panel-heading h3 { font-family:'Geist',sans-serif; font-size:1rem; letter-spacing:-.025em; }
         .panel-heading p { color:var(--text-muted); font-size:.75rem; margin-top:4px; }
         .form-fields { display:grid; grid-template-columns:130px 150px minmax(220px, 1fr) auto; gap:10px; align-items:end; }
         .form-group { gap: 7px; }
@@ -1216,7 +1227,7 @@
         .stat-glyph {
             width:27px; height:27px; border-radius:8px; display:grid; place-items:center;
             background:var(--surface-warm); color:var(--accent); font-size:.64rem; font-weight:800;
-            font-family:'JetBrains Mono', monospace;
+            font-family:'Geist Mono', monospace;
         }
         .stat-card.primary .stat-glyph { background:rgba(220,248,121,.12); color:var(--lime); }
 
@@ -1226,7 +1237,7 @@
         .tab { min-height:40px; padding:9px 14px; border-radius:10px; font-size:.76rem; color:var(--text-secondary); }
         .tab:hover { background:rgba(255,255,255,.65); }
         .tab.active { color:white; background:var(--ink); box-shadow:0 5px 12px rgba(17,39,29,.14); }
-        .tab-count { opacity:.62; margin-left:5px; font-family:'JetBrains Mono',monospace; font-size:.64rem; }
+        .tab-count { opacity:.62; margin-left:5px; font-family:'Geist Mono',monospace; font-size:.64rem; }
         .view-actions { display:flex; align-items:center; gap:8px; margin-left:auto; }
         .search-wrap { position:relative; min-width:260px; }
         .search-wrap::before { content:'⌕'; position:absolute; left:12px; top:50%; transform:translateY(-52%); color:var(--text-muted); font-size:1rem; pointer-events:none; }
@@ -1321,3 +1332,14 @@
         .top-nav-signout { color:#c8553d; }
         .top-nav-signout:hover { color:#a8412d; background:rgba(200,85,61,.1); }
         @media (max-width:640px) { .top-nav { gap:.1rem; } .top-nav-link { padding:.4rem .5rem; font-size:.8rem; } }
+
+        /* Watchlist pagination */
+        .pagination { display:flex; align-items:center; justify-content:center; gap:1rem;
+            padding:1rem; border-top:1px solid var(--border-light); }
+        .pagination:empty { display:none; }
+        .pagination-info { font-family:'Geist Mono',monospace; font-size:.78rem;
+            color:var(--text-muted); font-variant-numeric:tabular-nums; }
+
+        /* Watchlist is paginated (50/page), so let it flow on the page instead
+           of scrolling inside a fixed box — keeps the pager visible at the end. */
+        #watchlist-view { max-height: none; overflow: visible; }
