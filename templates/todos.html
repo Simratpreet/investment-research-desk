@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>To-do · Signalbook</title>
+<meta name="theme-color" content="#153e2e">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ asset_v }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/todos.css') }}?v={{ asset_v }}"></head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a href="/" class="brand" aria-label="Signalbook home">
+        <span class="logo-mark" aria-hidden="true"></span>
+        <span class="brand-copy">
+          <h1>Signalbook</h1>
+          <span class="brand-subtitle">Private market workspace</span>
+        </span>
+      </a>
+      <nav class="top-nav" aria-label="Primary">
+        <a href="/" class="top-nav-link">Watchlist</a>
+        <a href="/voice" class="top-nav-link">Chat</a>
+        <a href="/todos" class="top-nav-link is-active" aria-current="page">To-do</a>
+        <a href="/logout" class="top-nav-link top-nav-signout">Sign out</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="eyebrow">Weekly agenda</div>
+    <h2 class="page-title">To-do</h2>
+    <p class="page-sub">A fresh board every week. Prioritise what matters, mark things done or rejected — the list resets each Monday, and past weeks stay here to look back on.</p>
+
+    <div class="week-bar">
+      <button class="btn btn-ghost btn-sm" id="prevWeek" title="Previous week">‹ Prev</button>
+      <div class="week-label">
+        <span id="weekRange">—</span>
+        <span class="week-badge" id="weekBadge"></span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="nextWeek" title="Next week">Next ›</button>
+      <button class="btn btn-ghost btn-sm week-today" id="thisWeek" hidden>This week</button>
+    </div>
+
+    <form class="add-row" id="addRow" autocomplete="off">
+      <input id="taskInput" type="text" placeholder="Add a task to prioritise this week…"
+             maxlength="500" aria-label="New task">
+      <button type="submit" class="btn btn-primary" id="addBtn">Add</button>
+    </form>
+
+    <p class="readonly-note" id="readonlyNote" hidden>This week has closed — it's read-only. Switch to <b>This week</b> to make changes.</p>
+
+    <div class="board" id="board" aria-live="polite">
+      <!-- columns rendered by JS -->
+    </div>
+  </main>
+
+<script src="{{ url_for('static', filename='js/todos.js') }}?v={{ asset_v }}"></script>
+</body></html>

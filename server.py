@@ -155,6 +155,7 @@ def ensure_data_dir():
     os.makedirs(os.path.join(DATA_DIR, "screener_alerts"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "uploads"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "conversations"), exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "todos"), exist_ok=True)
     if (WATCHLIST_FILE != SEED_WATCHLIST
             and not os.path.exists(WATCHLIST_FILE)
             and os.path.exists(SEED_WATCHLIST)):
@@ -164,6 +165,9 @@ def ensure_data_dir():
 # Voice research module — GET /voice page + POST /api/voice/ask
 from voice_module import voice_bp
 app.register_blueprint(voice_bp)
+
+from todo_module import todo_bp
+app.register_blueprint(todo_bp)
 
 
 def load_watchlist() -> list[dict]:

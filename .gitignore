@@ -10,6 +10,7 @@ screener_alerts/cookie.txt
 alert_log.json
 uploads/
 conversations/
+todos/
 news_alerts/news_store.json
 news_alerts/data/names_cache.json
 screener_alerts/announcements_store.json
