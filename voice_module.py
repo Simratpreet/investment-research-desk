@@ -126,8 +126,22 @@ REASON_MODELS = [
 REASON_MODEL_IDS = {m["id"] for m in REASON_MODELS}
 # REASON_MODEL = "google/gemini-3.1-pro-preview:online"
 REASON_MODEL = REASON_MODELS[0]["id"]   # default when none is chosen
-TTS_MODEL = "google/gemini-3.1-flash-tts-preview"
-TTS_VOICE = "Charon"          # steady "informative" narrator
+# TTS models offered in the Chat dropdown. Unlike reasoning models these are NOT
+# uniform — each has its own voice set and audio format, verified against the
+# endpoint. Two pipelines:
+#   pcm  — chunk, silence-trim, crossfade, join to WAV (Gemini; instruction-following,
+#          so it gets the performance prompt). Loses prosody past ~1 min, hence chunking.
+#   mp3  — one request, return the encoded audio as-is. These aren't instruction-
+#          following, so NO performance prompt (they'd read it aloud).
+TTS_MODELS = [
+    {"id": "google/gemini-3.1-flash-tts-preview", "label": "Gemini Flash — expressive",
+     "voice": "Charon", "pipeline": "pcm"},
+    {"id": "x-ai/grok-voice-tts-1.0", "label": "Grok Voice", "voice": "eve", "pipeline": "mp3"},
+    {"id": "hexgrad/kokoro-82m", "label": "Kokoro — open weights", "voice": "af_heart", "pipeline": "mp3"},
+]
+TTS_MODEL_BY_ID = {m["id"]: m for m in TTS_MODELS}
+TTS_MODEL = TTS_MODELS[0]["id"]   # default
+TTS_VOICE = TTS_MODELS[0]["voice"]
 TTS_PCM_RATE = 24000
 # Measured, not estimated: this voice speaks ~17.5 chars/sec (calibrated by
 # synthesizing 400/700/1000-char samples and dividing PCM bytes by 48000 B/s).
@@ -568,30 +582,35 @@ def _join_pcm(pieces) -> bytes:
     return gap.join(parts)
 
 
-def _tts_pcm(text: str) -> bytes:
-    """Synthesize one chunk to raw PCM, retrying transient failures with backoff.
+def resolve_tts_model(requested):
+    """A TTS model config from the allowlist; unknown/absent -> default."""
+    return TTS_MODEL_BY_ID.get((requested or "").strip(), TTS_MODELS[0])
 
-    Guards against the two silent-corruption modes: a 429/5xx (retry) and a 200
-    whose body is empty or a JSON error blob (which, written as PCM, becomes noise).
-    """
+
+def _tts_request(text: str, cfg: dict, fmt: str) -> bytes:
+    """One TTS call for one piece of text, retrying transient failures. Guards
+    the silent-corruption modes: 429/5xx (retry) and a 200 whose body is empty
+    or a JSON error blob (which, played as audio, is noise). The performance
+    prompt is only prepended for instruction-following (pcm) models."""
+    body_input = (TTS_DIRECTION + text) if cfg["pipeline"] == "pcm" else text
     last_err = None
     for attempt in range(TTS_RETRIES):
         try:
             resp = requests.post(
                 f"{OR_URL}/audio/speech",
                 headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
-                json={"model": TTS_MODEL, "input": TTS_DIRECTION + text,
-                      "voice": TTS_VOICE, "response_format": "pcm"},
+                json={"model": cfg["id"], "input": body_input,
+                      "voice": cfg["voice"], "response_format": fmt},
                 timeout=180,
             )
             if resp.status_code in (429, 500, 502, 503, 504):
                 raise requests.HTTPError(f"TTS status {resp.status_code}", response=resp)
             resp.raise_for_status()
-            pcm = resp.content
+            data = resp.content
             ctype = resp.headers.get("Content-Type", "").lower()
-            if not pcm or "json" in ctype or "text" in ctype:
-                raise ValueError(f"empty or non-PCM TTS body (ctype={ctype!r}, len={len(pcm)})")
-            return pcm
+            if not data or "json" in ctype or "text" in ctype:
+                raise ValueError(f"empty or non-audio TTS body (ctype={ctype!r}, len={len(data)})")
+            return data
         except (requests.RequestException, ValueError) as e:
             last_err = e
             if attempt < TTS_RETRIES - 1:
@@ -599,46 +618,58 @@ def _tts_pcm(text: str) -> bytes:
     raise last_err
 
 
-def synthesize_wav(text: str) -> bytes:
-    """Chunk the answer, synthesize the pieces in parallel, concat PCM to one WAV."""
+def _synthesize_pcm_wav(text: str) -> bytes:
+    """Gemini path: chunk, synthesize in parallel, trim/fade/join PCM to one WAV."""
     import concurrent.futures
-
-    # Strip markup TTS reads oddly. Note this also removes [tag] style direction,
-    # which is intentional: direction belongs in TTS_DIRECTION, applied uniformly
-    # to every chunk, not sprinkled through the text where it would differ per chunk.
-    cleaned = re.sub(r"[\[\]*`#]", " ", text)
-    chunks = _chunk(cleaned, TTS_CHAR_LIMIT)
+    cfg = TTS_MODELS[0]
+    chunks = _chunk(text, TTS_CHAR_LIMIT)
     if not chunks:
         raise ValueError("nothing to synthesize")
     if len(chunks) == 1:
-        pcm = _join_pcm([_tts_pcm(chunks[0])])
+        pcm = _join_pcm([_tts_request(chunks[0], cfg, "pcm")])
     else:
-        # Synthesize in parallel but isolate failures: a chunk that fails after
-        # retries drops to b"" (a small gap) instead of discarding the other five.
         pieces = [b""] * len(chunks)
         with concurrent.futures.ThreadPoolExecutor(max_workers=TTS_WORKERS) as ex:
-            futs = {ex.submit(_tts_pcm, c): i for i, c in enumerate(chunks)}
+            futs = {ex.submit(_tts_request, c, cfg, "pcm"): i for i, c in enumerate(chunks)}
             for fut in concurrent.futures.as_completed(futs):
                 i = futs[fut]
                 try:
                     pieces[i] = fut.result()
                 except Exception as e:
                     log.warning("TTS chunk %d/%d failed, dropping: %s", i + 1, len(chunks), e)
-        pcm = _join_pcm(pieces)  # index order preserved regardless of completion order
+        pcm = _join_pcm(pieces)
         if not pcm:
             raise RuntimeError("all TTS chunks failed")
     buf = io.BytesIO()
     with wave.open(buf, "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(TTS_PCM_RATE)
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(TTS_PCM_RATE)
         w.writeframes(pcm)
     return buf.getvalue()
 
 
+def synthesize_audio(text: str, cfg: dict = None):
+    """Render `text` with the given TTS model config. Returns (bytes, mime, ext).
+    PCM models get the chunk/seam pipeline; MP3 models get one passthrough call."""
+    cfg = cfg or TTS_MODELS[0]
+    # Strip markup TTS reads oddly (applies to every model).
+    cleaned = re.sub(r"[\[\]*`#]", " ", text)
+    if cfg["pipeline"] == "pcm":
+        return _synthesize_pcm_wav(cleaned), "audio/wav", "wav"
+    # MP3 models aren't instruction-following and have their own length handling;
+    # one request, return the encoded audio as-is.
+    if not cleaned.strip():
+        raise ValueError("nothing to synthesize")
+    return _tts_request(cleaned, cfg, "mp3"), "audio/mpeg", "mp3"
+
+
+# Back-compat alias — the old name returned a WAV via the default (Gemini) model.
+def synthesize_wav(text: str) -> bytes:
+    return synthesize_audio(text, TTS_MODELS[0])[0]
+
+
 # --- TTS audio cache (S3) ---------------------------------------------------
 # TTS is the expensive step (an OpenRouter call per ~50s chunk). Cache each
-# rendered WAV in S3, content-addressed by the exact text + voice parameters, so
+# rendered clip in S3, content-addressed by the exact text + model + voice, so
 # the same answer is never synthesized twice — a replay of an old answer is a
 # cheap S3 GET, and an answer generated during /ask is already warm for replay.
 # Under its own prefix so it never collides with the <SYMBOL>/*.txt filings the
@@ -646,43 +677,51 @@ def synthesize_wav(text: str) -> bytes:
 TTS_CACHE_PREFIX = "tts-cache/"
 
 
-def _tts_cache_key(text: str) -> str:
-    # Voice signature in the hash so a model/voice/prompt change invalidates old
-    # audio automatically instead of serving a stale rendering.
-    sig = f"{TTS_MODEL}|{TTS_VOICE}|{TTS_PCM_RATE}|{TTS_DIRECTION}"
+def _tts_cache_key(text: str, cfg: dict, ext: str) -> str:
+    # Model+voice+prompt in the hash so switching model/voice yields a different
+    # key rather than serving a stale rendering.
+    sig = f"{cfg['id']}|{cfg['voice']}|{cfg['pipeline']}|{TTS_PCM_RATE}|{TTS_DIRECTION}"
     digest = hashlib.sha256((sig + "\x00" + text).encode("utf-8")).hexdigest()
-    return f"{TTS_CACHE_PREFIX}{digest}.wav"
+    return f"{TTS_CACHE_PREFIX}{digest}.{ext}"
 
 
-def synthesize_wav_cached(text: str) -> bytes:
-    """WAV for `text`, served from the S3 cache when present, else synthesized
-    and cached. Any cache error degrades to a plain (uncached) synthesis so a
+def synthesize_audio_cached(text: str, cfg: dict = None):
+    """(bytes, mime) for `text`, served from the S3 cache when present else
+    synthesized and cached. Any cache error degrades to a plain synthesis so a
     flaky bucket can never break playback."""
+    cfg = cfg or TTS_MODELS[0]
+    mime = "audio/wav" if cfg["pipeline"] == "pcm" else "audio/mpeg"
+    ext = "wav" if cfg["pipeline"] == "pcm" else "mp3"
     if not VOICE_S3_BUCKET:
-        return synthesize_wav(text)
-    key = _tts_cache_key(text)
+        return synthesize_audio(text, cfg)[0], mime
+    key = _tts_cache_key(text, cfg, ext)
     try:
         obj = _s3().get_object(Bucket=VOICE_S3_BUCKET, Key=key)
         data = obj["Body"].read()
         if data:
-            return data
+            return data, mime
     except Exception:
-        pass  # miss (NoSuchKey) or transient error — fall through to synthesize
-    wav = synthesize_wav(text)
+        pass  # miss or transient error — synthesize
+    audio, mime, _ = synthesize_audio(text, cfg)
     try:
-        _s3().put_object(Bucket=VOICE_S3_BUCKET, Key=key, Body=wav,
-                         ContentType="audio/wav")
+        _s3().put_object(Bucket=VOICE_S3_BUCKET, Key=key, Body=audio, ContentType=mime)
     except Exception as e:
         log.warning("TTS cache write failed for %s: %s", key, e)
-    return wav
+    return audio, mime
+
+
+def synthesize_wav_cached(text: str) -> bytes:
+    """Back-compat: cached synthesis with the default model, WAV bytes only."""
+    return synthesize_audio_cached(text, TTS_MODELS[0])[0]
 
 
 @voice_bp.route("/voice")
 def voice_page():
-    # Render the dropdown from the same allowlist the API validates against,
-    # so the two can never drift apart.
+    # Render the dropdowns from the same allowlists the API validates against,
+    # so UI and server can never drift apart.
     return render_template("voice.html", models=REASON_MODELS,
-                           default_model=REASON_MODEL)
+                           default_model=REASON_MODEL,
+                           tts_models=TTS_MODELS, default_tts=TTS_MODEL)
 
 
 def _audio_fmt(audio) -> str:
@@ -738,6 +777,8 @@ def voice_speak():
     if len(text) > 20000:
         return jsonify({"error": "text too long to synthesize"}), 400
 
+    tts_cfg = resolve_tts_model(data.get("tts_model"))
+
     # Bound concurrent TTS the same way /ask does; released by the worker.
     if not _VOICE_SEMA.acquire(blocking=False):
         return jsonify({"error": "Server busy with another request — try again in a moment."}), 429
@@ -745,15 +786,15 @@ def voice_speak():
     with _jobs_lock:
         _sweep_jobs()
         _jobs[job_id] = {"status": "running", "created": time.time()}
-    threading.Thread(target=_run_speak, args=(job_id, text), daemon=True).start()
+    threading.Thread(target=_run_speak, args=(job_id, text, tts_cfg), daemon=True).start()
     return jsonify({"job_id": job_id, "status": "running"}), 202
 
 
-def _run_speak(job_id, text):
+def _run_speak(job_id, text, tts_cfg=None):
     """Synthesize off-request and stash the result in the job store. Never raises."""
     try:
         try:
-            wav = synthesize_wav_cached(text)
+            audio, mime = synthesize_audio_cached(text, tts_cfg)
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else "?"
             log.warning("TTS upstream error (status=%s): %s", status, e)
@@ -762,7 +803,7 @@ def _run_speak(job_id, text):
             log.exception("TTS error: %s", e)
             return _finish_job(job_id, {"error": "could not synthesize audio"}, "error")
         _finish_job(job_id, {
-            "audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii"),
+            "audio": f"data:{mime};base64," + base64.b64encode(audio).decode("ascii"),
         }, "done")
     finally:
         _VOICE_SEMA.release()
@@ -791,6 +832,7 @@ def voice_ask():
     # Unknown/absent ids silently fall back to the default rather than 400ing —
     # a stale dropdown value shouldn't cost you the question you just recorded.
     model = resolve_model(request.form.get("model"))
+    tts_cfg = resolve_tts_model(request.form.get("tts_model"))
 
     doc_ids = []
     raw_docs = request.form.get("docs")
@@ -861,7 +903,7 @@ def voice_ask():
         _jobs[job_id] = {"status": "running", "created": time.time()}
     threading.Thread(
         target=_run_ask,
-        args=(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id),
+        args=(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id, tts_cfg),
         daemon=True,
     ).start()
     return jsonify({"job_id": job_id, "status": "running",
@@ -875,7 +917,7 @@ def _finish_job(job_id: str, payload: dict, status: str):
             job.update(status=status, payload=payload, done=time.time())
 
 
-def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id=None):
+def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id=None, tts_cfg=None):
     """The STT -> reason -> TTS pipeline, run off-request. Never raises."""
     try:
         try:
@@ -888,7 +930,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             answer = reason(question, context, symbol, history, model)
             if not answer:
                 return _finish_job(job_id, {"error": "the model returned an empty answer — try rephrasing"}, "error")
-            wav = synthesize_wav_cached(answer)
+            audio, mime = synthesize_audio_cached(answer, tts_cfg)
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else "?"
             log.warning("voice upstream error (status=%s): %s", status, e)
@@ -919,7 +961,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             "question": question,
             "answer": answer,
             "conversation_id": conv_id,
-            "audio": "data:audio/wav;base64," + base64.b64encode(wav).decode("ascii"),
+            "audio": f"data:{mime};base64," + base64.b64encode(audio).decode("ascii"),
         }, "done")
     finally:
         _VOICE_SEMA.release()

@@ -63,11 +63,18 @@
     </div>
 
     <section class="setup" id="setupPanel" hidden aria-label="Context settings">
-      <div class="setup-row">
+      <div class="setup-row model-row">
         <label class="field" for="model"><span>Reasoning model</span>
           <select id="model" title="Model used to answer">
             {% for m in models %}
             <option value="{{ m.id }}"{% if m.id == default_model %} selected{% endif %}>{{ m.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field" for="ttsModel"><span>Voice model</span>
+          <select id="ttsModel" title="Text-to-speech voice used to read the answer">
+            {% for m in tts_models %}
+            <option value="{{ m.id }}"{% if m.id == default_tts %} selected{% endif %}>{{ m.label }}</option>
             {% endfor %}
           </select>
         </label>

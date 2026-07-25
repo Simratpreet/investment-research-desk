@@ -139,11 +139,14 @@
   .field { display:block; margin-bottom:.5rem; }
   .field > span { display:block; font-size:.76rem; font-weight:700; color:var(--text-secondary); margin-bottom:.35rem; }
   .field-hint { color:var(--text-muted); font-size:.76rem; margin:.4rem 0 .9rem; line-height:1.45; }
-  #symbol, #model { width:100%; padding:.62rem .8rem; border:1px solid var(--border); border-radius:10px;
+  #symbol, #model, #ttsModel { width:100%; padding:.62rem .8rem; border:1px solid var(--border); border-radius:10px;
                     background:var(--surface-warm); color:var(--text); font-size:.88rem; }
   #symbol { text-transform:uppercase; font-weight:600; letter-spacing:.02em; }
-  #model { font-weight:600; cursor:pointer; max-width:16rem; }
-  #symbol:focus, #model:focus { border-color:var(--accent); background:#fff; outline:none; }
+  #model, #ttsModel { font-weight:600; cursor:pointer; }
+  #symbol:focus, #model:focus, #ttsModel:focus { border-color:var(--accent); background:#fff; outline:none; }
+  /* Reasoning + voice model, side by side. */
+  .model-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem 1.5rem; }
+  @media (max-width:560px) { .model-row { grid-template-columns:1fr; } }
 
   .fetch-opts { display:flex; gap:.9rem; align-items:center; flex-wrap:wrap; margin-bottom:.9rem; }
   .opt { display:flex; align-items:center; gap:.4rem; font-size:.82rem; color:var(--text-secondary); }

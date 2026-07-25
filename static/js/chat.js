@@ -2,6 +2,7 @@ const recBtn = document.getElementById("rec");
 const statusEl = document.getElementById("status");
 const symbolEl = document.getElementById("symbol");
 const modelEl = document.getElementById("model");
+const ttsEl = document.getElementById("ttsModel");
 let mediaRecorder, chunks = [], stream, recMime = "";
 
 // Remember the last chosen reasoning model across visits. A saved id that is no
@@ -19,6 +20,20 @@ modelEl.addEventListener("change", () => {
   try { localStorage.setItem("chatModel", modelEl.value); } catch (e) {}
   updateContext();
   setStatus(`Model set to ${modelLabel(modelEl.value)} — applies from your next question.`);
+});
+
+// Remember the chosen voice (TTS) model too. A saved id no longer offered is ignored.
+function ttsLabel(id) {
+  const opt = [...ttsEl.options].find(o => o.value === id);
+  return opt ? opt.text : "";
+}
+try {
+  const savedTts = localStorage.getItem("chatTts");
+  if (savedTts && ttsLabel(savedTts)) ttsEl.value = savedTts;
+} catch (e) {}
+ttsEl.addEventListener("change", () => {
+  try { localStorage.setItem("chatTts", ttsEl.value); } catch (e) {}
+  setStatus(`Voice set to ${ttsLabel(ttsEl.value)} — applies from your next answer.`);
 });
 
 // --- Context chip + setup disclosure ----------------------------------------
@@ -424,7 +439,7 @@ async function startSynth(btn, text) {
   try {
     const r = await fetch("/api/voice/speak", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, tts_model: ttsEl.value }),
     });
     const j = await r.json();
     if (!r.ok || !j.job_id) { synthFail(btn, j.error || r.status); return; }
@@ -678,6 +693,7 @@ async function submit(fd) {
   fd.append("history", JSON.stringify(history));
   fd.append("docs", JSON.stringify([...attached]));
   fd.append("model", modelEl.value);
+  fd.append("tts_model", ttsEl.value);
   fd.append("conversation_id", Conversations.currentId || "");
   inFlight = true;
   recBtn.disabled = textBtn.disabled = true;
