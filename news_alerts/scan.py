@@ -529,12 +529,8 @@ def fetch_news(name: Name, window_hours: int, log: RunLogger) -> Name:
                 pub = pub.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
             pub = None
-        # Skip anything we can't confirm is recent: an item older than the
-        # window, OR one with no parseable date (Google News always dates its
-        # items, so an undated one can't be windowed and must not slip the
-        # 12h net — that's how stale headlines used to enter the store).
-        if pub is None or pub < cutoff:
-            continue
+        if pub and pub < cutoff:
+            continue  # belt-and-braces on top of when:Xh
         # Google appends " - Publisher" to titles; drop it for dedup/display.
         display = re.sub(r"\s+-\s+[^-]{2,60}$", "", title).strip() or title
         key = _title_key(display)
