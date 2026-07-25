@@ -120,6 +120,7 @@ REASON_MODELS = [
     {"id": "x-ai/grok-4.5:online",          "label": "Grok 4.5"},
     {"id": "moonshotai/kimi-k3:online",     "label": "Kimi K3"},
     {"id": "openai/gpt-5.6-sol:online",     "label": "GPT-5.6 Sol"},
+    {"id": "anthropic/claude-opus-5:online",   "label": "Claude Opus 5"},
     {"id": "anthropic/claude-sonnet-5:online", "label": "Claude Sonnet 5"},
     {"id": "z-ai/glm-5.2:online",           "label": "GLM-5.2"},
 ]
