@@ -229,26 +229,37 @@ let watchlist = [];
             }
         }
 
-        // Alert type sub-tabs. `types: null` = all; otherwise the raw alert
-        // types that fall under this category.
+        // Alert sub-tabs. `types: null` = all. `dir` further filters big_move by
+        // the sign of change_pct (up vs down are the same type, not distinct types).
         const ALERT_CATEGORIES = [
-            { key: 'all',      label: 'All',         types: null },
-            { key: 'price',    label: 'Price moves', types: ['big_move'] },
-            { key: 'volume',   label: 'Volume',      types: ['volume_spike'] },
-            { key: 'ema',      label: 'EMA cross',   types: ['ema_crossover_bullish', 'ema_crossover_bearish'] },
-            { key: 'earnings', label: 'Earnings',    types: ['earnings_imminent', 'earnings_soon'] },
+            { key: 'all',        label: 'All',        types: null },
+            { key: 'price_up',   label: 'Price up',   types: ['big_move'], dir: 'up' },
+            { key: 'price_down', label: 'Price down', types: ['big_move'], dir: 'down' },
+            { key: 'volume',     label: 'Volume',     types: ['volume_spike'] },
+            { key: 'ema',        label: 'EMA cross',  types: ['ema_crossover_bullish', 'ema_crossover_bearish'] },
+            { key: 'earnings',   label: 'Earnings',   types: ['earnings_imminent', 'earnings_soon'] },
         ];
         let alertFilter = 'all';
         function setAlertFilter(key) { alertFilter = key; renderAlerts(); }
 
         function alertNum(v, dflt) { const n = parseFloat(v); return isFinite(n) ? n : dflt; }
 
+        // Does an alert belong to a category? (type membership + optional direction)
+        function alertInCategory(a, cat) {
+            if (cat.types === null) return true;
+            if (!cat.types.includes(a.type)) return false;
+            if (cat.dir === 'up') return alertNum(a.change_pct, 0) >= 0;
+            if (cat.dir === 'down') return alertNum(a.change_pct, 0) < 0;
+            return true;
+        }
+
         // How each category ranks so the most useful alert sits on top.
         const ALERT_SORT = {
-            price:    (a, b) => Math.abs(alertNum(b.change_pct, 0)) - Math.abs(alertNum(a.change_pct, 0)),
-            volume:   (a, b) => alertNum(b.volume_ratio, 0) - alertNum(a.volume_ratio, 0),
-            earnings: (a, b) => alertNum(a.days_until, 9999) - alertNum(b.days_until, 9999),   // soonest first
-            ema:      (a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')),
+            price_up:   (a, b) => alertNum(b.change_pct, 0) - alertNum(a.change_pct, 0),          // biggest gain first
+            price_down: (a, b) => alertNum(a.change_pct, 0) - alertNum(b.change_pct, 0),          // biggest drop first
+            volume:     (a, b) => alertNum(b.volume_ratio, 0) - alertNum(a.volume_ratio, 0),
+            earnings:   (a, b) => alertNum(a.days_until, 9999) - alertNum(b.days_until, 9999),    // soonest first
+            ema:        (a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')),
         };
 
         // A compact, colour-coded magnitude chip — the sortable value made visible.
@@ -289,8 +300,7 @@ let watchlist = [];
             const tabsEl = document.getElementById('alert-subtabs');
 
             tabsEl.innerHTML = ALERT_CATEGORIES.map(c => {
-                const n = c.types === null ? alerts.length
-                    : alerts.filter(a => c.types.includes(a.type)).length;
+                const n = alerts.filter(a => alertInCategory(a, c)).length;
                 const active = c.key === alertFilter ? ' is-active' : '';
                 return `<button class="alert-subtab${active}" onclick="setAlertFilter('${c.key}')">
                             ${c.label}<span class="alert-subtab-count">${n}</span>
@@ -298,8 +308,7 @@ let watchlist = [];
             }).join('');
 
             const cat = ALERT_CATEGORIES.find(c => c.key === alertFilter) || ALERT_CATEGORIES[0];
-            const filtered = cat.types === null ? alerts
-                : alerts.filter(a => cat.types.includes(a.type));
+            const filtered = alerts.filter(a => alertInCategory(a, cat));
 
             if (filtered.length === 0) {
                 container.innerHTML = `
