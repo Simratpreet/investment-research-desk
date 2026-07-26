@@ -76,6 +76,12 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
 - **Chat TTS:** dropdown `TTS_MODELS` — Gemini Flash (Charon, PCM, chunk pipeline),
   Grok Voice (`eve`, MP3 passthrough), Kokoro (`af_heart`, MP3). Per-model config
   (voice/format/pipeline). `microsoft/mai-voice-2-flash` omitted — no working voice found.
+  **MP3 models get their Xing header rewritten** (`mp3_repair.py`) before delivery:
+  Kokoro returns its segments concatenated, each with its own header, so the
+  leading one describes only the first segment. Safari trusts it — a 103s answer
+  reported 11s, stopped there, and ignored the speed control because the element
+  had already fired `ended`. Chrome ignored the header and estimated ~7% long.
+  `MP3_RENDER_VERSION` is in the S3 cache key so pre-fix clips aren't served.
 - **STT:** `openai/gpt-4o-transcribe`, `language=en` + a finance prompt.
 - **News scanner:** `DEFAULT_MODEL=z-ai/glm-5.2`, **overridden by `OPENROUTER_MODEL`
   env** — so the secret governs news. **Announcements scanner:** `x-ai/grok-4.5`,

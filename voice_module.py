@@ -47,6 +47,7 @@ from flask import Blueprint, jsonify, render_template, request
 from config import VOICE_S3_BUCKET, AWS_REGION, DATA_DIR
 from security import client_ip, rate_limit_ok
 from conversation_store import ConversationStore
+from mp3_repair import repair_xing_header
 
 # Persistent chat history (text only). Conversations untouched for 7 days are
 # pruned; the store owns its own directory, locking and retention.
@@ -657,10 +658,12 @@ def synthesize_audio(text: str, cfg: dict = None):
     if cfg["pipeline"] == "pcm":
         return _synthesize_pcm_wav(cleaned), "audio/wav", "wav"
     # MP3 models aren't instruction-following and have their own length handling;
-    # one request, return the encoded audio as-is.
+    # one request. Kokoro returns its segments concatenated, so the leading Xing
+    # header describes only the first — repair it or Safari plays ~11s of a
+    # 100s answer and calls it done (see mp3_repair).
     if not cleaned.strip():
         raise ValueError("nothing to synthesize")
-    return _tts_request(cleaned, cfg, "mp3"), "audio/mpeg", "mp3"
+    return repair_xing_header(_tts_request(cleaned, cfg, "mp3")), "audio/mpeg", "mp3"
 
 
 # Back-compat alias — the old name returned a WAV via the default (Gemini) model.
@@ -676,12 +679,18 @@ def synthesize_wav(text: str) -> bytes:
 # Under its own prefix so it never collides with the <SYMBOL>/*.txt filings the
 # voice loader reads. No S3 configured (local dev) => transparent passthrough.
 TTS_CACHE_PREFIX = "tts-cache/"
+# Bumped when the MP3 post-processing changes, so clips cached by an older
+# rendering aren't served forever. WAV renderings are unaffected and keep their
+# keys — re-synthesizing those costs a Gemini call per chunk.
+MP3_RENDER_VERSION = "xing-repaired"
 
 
 def _tts_cache_key(text: str, cfg: dict, ext: str) -> str:
     # Model+voice+prompt in the hash so switching model/voice yields a different
     # key rather than serving a stale rendering.
     sig = f"{cfg['id']}|{cfg['voice']}|{cfg['pipeline']}|{TTS_PCM_RATE}|{TTS_DIRECTION}"
+    if cfg["pipeline"] == "mp3":
+        sig += f"|{MP3_RENDER_VERSION}"
     digest = hashlib.sha256((sig + "\x00" + text).encode("utf-8")).hexdigest()
     return f"{TTS_CACHE_PREFIX}{digest}.{ext}"
 
