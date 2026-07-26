@@ -37,16 +37,18 @@ const Todo = {
   render() {
     const d = this.data;
     if (!d) return;
-    const ro = !d.is_current;
+    const ro = !d.editable;      // current + future are editable; past is read-only
 
+    const [badgeText, badgeClass] = weekBadge(d);
     weekRangeEl.textContent = fmtRange(d.week);
-    weekBadgeEl.textContent = d.is_current ? "This week" : "Past week";
-    weekBadgeEl.className = "week-badge " + (d.is_current ? "current" : "past");
+    weekBadgeEl.textContent = badgeText;
+    weekBadgeEl.className = "week-badge " + badgeClass;
     addRow.hidden = ro;
     readonlyNote.hidden = !ro;
     thisBtn.hidden = d.is_current;
-    // Can't move past the current week into the future.
-    nextBtn.disabled = weekKeyCompare(d.week, d.current_week) >= 0;
+    nextBtn.disabled = false;    // future weeks are for planning ahead
+    taskInput.placeholder = "Add a task to " +
+      (badgeText === "Future" ? "this week" : badgeText.toLowerCase()) + "…";
 
     boardEl.classList.toggle("is-readonly", ro);
     boardEl.innerHTML = "";
@@ -101,6 +103,7 @@ const Todo = {
       acts.append(
         act("✓ Done", "done", () => this.move(t.id, "done")),
         act("✕ Reject", "reject", () => this.move(t.id, "rejected")),
+        act("→ Next wk", "", () => this.defer(t.id)),
         act("Edit", "", () => this.edit(t)),
         act("Delete", "del", () => this.remove(t.id)),
       );
@@ -114,22 +117,35 @@ const Todo = {
     return card;
   },
 
+  // The week the current view's tasks operate on (the viewed week).
+  get week() { return this.viewing || (this.data && this.data.current_week); },
+
   async add(text) {
     const r = await fetch("/api/todos", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, week: this.week }),
     });
     if (!r.ok) return false;
-    await this.load();       // always reloads the CURRENT week (where adds land)
+    await this.load(this.week);   // reloads the week the task landed in
     return true;
   },
 
   async move(id, bucket) {
     const r = await fetch("/api/todos/" + encodeURIComponent(id), {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bucket }),
+      body: JSON.stringify({ bucket, week: this.week }),
     });
-    if (r.ok) this.load(this.viewing);
+    if (r.ok) this.load(this.week);
+  },
+
+  // Defer a task to the week after the one being viewed.
+  async defer(id) {
+    const to = shiftWeekKey(this.week, 1);
+    const r = await fetch("/api/todos/" + encodeURIComponent(id), {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ week: this.week, to_week: to }),
+    });
+    if (r.ok) this.load(this.week);
   },
 
   async edit(t) {
@@ -139,14 +155,15 @@ const Todo = {
     if (!text || text === t.text) return;
     const r = await fetch("/api/todos/" + encodeURIComponent(t.id), {
       method: "PATCH", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, week: this.week }),
     });
-    if (r.ok) this.load(this.viewing);
+    if (r.ok) this.load(this.week);
   },
 
   async remove(id) {
-    const r = await fetch("/api/todos/" + encodeURIComponent(id), { method: "DELETE" });
-    if (r.ok || r.status === 404) this.load(this.viewing);
+    const r = await fetch("/api/todos/" + encodeURIComponent(id) +
+                          "?week=" + encodeURIComponent(this.week), { method: "DELETE" });
+    if (r.ok || r.status === 404) this.load(this.week);
   },
 
   step(deltaDays) {
@@ -164,6 +181,18 @@ function isoDate(d) {
          "-" + String(d.getDate()).padStart(2, "0");
 }
 function weekKeyCompare(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+function shiftWeekKey(key, weeks) {
+  const d = new Date(key + "T00:00:00");
+  d.setDate(d.getDate() + weeks * 7);
+  return isoDate(d);
+}
+// [label, css-class] for the week badge, relative to the current week.
+function weekBadge(d) {
+  if (d.is_current) return ["This week", "current"];
+  if (d.week === shiftWeekKey(d.current_week, 1)) return ["Next week", "future"];
+  if (d.week > d.current_week) return ["Future", "future"];
+  return ["Past week", "past"];
+}
 function fmtRange(mondayKey) {
   const mon = new Date(mondayKey + "T00:00:00");
   const sun = new Date(mon); sun.setDate(sun.getDate() + 6);

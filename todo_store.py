@@ -47,6 +47,16 @@ class TodoStore:
         monday = today - timedelta(days=today.weekday())  # weekday(): Mon==0
         return monday.isoformat()
 
+    def shift_week(self, week: str, weeks: int) -> str:
+        """The Monday `weeks` weeks after (or before) `week`."""
+        d = datetime.strptime(week, "%Y-%m-%d").date() + timedelta(weeks=weeks)
+        return d.isoformat()
+
+    def _editable(self, week: str) -> bool:
+        """The current week and any future week are editable; past weeks are
+        read-only (they've closed). ISO YYYY-MM-DD sorts chronologically."""
+        return self._valid_week(week) and week >= self.current_week()
+
     # --- public API ---------------------------------------------------------
 
     def board(self, week: str = None) -> dict:
@@ -64,30 +74,37 @@ class TodoStore:
         return {
             "week": wk,
             "is_current": wk == cur,
+            "editable": wk >= cur,          # current + future weeks are editable
             "current_week": cur,
+            "next_week": self.shift_week(wk, 1),
             "buckets": {b: [t for t in tasks if t["bucket"] == b] for b in BUCKETS},
             "weeks": weeks,
         }
 
-    def add(self, text: str) -> dict:
-        """Add a task to the CURRENT week's Prioritize bucket."""
+    def add(self, text: str, week: str = None) -> dict:
+        """Add a task to a week's Prioritize bucket. `week` defaults to current;
+        it must be the current or a future week (past weeks have closed)."""
         text = (text or "").strip()[:MAX_TASK_CHARS]
         if not text:
             raise ValueError("task text is required")
+        wk = week or self.current_week()
+        if not self._editable(wk):
+            raise ValueError("that week is read-only")
         now = _now(self._tz).isoformat()
         task = {"id": uuid.uuid4().hex, "text": text, "bucket": "prioritize",
                 "created_at": now, "updated_at": now}
         with self._lock:
-            wk = self.current_week()
             tasks = self._read_locked(wk)
             tasks.append(task)
             self._write_locked(wk, tasks)
         return task
 
-    def update(self, task_id: str, bucket: str = None, text: str = None) -> bool:
-        """Move and/or rename a task in the CURRENT week only. Past weeks are
-        read-only, so a task id not in the current week returns False."""
+    def update(self, task_id: str, week: str = None, bucket: str = None, text: str = None) -> bool:
+        """Move (bucket) and/or rename a task within an editable week."""
         if not self._valid_id(task_id):
+            return False
+        wk = week or self.current_week()
+        if not self._editable(wk):
             return False
         if bucket is not None and bucket not in BUCKETS:
             return False
@@ -96,7 +113,6 @@ class TodoStore:
             if not text:
                 return False
         with self._lock:
-            wk = self.current_week()
             tasks = self._read_locked(wk)
             for t in tasks:
                 if t["id"] == task_id:
@@ -109,16 +125,38 @@ class TodoStore:
                     return True
         return False
 
-    def delete(self, task_id: str) -> bool:
+    def delete(self, task_id: str, week: str = None) -> bool:
         if not self._valid_id(task_id):
             return False
+        wk = week or self.current_week()
+        if not self._editable(wk):
+            return False
         with self._lock:
-            wk = self.current_week()
             tasks = self._read_locked(wk)
             kept = [t for t in tasks if t["id"] != task_id]
             if len(kept) == len(tasks):
                 return False
             self._write_locked(wk, kept)
+        return True
+
+    def move(self, task_id: str, from_week: str, to_week: str) -> bool:
+        """Move a task from one editable week to another, keeping its bucket.
+        The task's text is preserved; timestamps roll forward."""
+        if not self._valid_id(task_id):
+            return False
+        if not (self._editable(from_week) and self._editable(to_week)) or from_week == to_week:
+            return False
+        with self._lock:
+            src = self._read_locked(from_week)
+            moved = next((t for t in src if t["id"] == task_id), None)
+            if moved is None:
+                return False
+            src = [t for t in src if t["id"] != task_id]
+            moved["updated_at"] = _now(self._tz).isoformat()
+            dst = self._read_locked(to_week)
+            dst.append(moved)
+            self._write_locked(to_week, dst)   # write target first
+            self._write_locked(from_week, src)  # then remove from source
         return True
 
     # --- internals ----------------------------------------------------------
