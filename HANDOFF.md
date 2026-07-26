@@ -3,6 +3,9 @@
 A private, single-user market-research workspace (Flask). Deployed on Fly.io.
 Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**.
 
+## Code Rules
+- Follow /Users/simrat/Desktop/claude-howto/clean-code-rules.md
+
 ## Deployed
 
 - **Main app:** https://stock-watchlist-noble-leaf-2877.fly.dev — Fly app
@@ -27,11 +30,18 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   except login/logout/healthz/static.
 - **Persistent state on the volume** via `DATA_DIR` (config.py; `/data` in prod,
   repo dir locally): `watchlist.json`, `alert_log.json`, `research/`,
-  `screener_alerts/`, `uploads/`, `conversations/`, `todos/`. Seeded from the
+  `screener_alerts/` (announcements store + seen set), `news_alerts/` (news store
+  + name cache), `uploads/`, `conversations/`, `todos/`. Seeded from the
   image-baked `watchlist.json` on first boot (`server.ensure_data_dir`).
-- **Ephemeral (container FS, `.dockerignore`d, reset every deploy):** the **news
-  store** (`news_alerts/news_store.json`) and announcements store live in the app
-  dir, not the volume. So "Clear news" and every redeploy wipe them.
+  Both scanners resolve their own state dir from `$DATA_DIR` and fall back to
+  their package dir locally (`news_alerts/scan.py` + `screener_alerts/scan.py`
+  `STATE_DIR`); `server.py` mirrors those paths. The scan subprocesses inherit
+  `DATA_DIR` from the environment, so don't pass a stripped `env=` to `Popen`.
+- **Ephemeral (container FS, `.dockerignore`d, reset every deploy):** news
+  artifacts only — `news_alerts/reports.md` (append-only run history) and
+  `news_alerts/logs/` (per-run jsonl + metrics). Nothing the dashboard reads.
+  (`screener_alerts/digest.md` and `scan.log` are on the volume.) "Clear news"
+  still empties the news store on demand.
 - **S3** (`simrat-company-docs`): `<SYMBOL>/*.txt` filings (read by Chat, written by
   the scraper / fiscal-agent `--s3`), plus `tts-cache/` (content-addressed rendered audio).
 

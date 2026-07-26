@@ -153,6 +153,7 @@ def ensure_data_dir():
     os.makedirs(DATA_DIR, exist_ok=True)
     os.makedirs(RESEARCH_DIR, exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "screener_alerts"), exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "news_alerts"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "uploads"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "conversations"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "todos"), exist_ok=True)
@@ -320,8 +321,10 @@ def update_track(ticker, exchange):
     return jsonify({"error": "Stock not found"}), 404
 
 
-NEWS_STORE_FILE = os.path.join(os.path.dirname(__file__),
-                               "news_alerts", "news_store.json")
+# The store lives under DATA_DIR (volume) so it survives redeploys and matches
+# where scan.py writes it (news_alerts/scan.py STATE_DIR). Locally DATA_DIR ==
+# repo dir, so this resolves to the same news_alerts/ folder as the script.
+NEWS_STORE_FILE = os.path.join(DATA_DIR, "news_alerts", "news_store.json")
 NEWS_SCAN_SCRIPT = os.path.join(os.path.dirname(__file__),
                                 "news_alerts", "scan.py")
 

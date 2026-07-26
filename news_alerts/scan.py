@@ -49,14 +49,21 @@ PROJECT_ROOT = BASE_DIR.parent
 WATCHLIST_FILE = PROJECT_ROOT / "watchlist.json"
 NEWS_TRACK = "news"
 REPORT_FILE = BASE_DIR / "reports.md"
+# Mutable state persists on the mounted volume (DATA_DIR) in cloud so the
+# dashboard's news survives redeploys — the app dir is container-local and every
+# deploy wipes it. Falls back to BASE_DIR locally, where the two coincide.
+# Config (ir_feeds.json, .env) and generated artifacts (reports, logs) stay put.
+STATE_DIR = (Path(os.environ["DATA_DIR"]) / "news_alerts"
+             if os.environ.get("DATA_DIR") else BASE_DIR)
+STATE_DIR.mkdir(parents=True, exist_ok=True)
 # Machine-readable store the dashboard reads (latest news per name, merged
 # across runs so a partial --tickers scan only updates those names).
-NEWS_STORE_FILE = BASE_DIR / "news_store.json"
-DATA_DIR = BASE_DIR / "data"
+NEWS_STORE_FILE = STATE_DIR / "news_store.json"
+RUN_STATE_DIR = STATE_DIR / "data"
 LOG_DIR = BASE_DIR / "logs"
-NAME_CACHE_FILE = DATA_DIR / "names_cache.json"
+NAME_CACHE_FILE = RUN_STATE_DIR / "names_cache.json"
 IR_FEEDS_FILE = BASE_DIR / "ir_feeds.json"
-LOCK_FILE = DATA_DIR / ".scan.lock"
+LOCK_FILE = RUN_STATE_DIR / ".scan.lock"
 METRICS_FILE = LOG_DIR / "metrics.jsonl"
 
 DEFAULT_WINDOW_HOURS = 12
@@ -201,7 +208,7 @@ def http_request(url: str, *, data: bytes | None = None,
 
 def acquire_lock(log: RunLogger) -> bool:
     """Prevent concurrent runs. Stale locks (dead PID or too old) are broken."""
-    DATA_DIR.mkdir(exist_ok=True)
+    RUN_STATE_DIR.mkdir(exist_ok=True)
     if LOCK_FILE.exists():
         try:
             info = json.loads(LOCK_FILE.read_text())
@@ -336,7 +343,7 @@ def load_name_cache() -> dict:
 
 
 def save_name_cache(cache: dict, log: RunLogger):
-    DATA_DIR.mkdir(exist_ok=True)
+    RUN_STATE_DIR.mkdir(exist_ok=True)
     tmp = NAME_CACHE_FILE.with_suffix(".json.tmp")
     try:
         tmp.write_text(json.dumps(cache, indent=1, ensure_ascii=False),
