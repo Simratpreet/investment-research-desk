@@ -3,15 +3,46 @@ Earnings date alert module.
 Fetches upcoming earnings dates from Yahoo Finance and checks proximity.
 """
 
+import datetime as dt
+import pytz
 import yfinance as yf
 from datetime import datetime, timezone
-from config import EARNINGS_WARN_DAYS, EARNINGS_IMMINENT_DAYS, EXCHANGE_SUFFIXES
+from config import (EARNINGS_WARN_DAYS, EARNINGS_IMMINENT_DAYS, EXCHANGE_SUFFIXES,
+                    ALERT_SCHEDULE_TZ)
 
 
 def get_yahoo_ticker(ticker: str, exchange: str) -> str:
     """Convert ticker + exchange to Yahoo Finance format."""
     suffix = EXCHANGE_SUFFIXES.get(exchange.upper(), "")
     return f"{ticker}{suffix}"
+
+
+def _earnings_day(value):
+    """Yahoo's date / datetime / ISO string as a plain calendar date, or None.
+
+    A calendar date is what the alert is really about: reporting is announced
+    for a day, not an instant, so counting elapsed 24-hour periods towards it
+    lands a day short for most of the day.
+    """
+    # datetime before date — every datetime is also a date.
+    if isinstance(value, dt.datetime):
+        return value.date()
+    if isinstance(value, dt.date):
+        return value
+    if isinstance(value, str):
+        try:
+            return dt.datetime.fromisoformat(value).date()
+        except ValueError:
+            return None
+    return None
+
+
+def _proximity(days_until: int) -> str:
+    if days_until == 0:
+        return "TODAY"
+    if days_until == 1:
+        return "TOMORROW"
+    return f"in {days_until} day{'' if days_until == 1 else 's'}"
 
 
 def check_earnings(watchlist: list[dict]) -> list[dict]:
@@ -21,6 +52,9 @@ def check_earnings(watchlist: list[dict]) -> list[dict]:
     """
     alerts = []
     now = datetime.now(timezone.utc)
+    # "Days until" is counted in the same timezone the alert schedule runs in,
+    # so "today" on the dashboard means the reader's today.
+    today = now.astimezone(pytz.timezone(ALERT_SCHEDULE_TZ)).date()
 
     for stock in watchlist:
         ticker = stock["ticker"]
@@ -47,30 +81,23 @@ def check_earnings(watchlist: list[dict]) -> list[dict]:
 
             # Take the nearest future earnings date
             for ed in earnings_dates if isinstance(earnings_dates, list) else [earnings_dates]:
-                import datetime as dt_mod
-                if isinstance(ed, dt_mod.date) and not isinstance(ed, datetime):
-                    # Pure date object — convert to tz-aware datetime
-                    earnings_date = datetime.combine(ed, datetime.min.time(), tzinfo=timezone.utc)
-                elif isinstance(ed, datetime):
-                    earnings_date = ed
-                    if earnings_date.tzinfo is None:
-                        earnings_date = earnings_date.replace(tzinfo=timezone.utc)
-                elif isinstance(ed, str):
-                    earnings_date = datetime.fromisoformat(ed).replace(tzinfo=timezone.utc)
-                else:
+                earnings_day = _earnings_day(ed)
+                if earnings_day is None:
                     continue
 
-                days_until = (earnings_date - now).days
+                days_until = (earnings_day - today).days
 
                 if days_until < 0:
                     continue
 
+                when = _proximity(days_until)
+                on = earnings_day.strftime("%b %d")
                 if days_until <= EARNINGS_IMMINENT_DAYS:
                     alerts.append({
                         "type": "earnings_imminent",
                         "ticker": ticker,
                         "exchange": exchange,
-                        "message": f"⚡ {ticker} ({exchange}) — earnings TOMORROW ({earnings_date.strftime('%b %d')})",
+                        "message": f"⚡ {ticker} ({exchange}) — earnings {when} ({on})",
                         "days_until": days_until,
                         "timestamp": now.isoformat(),
                     })
@@ -79,7 +106,7 @@ def check_earnings(watchlist: list[dict]) -> list[dict]:
                         "type": "earnings_soon",
                         "ticker": ticker,
                         "exchange": exchange,
-                        "message": f"📅 {ticker} ({exchange}) — earnings in {days_until} days ({earnings_date.strftime('%b %d')})",
+                        "message": f"📅 {ticker} ({exchange}) — earnings {when} ({on})",
                         "days_until": days_until,
                         "timestamp": now.isoformat(),
                     })

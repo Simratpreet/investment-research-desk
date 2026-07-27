@@ -45,7 +45,7 @@ EXCHANGE_SUFFIXES = {
 
 # --- Alert Thresholds ---
 EARNINGS_WARN_DAYS = 14         # Alert when earnings are within N days
-EARNINGS_IMMINENT_DAYS = 1      # Urgent alert when earnings are tomorrow
+EARNINGS_IMMINENT_DAYS = 1      # Urgent alert when earnings are today or tomorrow
 PRICE_MOVE_THRESHOLD = 5.0     # Alert on daily move >= N% (absolute)
 VOLUME_SPIKE_MULTIPLIER = 2.0  # Alert when volume >= N × 20-day average
 
