@@ -75,31 +75,75 @@ def parse_market_cap(value: str) -> float | None:
 
 
 def parse_screener_export(raw: bytes) -> list[UniverseEntry]:
-    """Rows from a `Ticker, Company, Market Cap` export.
+    """Rows from a `Ticker, Company[, Market Cap][, Industry]` export.
 
-    One parser serves all three markets because all three exports share those
-    columns; TSX's extra `Country` is simply not read. A row without a ticker is
-    skipped rather than raising — one malformed line must not cost the universe.
+    One parser serves every market but TSX Venture, because the exports agree on
+    those column names and simply carry different subsets of them — TSX adds an
+    unread `Country`, Stockholm has neither cap nor industry, the European files
+    add price and volume columns nobody here wants. Missing columns come back
+    None and enrichment fills what it can.
+
+    A row without a ticker is skipped rather than raising: one malformed line
+    must not cost the universe.
     """
-    text = raw.decode("utf-8-sig", errors="replace")
+    return _entries(csv.DictReader(io.StringIO(raw.decode("utf-8-sig",
+                                                          errors="replace"))),
+                    symbol_key="Ticker", name_key="Company")
+
+
+def parse_tsxv_export(raw: bytes) -> list[UniverseEntry]:
+    """TSX Venture, whose export disagrees with every other one.
+
+    Its columns are `Symbol, Company Name, ...` and the symbol is exchange-
+    prefixed (`TSXV:TOI`) rather than a Yahoo ticker, so both need rewriting.
+    """
+    return _entries(csv.DictReader(io.StringIO(raw.decode("utf-8-sig",
+                                                          errors="replace"))),
+                    symbol_key="Symbol", name_key="Company Name",
+                    symbol_fn=_tsxv_symbol)
+
+
+def _tsxv_symbol(raw_symbol: str) -> str:
+    """`TSXV:TOI` -> `TOI.V`, `TSXV:OTS.H` -> `OTS-H.V`.
+
+    228 of the 1,539 names carry a suffix — NEX (`.H`), capital pool companies
+    (`.P`), share classes and units. Yahoo writes all of them with a hyphen,
+    exactly as it does NYSE share classes: measured against the live endpoint,
+    `OTS-H.V` and `NET-UN.V` return data and `OTS.H.V` and `NET.UN.V` return
+    nothing. So there is one right answer, not a list of candidates to try.
+    """
+    core = raw_symbol.split(":")[-1].strip()
+    return f"{core.replace('.', '-')}.V" if core else ""
+
+
+def _entries(rows, symbol_key: str, name_key: str,
+             symbol_fn=None) -> list[UniverseEntry]:
     entries, seen = [], set()
-    for row in csv.DictReader(io.StringIO(text)):
-        ticker = (row.get("Ticker") or "").strip()
-        if not ticker or ticker in seen:
+    for row in rows:
+        raw_symbol = (row.get(symbol_key) or "").strip()
+        symbol = symbol_fn(raw_symbol) if symbol_fn else raw_symbol
+        if not symbol or symbol in seen:
             continue          # duplicate listings appear in some exports
-        seen.add(ticker)
+        seen.add(symbol)
+        sector = (row.get("Industry") or "").strip()
         entries.append(UniverseEntry(
-            symbol=ticker,
-            name=(row.get("Company") or "").strip() or ticker,
+            symbol=symbol,
+            name=(row.get(name_key) or "").strip() or symbol,
             market_cap=parse_market_cap(row.get("Market Cap") or ""),
+            # Four of the exports carry an industry; taking it here means those
+            # markets never need a per-hit lookup to fill the table's sector.
+            sector=sector or None,
         ))
     return entries
 
 
 # `min_turnover` is a liquidity floor in the market's own currency, applied to
 # the spike session's turnover: roughly "real money changed hands", so a 5x day
-# on a few thousand dollars of stock is ignored. TSX sits lower than the US
-# venues because it is a smaller market where genuine names trade thinner.
+# on a few thousand dollars of stock is ignored. The floors are not a single
+# figure converted eight ways — each is set to what counts as a real day on that
+# venue. The US pair sits highest; TSX Venture sits lowest because its names are
+# genuinely tiny and a US-sized floor would empty the market entirely; Stockholm
+# looks large only because a krona is worth about a tenth of a dollar.
 MARKETS: dict[str, Market] = {
     "nasdaq": Market("nasdaq", "NASDAQ", "nasdaq_stocks.csv",
                      parse_screener_export, "USD", 1_000_000,
@@ -110,6 +154,21 @@ MARKETS: dict[str, Market] = {
     "tsx": Market("tsx", "Toronto Stock Exchange", "tsx_stocks.csv",
                   parse_screener_export, "CAD", 500_000,
                   exported_on="2026-06-21"),
+    "tsxv": Market("tsxv", "TSX Venture", "tsxv_stocks.csv",
+                   parse_tsxv_export, "CAD", 100_000,
+                   exported_on="2026-06-27"),
+    "asx": Market("asx", "Australia (ASX)", "asx_stocks.csv",
+                  parse_screener_export, "AUD", 500_000,
+                  exported_on="2026-06-23"),
+    "etr": Market("etr", "Frankfurt (XETRA)", "etr_stocks.csv",
+                  parse_screener_export, "EUR", 500_000,
+                  exported_on="2026-06-21"),
+    "sw": Market("sw", "SIX Swiss", "sw_stocks.csv",
+                 parse_screener_export, "CHF", 500_000,
+                 exported_on="2026-06-23"),
+    "sto": Market("sto", "Stockholm (Nasdaq)", "sto_stocks.csv",
+                  parse_screener_export, "SEK", 5_000_000,
+                  exported_on="2026-06-23"),
 }
 
 

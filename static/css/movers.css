@@ -45,6 +45,36 @@ body {
 .progress-text { font-family:'Geist Mono',monospace; font-size:.76rem; color:var(--text-secondary);
                  white-space:nowrap; }
 
+/* --- Active scans (all markets, not just the selected one) ---------------- */
+
+.active-scans { border:1px solid var(--border); background:var(--surface); border-radius:14px;
+                padding:.85rem 1rem .95rem; margin:0 0 1.2rem; }
+.active-scans-title { font-size:.68rem; font-weight:800; letter-spacing:.11em; text-transform:uppercase;
+                      color:var(--text-muted); margin:0 0 .6rem; }
+.active-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.55rem; }
+.active-row { display:grid; grid-template-columns:minmax(8rem,11rem) 1fr auto; align-items:center;
+              gap:.75rem; }
+.active-name { display:flex; align-items:center; gap:.45rem; font-size:.83rem; font-weight:650;
+               color:var(--text); min-width:0; }
+.active-name span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* A pulsing dot, so a stalled scan is visibly different from a moving one. */
+.active-dot { width:7px; height:7px; border-radius:99px; background:var(--accent); flex:none;
+              animation:active-pulse 1.6s ease-in-out infinite; }
+@keyframes active-pulse { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+.active-bar { height:5px; background:var(--border-light); border-radius:99px; overflow:hidden; }
+.active-bar i { display:block; height:100%; width:0; background:var(--accent); border-radius:99px;
+                transition:width .4s ease; }
+.active-status { font-family:'Geist Mono',monospace; font-size:.72rem; color:var(--text-secondary);
+                 white-space:nowrap; }
+.active-view { border:0; background:none; padding:0; margin-left:.5rem; cursor:pointer;
+               font-size:.72rem; font-weight:650; color:var(--accent); }
+.active-view:hover { text-decoration:underline; }
+.active-view[disabled] { color:var(--text-muted); cursor:default; text-decoration:none; }
+@media (max-width:640px) {
+  .active-row { grid-template-columns:1fr auto; }
+  .active-bar { grid-column:1 / -1; }
+}
+
 /* --- Banners ------------------------------------------------------------- */
 
 .banner { border-radius:12px; padding:.8rem 1rem; font-size:.84rem; margin-bottom:1.1rem;

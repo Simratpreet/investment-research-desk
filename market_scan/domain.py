@@ -41,13 +41,15 @@ class Market:
 class UniverseEntry:
     """A name to scan. Symbol is already in Yahoo form (suffix applied).
 
-    `market_cap` is absolute, in the market's currency, and comes straight from
-    the export — so a hit has a cap without a per-symbol lookup. None when the
-    export didn't carry one, in which case enrichment tries to fill it.
+    `market_cap` (absolute, in the market's currency) and `sector` come straight
+    from the export, so a hit carries both without a per-symbol lookup. Either
+    is None when that export didn't have the column — Stockholm's has neither —
+    and enrichment then tries to fill the gap.
     """
     symbol: str
     name: str
     market_cap: float | None = None
+    sector: str | None = None
 
 
 @dataclass(frozen=True)

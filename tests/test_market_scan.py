@@ -29,7 +29,7 @@ from market_scan.session import SessionSelector
 from market_scan.store import ScanStore, hits_from_stored
 from market_scan.universe import (BAKED_DIR, MARKETS, UniverseRepository,
                                   UniverseUnavailable, parse_market_cap,
-                                  parse_screener_export)
+                                  parse_screener_export, parse_tsxv_export)
 
 DAY = 86400
 NASDAQ = MARKETS["nasdaq"]
@@ -279,6 +279,10 @@ TSX_CSV = (b"Ticker,Company,Market Cap,Country\n"
            b"AAB.TO,Aberdeen International Inc.,4.02M,Canada\n"
            b"AGF-B.TO,AGF Management Limited,1.5B,Canada\n")
 
+# Stockholm's export is `Ticker,Company` and nothing else, so it is the one
+# market where both cap and sector have to come from enrichment.
+CAPLESS_MARKETS = {"sto"}
+
 
 class TestParsers(unittest.TestCase):
     def test_reads_ticker_company_and_cap(self):
@@ -338,7 +342,36 @@ class TestParsers(unittest.TestCase):
         for key, market in MARKETS.items():
             entries = self.baked(market)
             with_cap = [e for e in entries if e.market_cap]
+            if key in CAPLESS_MARKETS:
+                self.assertEqual(with_cap, [], f"{key} gained a cap column")
+                continue
             self.assertGreater(len(with_cap), len(entries) * 0.9, key)
+
+    def test_exports_with_an_industry_column_populate_sector(self):
+        # Four venues carry it, which means no per-hit lookup for those markets.
+        for key in ("tsxv", "asx", "etr", "sw"):
+            entries = self.baked(MARKETS[key])
+            with_sector = [e for e in entries if e.sector]
+            self.assertGreater(len(with_sector), len(entries) * 0.9, key)
+
+    def test_tsxv_symbols_become_yahoo_tickers(self):
+        rows = (b"Symbol,Company Name,Exchange,Industry,Market Cap\n"
+                b"TSXV:TOI,Topicus.com Inc.,TSX Venture Exchange,Software,7592171330\n"
+                b"TSXV:OTS.H,Ortus Inc.,TSX Venture Exchange,Shell,1000000\n"
+                b"TSXV:NET.UN,Net Units,TSX Venture Exchange,REIT,2000000\n"
+                b",No Symbol Inc.,TSX Venture Exchange,,0\n")
+        entries = parse_tsxv_export(rows)
+        # Measured against the live endpoint: OTS-H.V returns data, OTS.H.V does
+        # not. Hyphens, exactly like NYSE share classes — so one right answer.
+        self.assertEqual([e.symbol for e in entries],
+                         ["TOI.V", "OTS-H.V", "NET-UN.V"])
+        self.assertEqual(entries[0].name, "Topicus.com Inc.")
+        self.assertEqual(entries[0].sector, "Software")
+
+    def test_the_tsxv_export_really_is_all_suffixed(self):
+        entries = self.baked(MARKETS["tsxv"])
+        self.assertTrue(all(e.symbol.endswith(".V") for e in entries))
+        self.assertNotIn(":", "".join(e.symbol for e in entries))
 
 
 class TestUniverseRepository(unittest.TestCase):

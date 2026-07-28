@@ -51,6 +51,15 @@
       <span class="progress-text" id="progressText"></span>
     </div>
 
+    <!-- Every scan running right now, whichever market is selected. Scans are
+         single-flight per market but independent across them, so several can be
+         in flight at once and the selected market's progress bar above only
+         ever shows one of them. -->
+    <section class="active-scans" id="activeScans" aria-live="polite" hidden>
+      <h3 class="active-scans-title">Scans in progress</h3>
+      <ul class="active-list" id="activeList"></ul>
+    </section>
+
     <div class="banner banner-warn" id="banner" hidden></div>
 
     <div id="results" aria-live="polite"></div>

@@ -39,6 +39,11 @@ def enrich(hits, store, market: str, session_date: str,
     Returns the number enriched. Swallows everything — including yfinance being
     absent entirely, which is how the unit tests run.
     """
+    # Most exports carry both fields, so for those markets there is nothing to
+    # look up and the whole step costs no requests at all.
+    hits = [h for h in hits if not h.sector or h.market_cap is None]
+    if not hits:
+        return 0
     try:
         import yfinance as yf
     except ImportError:
@@ -51,11 +56,12 @@ def enrich(hits, store, market: str, session_date: str,
             info = yf.Ticker(hit.ticker).info or {}
         except Exception:
             return False
+        # Only ever fills gaps — see the note at the top. Most exports already
+        # carry both, so for those markets this whole call is a no-op.
         fields = {}
         sector = info.get("sector") or info.get("industry")
-        if sector:
+        if not hit.sector and sector:
             fields["sector"] = sector
-        # Only ever fills a gap — see the note at the top about Yahoo's caps.
         if hit.market_cap is None and info.get("marketCap"):
             try:
                 fields["market_cap"] = float(info["marketCap"])

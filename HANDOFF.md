@@ -78,9 +78,15 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   - **Criteria:** `RVOL ≥ 5×` **AND** `change ≥ +5%`, up only, 20-day baseline, all
     `MOVERS_*` in config.py. Both conditions matter: measured live, `or` yields
     800–1,200 hits/day (unreadable, unaffordable to analyse), `and` yields ~30–40.
-  - **Markets:** `nasdaq`, `nyse`, `tsx`. Symbol lists are **screener CSV exports
-    committed to `market_scan/universes/`** (`Ticker, Company, Market Cap`; tickers
-    already in Yahoo form). Read from disk, so a scan needs no network to know what
+  - **Markets:** `nasdaq`, `nyse`, `tsx`, `tsxv`, `asx`, `etr`, `sw`, `sto` — 9,549
+    symbols. Symbol lists are **screener CSV exports committed to
+    `market_scan/universes/`** (`Ticker, Company[, Market Cap][, Industry]`; tickers
+    already in Yahoo form). Four exports carry an industry, so those markets need no
+    per-hit sector lookup; Stockholm's has neither cap nor industry and relies on
+    enrichment for both. TSX Venture is the one odd file — `Symbol, Company Name`
+    with an exchange prefix (`TSXV:OTS.H` → `OTS-H.V`; hyphen, verified live, the
+    dotted form returns nothing) — so it gets its own parser.
+    Read from disk, so a scan needs no network to know what
     to scan and the list is identical run to run. Crucially the exports are
     **companies only** — no ETFs, no closed-end funds — which an exchange directory
     is not; a leveraged or crypto ETF really does post 5× volume on a +5% day. The
@@ -97,6 +103,12 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   - **Cost:** notes are the only per-run spend. `MOVERS_ANALYSIS_MAX` (default 40)
     caps them and `MOVERS_ANALYSIS_CONCURRENCY` (3) overlaps the waiting; the prompt
     asks for a business model *and* a thesis, so they are not short. Scanning is free.
+  - **Concurrency:** scans are single-flight *per market* but independent across
+    them, so several can run at once — the page's "Scans in progress" list shows
+    every one, whichever market is selected, and keeps polling while any is live.
+    All markets share one `YahooPriceFeed`, so its global pacer holds the same
+    total request rate no matter how many run; concurrent scans divide that budget
+    rather than multiplying it.
   - **Schedule:** on-demand only unless `MOVERS_SCHEDULE_MARKETS` names markets
     (comma-separated), which registers a daily APScheduler job in `main.py`.
 - **Notes** (the "Research"→"Notes" tab): per-ticker markdown research notes.

@@ -13,6 +13,8 @@ const progressFill = document.getElementById("progressFill");
 const progressText = document.getElementById("progressText");
 const banner = document.getElementById("banner");
 const results = document.getElementById("results");
+const activeScans = document.getElementById("activeScans");
+const activeList = document.getElementById("activeList");
 
 const POLL_MS = 5000;
 
@@ -50,62 +52,141 @@ const COLUMNS = [
 const Movers = {
   market: null,
   data: null,
+  markets: [],
   poll: null,
   sort: { key: "rvol", asc: false },
   expanded: new Set(),
 
   async init() {
     await this.loadMarkets();
-    marketSelect.addEventListener("change", () => {
-      this.market = marketSelect.value;
-      try { localStorage.setItem("movers.market", this.market); } catch (e) { /* private mode */ }
-      this.expanded.clear();
-      this.load();
-    });
+    marketSelect.addEventListener("change", () => this.select(marketSelect.value));
     scanBtn.addEventListener("click", () => this.startScan());
     stopBtn.addEventListener("click", () => this.stopScan());
     await this.load();
   },
 
-  async loadMarkets() {
-    let payload = { markets: [] };
-    try {
-      const r = await fetch("/api/movers/markets", { cache: "no-store" });
-      if (r.ok) payload = await r.json();
-    } catch (e) { /* offline — the selector stays empty and load() shows it */ }
+  select(key) {
+    if (!key || key === this.market) return;
+    this.market = key;
+    marketSelect.value = key;
+    try { localStorage.setItem("movers.market", key); } catch (e) { /* private mode */ }
+    this.expanded.clear();
+    this.data = null;
+    this.load();
+  },
 
-    const markets = payload.markets || [];
+  async loadMarkets() {
+    await this.refreshStates();
     marketSelect.innerHTML = "";
-    for (const m of markets) {
+    for (const m of this.markets) {
       const opt = document.createElement("option");
       opt.value = m.key;
-      opt.textContent = m.last_session ? `${m.label} · ${m.last_session}` : m.label;
+      opt.textContent = this.optionLabel(m);
       marketSelect.append(opt);
     }
     let saved = null;
     try { saved = localStorage.getItem("movers.market"); } catch (e) { /* private mode */ }
-    const known = markets.some((m) => m.key === saved);
-    this.market = known ? saved : (markets[0] && markets[0].key) || null;
+    const known = this.markets.some((m) => m.key === saved);
+    this.market = known ? saved : (this.markets[0] && this.markets[0].key) || null;
     if (this.market) marketSelect.value = this.market;
+  },
+
+  optionLabel(m) {
+    return m.last_session ? `${m.label} · ${m.last_session}` : m.label;
+  },
+
+  // Every market's scan state, not just the selected one — scans are
+  // single-flight per market but run independently across them.
+  async refreshStates() {
+    try {
+      const r = await fetch("/api/movers/markets", { cache: "no-store" });
+      if (!r.ok) return;
+      const payload = await r.json();
+      this.markets = payload.markets || [];
+    } catch (e) { /* offline — keep the states we already have */ }
+  },
+
+  running() {
+    return this.markets.filter((m) => m.scan && m.scan.running);
   },
 
   async load() {
     if (!this.market) { this.renderEmpty("No markets are configured."); return; }
+    await this.refreshStates();
     try {
       const r = await fetch(`/api/movers?market=${encodeURIComponent(this.market)}`,
                             { cache: "no-store" });
-      if (!r.ok) return;
-      this.data = await r.json();
-    } catch (e) { return; }   // offline — leave the last render up
+      if (r.ok) this.data = await r.json();
+    } catch (e) { /* offline — leave the last render up */ }
 
-    const scan = this.data.scan || {};
-    if (scan.running) {
-      if (!this.poll) this.poll = setInterval(() => this.load(), POLL_MS);
-    } else if (this.poll) {
+    // Keep polling while ANY market is scanning: switching away from a running
+    // market must not stop its progress from updating.
+    const busy = this.running().length > 0;
+    if (busy && !this.poll) {
+      this.poll = setInterval(() => this.load(), POLL_MS);
+    } else if (!busy && this.poll) {
       clearInterval(this.poll);
       this.poll = null;
     }
+    this.renderActive();
     this.render();
+  },
+
+  renderActive() {
+    const running = this.running();
+    activeScans.hidden = running.length === 0;
+    activeList.innerHTML = "";
+    for (const m of running) {
+      activeList.append(this.activeRow(m));
+    }
+    // Session dates change as runs finish; refresh the labels in place rather
+    // than rebuilding the <select>, which would close it mid-interaction.
+    for (const opt of marketSelect.options) {
+      const m = this.markets.find((x) => x.key === opt.value);
+      if (m) opt.textContent = this.optionLabel(m);
+    }
+  },
+
+  activeRow(m) {
+    const scan = m.scan || {};
+    const li = document.createElement("li");
+    li.className = "active-row";
+
+    const name = document.createElement("div");
+    name.className = "active-name";
+    const dot = document.createElement("i");
+    dot.className = "active-dot";
+    const label = document.createElement("span");
+    label.textContent = m.label;
+    name.append(dot, label);
+
+    const bar = document.createElement("div");
+    bar.className = "active-bar";
+    const fill = document.createElement("i");
+    const pct = scan.total ? Math.min(100, Math.round((scan.done / scan.total) * 100)) : 0;
+    fill.style.width = pct + "%";
+    bar.append(fill);
+
+    const status = document.createElement("div");
+    status.className = "active-status";
+    status.textContent = scan.total
+      ? `${phaseLabel(scan.phase)} ${scan.done.toLocaleString()}/${scan.total.toLocaleString()} (${pct}%)`
+      : phaseLabel(scan.phase) + "…";
+
+    const view = document.createElement("button");
+    view.className = "active-view";
+    view.type = "button";
+    if (m.key === this.market) {
+      view.textContent = "viewing";
+      view.disabled = true;
+    } else {
+      view.textContent = "view";
+      view.addEventListener("click", () => this.select(m.key));
+    }
+    status.append(view);
+
+    li.append(name, bar, status);
+    return li;
   },
 
   render() {
@@ -143,14 +224,15 @@ const Movers = {
   },
 
   renderProgress(scan, running) {
-    if (!running || !scan.total) { progress.hidden = true; return; }
+    // Hidden while the active-scans list is up: that list already shows this
+    // market's progress alongside every other one, and two bars for the same
+    // run reads as two runs.
+    if (!running || !scan.total || !activeScans.hidden) { progress.hidden = true; return; }
     progress.hidden = false;
     const pct = Math.min(100, Math.round((scan.done / scan.total) * 100));
     progressFill.style.width = pct + "%";
-    const phase = scan.phase === "analysing" ? "Writing notes"
-                : scan.phase === "enriching" ? "Fetching sector data"
-                : "Scanning";
-    progressText.textContent = `${phase} — ${scan.done}/${scan.total} (${pct}%)`;
+    progressText.textContent =
+      `${phaseLabel(scan.phase)} — ${scan.done}/${scan.total} (${pct}%)`;
   },
 
   renderMeta(d, scan) {
@@ -399,6 +481,12 @@ function renderNote(analysis) {
     div.append(foot);
   }
   return div;
+}
+
+function phaseLabel(phase) {
+  return phase === "analysing" ? "Writing notes"
+       : phase === "enriching" ? "Fetching sector data"
+       : "Scanning";
 }
 
 function fmtNum(v) {

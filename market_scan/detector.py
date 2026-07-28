@@ -68,6 +68,8 @@ class SpikeDetector:
             turnover=turnover,
             currency=meta.get("currency") or market.currency,
             session_date=session_date,
-            # From the export, so the note has a cap even if enrichment fails.
+            # Both from the export where it had them, so the row and the note
+            # are complete even if enrichment never runs.
             market_cap=entry.market_cap,
+            sector=entry.sector,
         )
