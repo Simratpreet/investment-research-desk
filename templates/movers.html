@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Movers · Research Desk</title>
+<meta name="theme-color" content="#153e2e">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v={{ asset_v }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/movers.css') }}?v={{ asset_v }}"></head>
+<body>
+  <header class="appbar">
+  <div class="appbar-inner">
+    <a href="/" class="appbar-brand" aria-label="Research Desk home">
+      <span class="appbar-mark" aria-hidden="true"></span>
+      <span class="appbar-name"><b>Research Desk</b><span>Private market workspace</span></span>
+    </a>
+    <nav class="appbar-nav" aria-label="Primary">
+      <a href="/" class="appbar-link">Watchlist</a>
+      <a href="/movers" class="appbar-link is-active" aria-current="page">Movers</a>
+      <a href="/voice" class="appbar-link">Chat</a>
+      <a href="/todos" class="appbar-link">To-do</a>
+      <a href="/logout" class="appbar-link appbar-signout">Sign out</a>
+    </nav>
+  </div>
+</header>
+
+  <main class="container">
+    <div class="eyebrow">Unusual activity</div>
+    <h2 class="page-title">Movers</h2>
+    <p class="page-sub" id="pageSub">
+      Stocks whose last completed session showed both a volume spike and a price rise —
+      what is piquing investor interest, before it reaches the watchlist.
+    </p>
+
+    <div class="scan-bar">
+      <label class="market-picker">
+        <span class="market-picker-label">Market</span>
+        <select id="marketSelect" aria-label="Market to scan"></select>
+      </label>
+      <button class="btn btn-primary" id="scanBtn">Run scan</button>
+      <button class="btn btn-ghost" id="stopBtn" hidden>Stop</button>
+      <span class="scan-meta" id="scanMeta"></span>
+    </div>
+
+    <div class="progress" id="progress" hidden>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="progress-text" id="progressText"></span>
+    </div>
+
+    <div class="banner banner-warn" id="banner" hidden></div>
+
+    <div id="results" aria-live="polite"></div>
+  </main>
+
+<script src="{{ url_for('static', filename='js/movers.js') }}?v={{ asset_v }}"></script>
+</body></html>

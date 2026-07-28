@@ -12,7 +12,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from config import (WATCHLIST_FILE, ALERT_SCHEDULE_HOUR, ALERT_SCHEDULE_MINUTE,
-                    ALERT_SCHEDULE_TZ)
+                    ALERT_SCHEDULE_TZ, MOVERS_SCHEDULE_MARKETS,
+                    MOVERS_SCHEDULE_HOUR, MOVERS_SCHEDULE_MINUTE)
 from alerts.earnings import check_earnings
 from alerts.price_action import check_price_action
 from notifier import send_batch_alerts
@@ -70,6 +71,24 @@ def run_checks():
     print(f"[{datetime.now().strftime('%H:%M')}] Check complete. Total alerts: {len(all_alerts)}")
 
 
+def scheduled_markets() -> list[str]:
+    """Market keys to scan on a daily schedule. Empty (the default) means the
+    Movers page is on-demand only — each scan costs LLM calls, so an unattended
+    daily run is opt-in rather than something a deploy switches on."""
+    from market_scan.universe import MARKETS
+    keys = [k.strip().lower() for k in MOVERS_SCHEDULE_MARKETS.split(",")]
+    return [k for k in keys if k in MARKETS]
+
+
+def run_movers_scans():
+    """Fire a scan per configured market. The service is single-flight, so a
+    market still running from an earlier trigger is simply skipped."""
+    from scan_module import service
+    for key in scheduled_markets():
+        started, message = service.start(key)
+        print(f"[movers] {key}: {message}")
+
+
 def main():
     require_auth_configured()
     ensure_data_dir()
@@ -94,6 +113,22 @@ def main():
         id="alert_checks",
         name="Daily Stock Alert Checks",
     )
+    # Movers: only registered when MOVERS_SCHEDULE_MARKETS names a market, so
+    # the default deploy adds no unattended LLM spend.
+    movers = scheduled_markets()
+    if movers:
+        scheduler.add_job(
+            run_movers_scans,
+            trigger=CronTrigger(hour=MOVERS_SCHEDULE_HOUR,
+                                minute=MOVERS_SCHEDULE_MINUTE,
+                                timezone=pytz.timezone(ALERT_SCHEDULE_TZ)),
+            id="movers_scans",
+            name="Daily Movers Scans",
+        )
+        print(f"  Movers:    Daily at {MOVERS_SCHEDULE_HOUR:02d}:"
+              f"{MOVERS_SCHEDULE_MINUTE:02d} {ALERT_SCHEDULE_TZ} "
+              f"({', '.join(movers)})")
+
     scheduler.start()
 
     # Start Flask web server (blocking). threaded=True so a ~1-min voice request

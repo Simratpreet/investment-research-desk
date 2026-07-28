@@ -31,7 +31,9 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
 - **Persistent state on the volume** via `DATA_DIR` (config.py; `/data` in prod,
   repo dir locally): `watchlist.json`, `alert_log.json`, `research/`,
   `screener_alerts/` (announcements store + seen set), `news_alerts/` (news store
-  + name cache), `uploads/`, `conversations/`, `todos/`. Seeded from the
+  + name cache), `uploads/`, `conversations/`, `todos/`,
+  `market_scan/runs/` (one JSON per market per session) +
+  `market_scan/universes/` (cached exchange symbol lists). Seeded from the
   image-baked `watchlist.json` on first boot (`server.ensure_data_dir`).
   Both scanners resolve their own state dir from `$DATA_DIR` and fall back to
   their package dir locally (`news_alerts/scan.py` + `screener_alerts/scan.py`
@@ -67,6 +69,28 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   weekly board (Prioritise/Done/Rejected), resets each Monday (implicit — keyed by
   week's Monday). Current + future weeks editable; past weeks read-only. Add tasks to
   future weeks; "→ Next wk" defers a task forward. 26-week retention.
+- **Movers** (`/movers`, `movers.html` + `movers.js`, `market_scan/` + `scan_module.py`):
+  scans whole exchange universes for stocks whose **last completed session** showed
+  BOTH a volume spike and a price rise — "what is piquing investor interest",
+  before it reaches the watchlist. Per-market on demand; a sortable table (company,
+  sector, mkt cap, RVOL, change, price, turnover) with an expandable per-stock AI
+  note. Empty is a normal outcome, rendered as such.
+  - **Criteria:** `RVOL ≥ 5×` **AND** `change ≥ +5%`, up only, 20-day baseline, all
+    `MOVERS_*` in config.py. Both conditions matter: measured live, `or` yields
+    800–1,200 hits/day (unreadable, unaffordable to analyse), `and` yields ~30–40.
+  - **Markets:** `india` (NSE), `nasdaq`, `nyse`, `amex`. **No CSVs in the repo** —
+    symbol lists are fetched from NSE's `EQUITY_L.csv` and NASDAQ Trader's
+    `nasdaqlisted.txt`/`otherlisted.txt`, cached as JSON on the volume with a 7-day
+    TTL. A failed refetch falls back to the stale cache; only a total absence raises.
+    Adding a market is one `Market` entry + one parser in `market_scan/universe.py`.
+  - **Pipeline:** `scan → PERSIST → enrich → analyse`. The run is written to disk
+    before enrichment or notes begin, and both write back incrementally — an
+    OpenRouter outage or a yfinance failure costs notes, never the scan.
+  - **Cost:** notes are the only per-run spend. `MOVERS_ANALYSIS_MAX` (default 40)
+    caps them; the prompt asks for a business model *and* a thesis, so they are not
+    short. Scanning itself is free.
+  - **Schedule:** on-demand only unless `MOVERS_SCHEDULE_MARKETS` names markets
+    (comma-separated), which registers a daily APScheduler job in `main.py`.
 - **Notes** (the "Research"→"Notes" tab): per-ticker markdown research notes.
 
 ## Models (all via OpenRouter, one key)
@@ -86,6 +110,14 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
 - **News scanner:** `DEFAULT_MODEL=z-ai/glm-5.2`, **overridden by `OPENROUTER_MODEL`
   env** — so the secret governs news. **Announcements scanner:** `x-ai/grok-4.5`,
   **hardcoded, ignores the env**. (Inconsistency, see below.)
+- **Movers notes:** `MOVERS_MODEL`, default `moonshotai/kimi-k3:online` (web search
+  matters — the note has to find what actually happened). The prompt is in
+  `market_scan/analyst.py`: measured facts (RVOL, change, turnover, session) plus
+  the standing question about growth acceleration / margin expansion / deleveraging
+  and the business model. It explicitly instructs the model to **say there is no
+  identifiable public catalyst rather than invent one** — an unexplained 5× volume
+  day is itself the signal, and a fabricated reason destroys it by making the name
+  look understood.
 
 ## Outstanding / known issues
 
@@ -127,3 +159,22 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   command in-session; in the user's own zsh, `!` is history expansion (a past gotcha).
 - **Config.py** loads `.env`. `SERVER_PORT` honours `$PORT`. Timezone for alerts +
   to-do weeks is `Europe/London` (pytz, bundled tz data — safer than zoneinfo on slim).
+- **Tests:** `python3 -m unittest discover tests` (65 tests, stdlib only, no network).
+  Deliberately not pytest — `requirements.txt` is pinned for reproducible container
+  builds and a test-only dep would either bloat the image or drift from it.
+- **Yahoo 429s the realistic Chrome User-Agent.** `market_scan/feed.py` sends a bare
+  `Mozilla/5.0` on purpose. The full
+  `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ... Chrome/125 ...` string returns
+  **429 on the first request, every time**, from an IP with an untouched budget —
+  Yahoo fingerprints that well-known scraper signature. Sending no UA also 429s.
+  Don't "fix" this by making it look more like a browser; that is what breaks it.
+  (This cost an hour of chasing a rate-limit that wasn't one. The feed also paces
+  itself globally at ~16/s with AIMD backoff and a circuit breaker, so a genuine
+  limit degrades the run instead of hanging it.)
+- **`meta.regularMarketTime` is the last *trade* time, not the clock.** Movers'
+  session selection (`market_scan/session.py`) compares the wall clock against
+  `currentTradingPeriod.regular.end`. Using `regularMarketTime` looks equivalent and
+  isn't: a thin stock whose final trade lands seconds before the bell reads as "still
+  trading" for the rest of the day, so it gets scanned against yesterday while
+  everything liquid is scanned against today — and thin stocks are exactly the ones
+  that spike. Covered by a regression test.

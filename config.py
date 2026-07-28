@@ -49,6 +49,35 @@ EARNINGS_IMMINENT_DAYS = 1      # Urgent alert when earnings are today or tomorr
 PRICE_MOVE_THRESHOLD = 5.0     # Alert on daily move >= N% (absolute)
 VOLUME_SPIKE_MULTIPLIER = 2.0  # Alert when volume >= N × 20-day average
 
+# --- Movers (market-wide spike scanner) ---
+# A "mover" needs BOTH an unusual volume day and a real price rise on the last
+# completed session. Measured live, either-condition yields 800-1,200 hits a day
+# across these markets — unreadable, and unaffordable to run an LLM over.
+# Both-conditions yields ~30-40, which per-stock analysis handles comfortably.
+# A quiet day can legitimately yield zero; the page renders that as a normal
+# outcome, not an error.
+MOVERS_MIN_RVOL       = float(os.getenv("MOVERS_MIN_RVOL", "5.0"))
+MOVERS_MIN_CHANGE_PCT = float(os.getenv("MOVERS_MIN_CHANGE_PCT", "5.0"))
+MOVERS_LOOKBACK       = int(os.getenv("MOVERS_LOOKBACK", "20"))
+# Concurrency against Yahoo's chart endpoint. The feed paces itself globally
+# (see market_scan/feed.py), so this bounds threads, not request rate.
+MOVERS_MAX_WORKERS    = int(os.getenv("MOVERS_MAX_WORKERS", "8"))
+# Kimi K3 with OpenRouter's web-search plugin (":online"), so notes can cite
+# what actually happened. ANALYSIS_MAX is the cost guard: notes are the only
+# per-run spend, and this prompt asks for a business model plus a thesis, so
+# they are not short.
+MOVERS_MODEL          = os.getenv("MOVERS_MODEL", "moonshotai/kimi-k3:online")
+MOVERS_ANALYSIS_MAX   = int(os.getenv("MOVERS_ANALYSIS_MAX", "40"))
+MOVERS_RETENTION_DAYS = int(os.getenv("MOVERS_RETENTION_DAYS", "60"))
+# Symbol lists are fetched from the exchanges' own directories and cached on the
+# volume; refetched when the cache is older than this.
+MOVERS_UNIVERSE_TTL_DAYS = float(os.getenv("MOVERS_UNIVERSE_TTL_DAYS", "7"))
+# Comma-separated market keys (india,nasdaq,nyse,amex) to scan on a daily
+# schedule. Empty => on-demand only, from the page.
+MOVERS_SCHEDULE_MARKETS = os.getenv("MOVERS_SCHEDULE_MARKETS", "")
+MOVERS_SCHEDULE_HOUR    = int(os.getenv("MOVERS_SCHEDULE_HOUR", "22"))
+MOVERS_SCHEDULE_MINUTE  = int(os.getenv("MOVERS_SCHEDULE_MINUTE", "30"))
+
 # --- Check Schedule ---
 # Alert checks run once a day at ALERT_SCHEDULE_HOUR:MINUTE in ALERT_SCHEDULE_TZ
 # (default 23:00 Europe/London = 11 PM UK time, auto-adjusting BST↔GMT), plus
@@ -87,6 +116,7 @@ _REPO_DIR = os.path.dirname(__file__)
 DATA_DIR = os.getenv("DATA_DIR", _REPO_DIR)
 
 WATCHLIST_FILE = os.path.join(DATA_DIR, "watchlist.json")
+MARKET_SCAN_DIR = os.path.join(DATA_DIR, "market_scan")   # runs/ + universes/
 ALERT_LOG_FILE = os.path.join(DATA_DIR, "alert_log.json")
 RESEARCH_DIR   = os.path.join(DATA_DIR, "research")
 SEED_WATCHLIST = os.path.join(_REPO_DIR, "watchlist.json")  # baked default

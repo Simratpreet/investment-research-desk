@@ -17,6 +17,8 @@ screener_alerts/announcements_store.json
 screener_alerts/annual_reports_seen.json
 screener_alerts/seen.json
 screener_alerts/pending.json
+market_scan/runs/
+market_scan/universes/
 
 # Generated report/log artifacts (append-only, multi-MB)
 news_alerts/reports.md

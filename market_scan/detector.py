@@ -1,0 +1,61 @@
+"""The spike test. Pure: no network, no clock, no config lookups.
+
+Everything the detector needs arrives as an argument, so the boundary cases —
+short history, a zero-volume baseline, a stock that gapped from nothing — are
+ordinary unit tests rather than something you can only find in production.
+"""
+
+from .domain import Hit, Market, PriceSeries, ScanCriteria, UniverseEntry
+
+
+class SpikeDetector:
+    def __init__(self, criteria: ScanCriteria):
+        self.criteria = criteria
+
+    def evaluate(self, entry: UniverseEntry, series: PriceSeries, index: int,
+                 market: Market, session_date: str) -> Hit | None:
+        """A Hit if the bar at `index` cleared the criteria, else None."""
+        lookback = self.criteria.lookback
+        # The baseline is the `lookback` sessions ending with the bar before the
+        # target, so index `lookback` is the earliest bar that has a full window
+        # behind it. Anything earlier is a recent listing whose "average volume"
+        # would be an average of whatever happened to exist.
+        if index < lookback or index >= len(series):
+            return None
+
+        volume = series.volumes[index]
+        close = series.closes[index]
+        prev_close = series.closes[index - 1]
+        if close <= 0 or prev_close <= 0 or volume <= 0:
+            return None
+
+        # Baseline is the `lookback` sessions strictly before the target, so a
+        # spike is never compared against a window that contains itself.
+        window = series.volumes[index - lookback:index]
+        avg_volume = sum(window) / len(window)
+        if avg_volume <= 0:
+            return None
+
+        rvol = volume / avg_volume
+        change_pct = (close - prev_close) / prev_close * 100.0
+        if not self.criteria.matches(rvol, change_pct):
+            return None
+
+        turnover = close * volume
+        if turnover < market.min_turnover:
+            # A 5x day on an illiquid microcap is a rounding error, not interest.
+            return None
+
+        meta = series.meta or {}
+        return Hit(
+            ticker=entry.symbol,
+            name=meta.get("longName") or entry.name or entry.symbol,
+            rvol=rvol,
+            change_pct=change_pct,
+            price=close,
+            volume=volume,
+            avg_volume=avg_volume,
+            turnover=turnover,
+            currency=meta.get("currency") or market.currency,
+            session_date=session_date,
+        )

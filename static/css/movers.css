@@ -1,0 +1,152 @@
+/* Movers — market-wide spike scanner. Shares base.css tokens with the rest of
+   the app; the page primitives (.container/.eyebrow/.btn) mirror todos.css so
+   the two pages read as one product. */
+
+body {
+  background:
+    radial-gradient(circle at 12% 5%, rgba(220, 248, 121, 0.15), transparent 26rem),
+    var(--bg);
+}
+
+.container { max-width:1180px; margin:0 auto; padding:36px 28px 64px; }
+.eyebrow { display:flex; align-items:center; gap:9px; color:var(--accent); font-size:.68rem; font-weight:800;
+           letter-spacing:.12em; text-transform:uppercase; margin-bottom:9px; }
+.eyebrow::before { content:''; width:24px; height:2px; background:var(--accent); border-radius:99px; }
+.page-title { font-family:'Geist',sans-serif; color:var(--ink); font-size:clamp(1.8rem,4vw,2.6rem);
+              line-height:1.03; letter-spacing:-.05em; margin:0 0 .3rem; }
+.page-sub { color:var(--text-secondary); font-size:.92rem; margin:0 0 1.7rem; max-width:64ch; }
+
+.btn { border:0; border-radius:11px; padding:.62rem 1.15rem; font-weight:600; font-size:.85rem;
+       cursor:pointer; transition:background .16s, box-shadow .16s, border-color .16s, color .16s; }
+.btn:disabled { opacity:.45; cursor:default; }
+.btn-primary { background:var(--accent); color:#fff; }
+.btn-primary:hover:not(:disabled) { background:var(--accent-hover); box-shadow:0 8px 18px rgba(31,106,74,.18); }
+.btn-ghost { background:var(--surface); color:var(--text-secondary); border:1px solid var(--border); }
+.btn-ghost:hover:not(:disabled) { border-color:#c9d2c6; color:var(--text); background:var(--surface-warm); }
+
+/* --- Scan bar ------------------------------------------------------------ */
+
+.scan-bar { display:flex; align-items:flex-end; gap:.7rem; flex-wrap:wrap; margin-bottom:1rem; }
+.market-picker { display:flex; flex-direction:column; gap:.35rem; }
+.market-picker-label { font-size:.68rem; font-weight:800; letter-spacing:.11em; text-transform:uppercase;
+                       color:var(--text-muted); }
+.market-picker select {
+  background:var(--surface); border:1px solid var(--border); border-radius:11px;
+  padding:.6rem .9rem; font-size:.85rem; font-weight:550; color:var(--text); min-width:190px;
+}
+.scan-meta { color:var(--text-muted); font-size:.8rem; margin-left:auto; text-align:right; }
+.scan-meta b { color:var(--text-secondary); font-weight:650; }
+
+/* --- Progress ------------------------------------------------------------ */
+
+.progress { display:flex; align-items:center; gap:.8rem; margin:0 0 1.1rem; }
+.progress-track { flex:1; height:6px; background:var(--border-light); border-radius:99px; overflow:hidden; }
+.progress-fill { height:100%; width:0; background:var(--accent); border-radius:99px; transition:width .4s ease; }
+.progress-text { font-family:'Geist Mono',monospace; font-size:.76rem; color:var(--text-secondary);
+                 white-space:nowrap; }
+
+/* --- Banners ------------------------------------------------------------- */
+
+.banner { border-radius:12px; padding:.8rem 1rem; font-size:.84rem; margin-bottom:1.1rem;
+          border:1px solid transparent; }
+.banner-warn { background:var(--amber-bg); border-color:rgba(167,102,8,.22); color:var(--amber); }
+.banner b { font-weight:700; }
+
+/* --- Results table ------------------------------------------------------- */
+
+.result-head { display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; margin-bottom:.8rem; }
+.result-head h3 { font-size:1.05rem; font-weight:700; letter-spacing:-.02em; color:var(--ink); }
+.session-badge { background:var(--green-bg); color:var(--green); font-size:.7rem; font-weight:700;
+                 padding:.22rem .55rem; border-radius:7px; letter-spacing:.02em; }
+.criteria-note { color:var(--text-muted); font-size:.78rem; margin-left:auto; }
+
+.table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+              box-shadow:var(--shadow-sm); overflow-x:auto; }
+table.movers { width:100%; border-collapse:collapse; min-width:860px; }
+table.movers th {
+  text-align:left; font-size:.68rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--text-muted); padding:.85rem 1rem; border-bottom:1px solid var(--border);
+  white-space:nowrap; cursor:pointer; user-select:none;
+}
+table.movers th:hover { color:var(--text-secondary); }
+table.movers th.sorted::after { content:'▾'; margin-left:.3rem; font-size:.85em; }
+table.movers th.sorted.asc::after { content:'▴'; }
+table.movers th.num, table.movers td.num { text-align:right; }
+table.movers td { padding:.8rem 1rem; border-bottom:1px solid var(--border-light); font-size:.86rem;
+                  vertical-align:middle; }
+table.movers tr:last-child td { border-bottom:0; }
+tr.row-main { cursor:pointer; transition:background .13s; }
+tr.row-main:hover { background:var(--surface-warm); }
+
+.name-cell { font-weight:600; color:var(--ink); }
+.name-cell small { display:block; font-family:'Geist Mono',monospace; font-weight:500;
+                   color:var(--text-muted); font-size:.72rem; margin-top:2px; }
+.num { font-family:'Geist Mono',monospace; font-variant-numeric:tabular-nums; }
+.chg-up { color:var(--green); font-weight:650; }
+.rvol-badge { display:inline-block; background:var(--blue-bg); color:var(--blue); font-weight:700;
+              padding:.18rem .45rem; border-radius:6px; font-family:'Geist Mono',monospace; font-size:.78rem; }
+.rvol-badge.hot { background:var(--amber-bg); color:var(--amber); }
+.rvol-badge.blazing { background:var(--red-bg); color:var(--red); }
+.muted { color:var(--text-muted); }
+
+.note-toggle { background:none; border:0; color:var(--accent); font-size:.78rem; font-weight:650;
+               cursor:pointer; padding:.2rem .1rem; white-space:nowrap; }
+.note-toggle:hover { text-decoration:underline; }
+
+/* --- Expanded AI note ---------------------------------------------------- */
+
+tr.row-note td { background:var(--surface-warm); padding:0; border-bottom:1px solid var(--border); }
+.note-body { padding:1.1rem 1.2rem 1.3rem; max-width:78ch; font-size:.87rem; line-height:1.65;
+             color:var(--text-secondary); }
+.note-body h1, .note-body h2, .note-body h3 {
+  font-size:.92rem; font-weight:700; color:var(--ink); margin:1.1rem 0 .4rem; letter-spacing:-.01em; }
+.note-body h1:first-child, .note-body h2:first-child, .note-body h3:first-child { margin-top:0; }
+.note-body p { margin:0 0 .75rem; }
+.note-body ul, .note-body ol { margin:0 0 .8rem 1.1rem; }
+.note-body li { margin-bottom:.3rem; }
+.note-body a { color:var(--accent); text-decoration:underline; text-underline-offset:2px; }
+.note-body strong { color:var(--text); font-weight:650; }
+.note-body code { font-family:'Geist Mono',monospace; font-size:.85em; background:var(--border-light);
+                  padding:.1rem .3rem; border-radius:4px; }
+/* Fallback when the markdown CDN is unavailable — keep the note's own line
+   breaks so it stays readable instead of collapsing into one paragraph. */
+.note-body.note-plain { white-space:pre-wrap; }
+
+.note-status { font-size:.8rem; color:var(--text-muted); padding:1rem 1.2rem; }
+.note-status.failed { color:var(--red); }
+.note-model { display:block; margin-top:.9rem; padding-top:.7rem; border-top:1px solid var(--border);
+              font-size:.72rem; color:var(--text-muted); font-family:'Geist Mono',monospace; }
+
+/* --- Empty state --------------------------------------------------------- */
+
+.empty {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:3rem 2rem; text-align:center; box-shadow:var(--shadow-sm);
+}
+.empty-mark { font-size:1.7rem; margin-bottom:.6rem; }
+.empty h3 { font-size:1rem; font-weight:700; color:var(--ink); margin-bottom:.4rem; }
+.empty p { color:var(--text-secondary); font-size:.87rem; max-width:46ch; margin:0 auto; }
+
+/* --- Mobile -------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .container { padding:24px 16px 48px; }
+  .scan-bar { gap:.5rem; }
+  .market-picker { flex:1 1 100%; }
+  .market-picker select { width:100%; }
+  .scan-meta { margin-left:0; text-align:left; flex:1 1 100%; }
+  .criteria-note { margin-left:0; flex-basis:100%; }
+  .note-body { padding:.9rem 1rem 1.1rem; font-size:.85rem; }
+
+  /* On a phone the table must not scroll sideways: RVOL and change are the
+     whole point of the page, and a horizontally-scrolled table hides exactly
+     those two behind the columns nobody scans for. Drop to company + the two
+     numbers that matter; the rest stay in the note and on desktop. */
+  .table-wrap { overflow-x:visible; }
+  table.movers { min-width:0; }
+  .col-sector, .col-market_cap, .col-price, .col-turnover { display:none; }
+  table.movers th, table.movers td { padding:.7rem .5rem; }
+  table.movers th:first-child, table.movers td:first-child { padding-left:.85rem; }
+  .name-cell { font-size:.83rem; }
+  .note-toggle { font-size:.72rem; }
+}

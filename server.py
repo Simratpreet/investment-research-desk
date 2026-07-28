@@ -157,6 +157,11 @@ def ensure_data_dir():
     os.makedirs(os.path.join(DATA_DIR, "uploads"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "conversations"), exist_ok=True)
     os.makedirs(os.path.join(DATA_DIR, "todos"), exist_ok=True)
+    # Movers: scan runs and the cached exchange symbol lists. Both go on the
+    # volume — a redeploy must not lose a run, nor force a refetch of every
+    # universe on first boot.
+    os.makedirs(os.path.join(DATA_DIR, "market_scan", "runs"), exist_ok=True)
+    os.makedirs(os.path.join(DATA_DIR, "market_scan", "universes"), exist_ok=True)
     if (WATCHLIST_FILE != SEED_WATCHLIST
             and not os.path.exists(WATCHLIST_FILE)
             and os.path.exists(SEED_WATCHLIST)):
@@ -169,6 +174,10 @@ app.register_blueprint(voice_bp)
 
 from todo_module import todo_bp
 app.register_blueprint(todo_bp)
+
+# Movers — GET /movers page + the market-scan API
+from scan_module import scan_bp
+app.register_blueprint(scan_bp)
 
 
 def load_watchlist() -> list[dict]:
