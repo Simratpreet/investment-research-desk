@@ -18,7 +18,8 @@ screener_alerts/annual_reports_seen.json
 screener_alerts/seen.json
 screener_alerts/pending.json
 market_scan/runs/
-market_scan/universes/
+# NOT market_scan/universes/ — the committed CSV exports are the symbol lists
+# and must ship in the image, or a scan has nothing to scan.
 
 # Generated report/log artifacts (append-only, multi-MB)
 news_alerts/reports.md

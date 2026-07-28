@@ -7,12 +7,15 @@ container builds, and a test-only dependency would either bloat the image or
 drift from what the image actually installs.
 """
 
+import contextlib
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
 import time
+import types
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -24,24 +27,23 @@ from market_scan.feed import FeedError, _to_series
 from market_scan.scanner import MarketScanner
 from market_scan.session import SessionSelector
 from market_scan.store import ScanStore, hits_from_stored
-from market_scan.universe import (MARKETS, UniverseRepository,
-                                  UniverseUnavailable, parse_amex, parse_nasdaq,
-                                  parse_nse, parse_nyse)
+from market_scan.universe import (BAKED_DIR, MARKETS, UniverseRepository,
+                                  UniverseUnavailable, parse_market_cap,
+                                  parse_screener_export)
 
 DAY = 86400
-INDIA = MARKETS["india"]
+NASDAQ = MARKETS["nasdaq"]
 
 # A market with no liquidity floor, so the detector tests assert the spike rule
-# and nothing else. The floor gets its own dedicated test against INDIA.
-NO_FLOOR = Market("test", "Test Market", "https://example.invalid",
-                  lambda raw: [], "INR", 0.0)
+# and nothing else. The floor gets its own dedicated test against NASDAQ.
+NO_FLOOR = Market("test", "Test Market", "test.csv", lambda raw: [], "USD", 0.0)
 
 
 def series(volumes, closes=None, meta=None, start=1_700_000_000):
     """A PriceSeries with one bar per day, oldest first."""
     n = len(volumes)
     closes = closes if closes is not None else [100.0] * n
-    return PriceSeries("TEST.NS", tuple(start + i * DAY for i in range(n)),
+    return PriceSeries("TEST", tuple(start + i * DAY for i in range(n)),
                        tuple(float(c) for c in closes),
                        tuple(float(v) for v in volumes), meta or {})
 
@@ -78,7 +80,7 @@ class TestScanCriteria(unittest.TestCase):
 class TestSpikeDetector(unittest.TestCase):
     def setUp(self):
         self.det = SpikeDetector(ScanCriteria(lookback=20))
-        self.entry = UniverseEntry("TEST.NS", "Test Ltd")
+        self.entry = UniverseEntry("TEST", "Test Ltd")
 
     def evaluate(self, vols, closes, index=None, market=NO_FLOOR):
         s = series(vols, closes)
@@ -128,12 +130,12 @@ class TestSpikeDetector(unittest.TestCase):
         self.assertIsNone(self.evaluate(vols, closes))
 
     def test_turnover_floor_drops_illiquid_names(self):
-        # 100x volume and +100%, but the whole day traded 200 rupees. Clears the
-        # spike rule and is still not a mover — India's floor is 1 crore.
+        # 100x volume and +100%, but the whole day traded $200. Clears the spike
+        # rule and is still not a mover — NASDAQ's floor is $1m.
         vols = [1.0] * 20 + [100.0]
         closes = [1.0] * 20 + [2.0]
         self.assertIsNotNone(self.evaluate(vols, closes, market=NO_FLOOR))
-        self.assertIsNone(self.evaluate(vols, closes, market=INDIA))
+        self.assertIsNone(self.evaluate(vols, closes, market=NASDAQ))
 
     def test_evaluates_a_mid_series_bar(self):
         # The target is not always the last bar: mid-session runs look back one.
@@ -143,14 +145,48 @@ class TestSpikeDetector(unittest.TestCase):
         self.assertIsNotNone(self.evaluate(vols, closes, index=21))
         self.assertIsNone(self.evaluate(vols, closes, index=22))
 
+    def spike(self):
+        vols, closes = flat(21, volume=1000.0)
+        vols[-1], closes[-1] = 10_000.0, 110.0
+        return vols, closes
+
+    def test_funds_are_rejected_however_they_got_into_the_universe(self):
+        # A leveraged or crypto ETF genuinely posts 5x volume on a +5% day, and
+        # would crowd out the businesses this page exists to surface. Yahoo
+        # labels the instrument, so this holds even for a hand-dropped CSV.
+        vols, closes = self.spike()
+        for kind in ("ETF", "MUTUALFUND", "INDEX", "CRYPTOCURRENCY"):
+            s = series(vols, closes, meta={"instrumentType": kind})
+            self.assertIsNone(
+                self.det.evaluate(self.entry, s, len(vols) - 1, NO_FLOOR,
+                                  "2026-07-24"), kind)
+
+    def test_equities_and_unlabelled_instruments_are_kept(self):
+        # Absent metadata must not silently empty a scan, so it defaults to
+        # equity rather than to rejection.
+        vols, closes = self.spike()
+        for meta in ({"instrumentType": "EQUITY"}, {"instrumentType": "equity"},
+                     {"instrumentType": None}, {}):
+            s = series(vols, closes, meta=meta)
+            self.assertIsNotNone(
+                self.det.evaluate(self.entry, s, len(vols) - 1, NO_FLOOR,
+                                  "2026-07-24"), meta)
+
+    def test_market_cap_comes_from_the_export(self):
+        vols, closes = self.spike()
+        entry = UniverseEntry("TEST", "Test Ltd", market_cap=4.02e6)
+        hit = self.det.evaluate(entry, series(vols, closes), len(vols) - 1,
+                                NO_FLOOR, "2026-07-24")
+        self.assertEqual(hit.market_cap, 4.02e6)
+
     def test_prefers_the_feeds_company_name(self):
         vols, closes = flat(21, volume=1000.0)
         vols[-1], closes[-1] = 10_000.0, 110.0
         s = series(vols, closes, meta={"longName": "Test Industries Limited",
-                                       "currency": "INR"})
+                                       "currency": "USD"})
         hit = self.det.evaluate(self.entry, s, len(vols) - 1, NO_FLOOR, "2026-07-24")
         self.assertEqual(hit.name, "Test Industries Limited")
-        self.assertEqual(hit.currency, "INR")
+        self.assertEqual(hit.currency, "USD")
 
 
 # --- session selection ------------------------------------------------------
@@ -229,56 +265,80 @@ class TestSessionSelector(unittest.TestCase):
         self.assertIsNone(self.sel.target_index(series([])))
 
 
-# --- universe parsers -------------------------------------------------------
+# --- universe parsing -------------------------------------------------------
 
-NSE_CSV = (b"SYMBOL,NAME OF COMPANY, SERIES, DATE OF LISTING, PAID UP VALUE,"
-           b" MARKET LOT, ISIN NUMBER, FACE VALUE\n"
-           b"20MICRONS,20 Microns Limited,EQ,06-OCT-2008,5,1,INE144J01027,5\n"
-           b"SMALLCO,Small Co Limited,SM,01-JAN-2020,10,1,INE000A01000,10\n"
-           b"BIGCO,Big Co Limited,EQ,01-JAN-2020,10,1,INE000A01001,10\n")
+US_CSV = (b"Ticker,Company,Market Cap\n"
+          b"NVDA,NVIDIA Corporation,5.23T\n"
+          b"BRK-B,Berkshire Hathaway Inc.,1.03B\n"
+          b"TINY,Tiny Holdings Inc.,900K\n"
+          b"NOCAP,No Cap Corp,\n"
+          b",Blank Ticker Inc.,1.00M\n"
+          b"NVDA,NVIDIA Corporation,5.23T\n")
 
-NASDAQ_TXT = (b"Symbol|Security Name|Market Category|Test Issue|Financial Status|"
-              b"Round Lot Size|ETF|NextShares\n"
-              b"AAPL|Apple Inc. - Common Stock|Q|N|N|100|N|N\n"
-              b"QQQ|Invesco QQQ Trust|Q|N|N|100|Y|N\n"
-              b"ZTEST|Test Issue|Q|Y|N|100|N|N\n"
-              b"File Creation Time: 0727202618:00|||||||\n")
-
-OTHER_TXT = (b"ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|"
-             b"Test Issue|NASDAQ Symbol\n"
-             b"A|Agilent Technologies, Inc. Common Stock|N|A|N|100|N|A\n"
-             b"BRK.A|Berkshire Hathaway Class A|N|BRKA|N|1|N|BRK.A\n"
-             b"SPY|SPDR S&P 500|P|SPY|Y|100|N|SPY\n"
-             b"IMO|Imperial Oil Limited|A|IMO|N|100|N|IMO\n")
+TSX_CSV = (b"Ticker,Company,Market Cap,Country\n"
+           b"AAB.TO,Aberdeen International Inc.,4.02M,Canada\n"
+           b"AGF-B.TO,AGF Management Limited,1.5B,Canada\n")
 
 
 class TestParsers(unittest.TestCase):
-    def test_nse_keeps_only_the_eq_series_and_suffixes(self):
-        entries = parse_nse(NSE_CSV)
-        self.assertEqual([e.symbol for e in entries], ["20MICRONS.NS", "BIGCO.NS"])
-        self.assertEqual(entries[0].name, "20 Microns Limited")
+    def test_reads_ticker_company_and_cap(self):
+        entries = parse_screener_export(US_CSV)
+        self.assertEqual(entries[0].symbol, "NVDA")
+        self.assertEqual(entries[0].name, "NVIDIA Corporation")
+        self.assertEqual(entries[0].market_cap, 5.23e12)
 
-    def test_nse_header_has_leading_spaces(self):
-        # ` SERIES` with a leading space is really what NSE serves; if the
-        # parser stopped stripping header whitespace every row would be dropped.
-        self.assertTrue(parse_nse(NSE_CSV))
+    def test_cap_suffixes_become_absolute_units(self):
+        # Absolute, so a CSV cap and a yfinance cap are the same kind of number.
+        self.assertEqual(parse_market_cap("1.03B"), 1.03e9)
+        self.assertEqual(parse_market_cap("900K"), 900_000)
+        self.assertEqual(parse_market_cap("4.02M"), 4_020_000)
+        self.assertEqual(parse_market_cap("$1,234"), 1234.0)
 
-    def test_nasdaq_drops_etfs_test_issues_and_the_footer(self):
-        entries = parse_nasdaq(NASDAQ_TXT)
-        self.assertEqual([e.symbol for e in entries], ["AAPL"])
+    def test_unparseable_or_absent_cap_is_none_not_zero(self):
+        # None means "unknown" and lets enrichment fill it; 0.0 would look like
+        # a real answer and block the lookup.
+        for bad in ("", "   ", "n/a", "-"):
+            self.assertIsNone(parse_market_cap(bad), bad)
+        self.assertIsNone([e for e in parse_screener_export(US_CSV)
+                           if e.symbol == "NOCAP"][0].market_cap)
 
-    def test_nyse_filters_by_exchange_and_rewrites_share_classes(self):
-        entries = parse_nyse(OTHER_TXT)
-        # Yahoo writes Berkshire's A class as BRK-A, not BRK.A.
-        self.assertEqual([e.symbol for e in entries], ["A", "BRK-A"])
+    def test_rows_without_a_ticker_are_skipped(self):
+        self.assertNotIn("", [e.symbol for e in parse_screener_export(US_CSV)])
 
-    def test_amex_reads_the_same_file_with_a_different_exchange(self):
-        self.assertEqual([e.symbol for e in parse_amex(OTHER_TXT)], ["IMO"])
+    def test_duplicate_listings_are_collapsed(self):
+        symbols = [e.symbol for e in parse_screener_export(US_CSV)]
+        self.assertEqual(symbols.count("NVDA"), 1)
 
-    def test_every_registered_market_has_a_working_parser(self):
+    def test_tsx_extra_country_column_is_ignored_and_tickers_kept_verbatim(self):
+        entries = parse_screener_export(TSX_CSV)
+        # Already Yahoo-form: nothing here rewrites a symbol.
+        self.assertEqual([e.symbol for e in entries], ["AAB.TO", "AGF-B.TO"])
+
+    def baked(self, market):
+        with open(os.path.join(BAKED_DIR, market.csv_file), "rb") as f:
+            return market.parser(f.read())
+
+    def test_every_registered_market_has_a_committed_export(self):
         for key, market in MARKETS.items():
             self.assertTrue(callable(market.parser), key)
-            self.assertTrue(market.source.startswith("https://"), key)
+            path = os.path.join(BAKED_DIR, market.csv_file)
+            self.assertTrue(os.path.isfile(path), f"{key}: missing {path}")
+            self.assertGreater(len(self.baked(market)), 100, key)
+
+    def test_committed_exports_are_companies_not_funds(self):
+        # The whole reason for using exports rather than an exchange directory:
+        # a leveraged or crypto ETF really does post 5x volume on a +5% day.
+        for key, market in MARKETS.items():
+            names = [e.name for e in self.baked(market)]
+            funds = [n for n in names if re.search(r"\b(ETF|Index Fund)\b", n, re.I)]
+            self.assertEqual(funds, [], f"{key} export contains funds")
+
+    def test_committed_exports_carry_market_caps(self):
+        # A cap from the CSV is what lets enrichment skip the lookup entirely.
+        for key, market in MARKETS.items():
+            entries = self.baked(market)
+            with_cap = [e for e in entries if e.market_cap]
+            self.assertGreater(len(with_cap), len(entries) * 0.9, key)
 
 
 class TestUniverseRepository(unittest.TestCase):
@@ -286,65 +346,86 @@ class TestUniverseRepository(unittest.TestCase):
         self.dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
 
-    def repo(self, **kw):
-        return UniverseRepository(self.dir, **kw)
+    def write_override(self, market_key, body: bytes):
+        path = os.path.join(self.dir, MARKETS[market_key].csv_file)
+        with open(path, "wb") as f:
+            f.write(body)
+        return path
 
-    def test_fetch_then_serve_from_cache(self):
-        repo = self.repo()
-        calls = []
-
-        def fake_fetch(market):
-            calls.append(market.key)
-            return [UniverseEntry("AAA.NS", "Aaa Ltd")]
-
-        repo._fetch = fake_fetch
-        entries, stale = repo.load("india")
-        self.assertEqual(len(entries), 1)
+    def test_reads_the_committed_export_by_default(self):
+        entries, stale = UniverseRepository(None).load("nasdaq")
+        self.assertGreater(len(entries), 100)
         self.assertFalse(stale)
 
-        # A second load inside the TTL must not hit the network again.
-        repo2 = self.repo()
-        repo2._fetch = fake_fetch
-        entries, stale = repo2.load("india")
-        self.assertEqual([e.symbol for e in entries], ["AAA.NS"])
-        self.assertEqual(len(calls), 1)
+    def test_override_directory_wins_over_the_committed_copy(self):
+        self.write_override("nasdaq", US_CSV)
+        entries, _ = UniverseRepository(self.dir).load("nasdaq")
+        # The real export has thousands of rows; the override has a handful.
+        self.assertEqual(entries[0].symbol, "NVDA")
+        self.assertLess(len(entries), 10)
 
-    def test_stale_cache_is_used_when_the_fetch_fails(self):
-        repo = self.repo()
-        repo._write("india", [UniverseEntry("AAA.NS", "Aaa Ltd")])
-        # Age the cache past the TTL.
-        path = repo._path("india")
-        old = time.time() - 30 * 86400
+    def test_missing_override_falls_through_to_the_committed_copy(self):
+        entries, _ = UniverseRepository(self.dir).load("tsx")
+        self.assertGreater(len(entries), 100)
+
+    def test_an_old_override_still_scans_but_is_flagged_stale(self):
+        path = self.write_override("nasdaq", US_CSV)
+        old = time.time() - 400 * 86400
         os.utime(path, (old, old))
+        entries, stale = UniverseRepository(self.dir).load("nasdaq")
+        self.assertTrue(entries)     # a dated list beats no scan at all
+        self.assertTrue(stale)       # but the page has to say so
 
-        def boom(market):
-            raise RuntimeError("NSE is down")
+    def test_a_fresh_override_is_not_stale(self):
+        self.write_override("nasdaq", US_CSV)
+        self.assertFalse(UniverseRepository(self.dir).load("nasdaq")[1])
 
-        repo._fetch = boom
-        entries, stale = repo.load("india")
-        self.assertEqual([e.symbol for e in entries], ["AAA.NS"])
-        self.assertTrue(stale)   # a week-old symbol list beats a failed scan
+    def test_committed_export_age_comes_from_exported_on_not_mtime(self):
+        # The bug this guards: a git checkout and a Docker build both stamp
+        # mtime with the build time, so an mtime-based check would call a
+        # year-old export brand new on every deploy and never warn.
+        market = MARKETS["nasdaq"]
+        self.assertTrue(market.exported_on, "nasdaq has no recorded export date")
+        os.utime(os.path.join(BAKED_DIR, market.csv_file), None)   # mtime = now
+        repo = UniverseRepository(None, max_age_days=0.5)
+        self.assertTrue(repo.load("nasdaq")[1])
+        # And a generous window still reads it as current.
+        self.assertFalse(UniverseRepository(None, max_age_days=100_000)
+                         .load("nasdaq")[1])
 
-    def test_no_cache_and_a_failed_fetch_raises(self):
-        repo = self.repo()
+    def test_every_market_records_when_its_export_was_taken(self):
+        for key, market in MARKETS.items():
+            time.strptime(market.exported_on, "%Y-%m-%d")   # raises if malformed
 
-        def boom(market):
-            raise RuntimeError("NSE is down")
+    def test_reparse_is_skipped_while_the_file_is_unchanged(self):
+        self.write_override("nasdaq", US_CSV)
+        repo = UniverseRepository(self.dir)
+        first, _ = repo.load("nasdaq")
+        second, _ = repo.load("nasdaq")
+        self.assertIs(first, second)
 
-        repo._fetch = boom
+    def test_a_rewritten_file_is_picked_up(self):
+        self.write_override("nasdaq", US_CSV)
+        repo = UniverseRepository(self.dir)
+        self.assertEqual(repo.load("nasdaq")[0][0].symbol, "NVDA")
+        path = self.write_override("nasdaq", b"Ticker,Company,Market Cap\nZZZ,Zed,1M\n")
+        os.utime(path, (time.time() + 5, time.time() + 5))
+        self.assertEqual(repo.load("nasdaq")[0][0].symbol, "ZZZ")
+
+    def test_a_file_with_no_usable_rows_raises(self):
+        self.write_override("nasdaq", b"Ticker,Company,Market Cap\n")
         # Loud, so a broken universe can never look like a quiet market.
         with self.assertRaises(UniverseUnavailable):
-            repo.load("india")
+            UniverseRepository(self.dir).load("nasdaq")
 
-    def test_empty_result_raises_rather_than_scanning_nothing(self):
-        repo = self.repo()
-        repo._fetch = lambda market: []
+    def test_a_missing_file_everywhere_raises(self):
+        repo = UniverseRepository(self.dir, baked_dir=self.dir)
         with self.assertRaises(UniverseUnavailable):
-            repo.load("india")
+            repo.load("nasdaq")
 
     def test_unknown_market_raises(self):
         with self.assertRaises(UniverseUnavailable):
-            self.repo().load("atlantis")
+            UniverseRepository(self.dir).load("atlantis")
 
 
 # --- the feed's payload handling -------------------------------------------
@@ -399,7 +480,7 @@ class StubFeed:
         if symbol in self.broken:
             raise FeedError(f"{symbol}: HTTP 429")
         start = 1_700_000_000 - (40 * DAY if symbol in self.stale else 0)
-        # Sized to clear India's 1-crore turnover floor, so these tests exercise
+        # Sized to clear the US $1m turnover floor, so these tests exercise
         # failure isolation rather than accidentally testing the liquidity rule.
         vols = [5_000.0] * 20 + [200_000.0]
         closes = [100.0] * 20 + [120.0]
@@ -426,7 +507,7 @@ class TestScanner(unittest.TestCase):
     def test_one_bad_symbol_never_ends_the_run(self):
         symbols = [f"S{i}" for i in range(20)]
         feed = StubFeed(broken=symbols[:3], missing=symbols[3:6])
-        result = build(feed, symbols, max_workers=4).scan("india")
+        result = build(feed, symbols, max_workers=4).scan("nasdaq")
         self.assertEqual(result.stats["failed"], 3)
         self.assertEqual(result.stats["no_data"], 3)
         self.assertEqual(result.stats["scanned"], 14)
@@ -434,13 +515,13 @@ class TestScanner(unittest.TestCase):
 
     def test_a_mostly_failed_run_is_degraded_not_empty(self):
         symbols = [f"S{i}" for i in range(20)]
-        result = build(StubFeed(broken=symbols[:15]), symbols).scan("india")
+        result = build(StubFeed(broken=symbols[:15]), symbols).scan("nasdaq")
         self.assertTrue(result.degraded)
         self.assertEqual(result.stats["failed"], 15)
 
     def test_a_healthy_quiet_run_is_not_degraded(self):
         symbols = [f"S{i}" for i in range(20)]
-        result = build(StubFeed(missing=symbols), symbols).scan("india")
+        result = build(StubFeed(missing=symbols), symbols).scan("nasdaq")
         self.assertFalse(result.degraded)
         self.assertEqual(len(result.hits), 0)
 
@@ -448,13 +529,13 @@ class TestScanner(unittest.TestCase):
         # Names whose last completed session is weeks old (halted, dormant) get
         # counted, not shown: their spike is against a stale baseline.
         symbols = [f"S{i}" for i in range(10)]
-        result = build(StubFeed(stale=symbols[:3]), symbols).scan("india")
+        result = build(StubFeed(stale=symbols[:3]), symbols).scan("nasdaq")
         self.assertEqual(result.stats["stale"], 3)
         self.assertEqual(len(result.hits), 7)
 
     def test_hits_are_sorted_by_rvol(self):
         symbols = [f"S{i}" for i in range(5)]
-        result = build(StubFeed(), symbols).scan("india")
+        result = build(StubFeed(), symbols).scan("nasdaq")
         rvols = [h.rvol for h in result.hits]
         self.assertEqual(rvols, sorted(rvols, reverse=True))
 
@@ -462,7 +543,7 @@ class TestScanner(unittest.TestCase):
         symbols = [f"S{i}" for i in range(12)]
         seen = []
         build(StubFeed(), symbols, max_workers=3).scan(
-            "india", progress_cb=lambda done, total: seen.append((done, total)))
+            "nasdaq", progress_cb=lambda done, total: seen.append((done, total)))
         self.assertEqual(len(seen), 12)
         self.assertEqual(max(d for d, _ in seen), 12)
         self.assertTrue(all(t == 12 for _, t in seen))
@@ -472,25 +553,25 @@ class TestScanner(unittest.TestCase):
         symbols = [f"S{i}" for i in range(30)]
         stop = threading.Event()
         stop.set()
-        result = build(StubFeed(), symbols).scan("india", stop_event=stop)
+        result = build(StubFeed(), symbols).scan("nasdaq", stop_event=stop)
         self.assertTrue(result.stopped)
         self.assertEqual(result.stats["skipped"], 30)
 
     def test_limit_caps_the_universe(self):
         symbols = [f"S{i}" for i in range(50)]
-        result = build(StubFeed(), symbols).scan("india", limit=10)
+        result = build(StubFeed(), symbols).scan("nasdaq", limit=10)
         self.assertEqual(result.stats["total"], 10)
 
     def test_universe_staleness_is_carried_onto_the_result(self):
-        result = build(StubFeed(), ["S1"], universe_stale=True).scan("india")
+        result = build(StubFeed(), ["S1"], universe_stale=True).scan("nasdaq")
         self.assertTrue(result.universe_stale)
 
 
 # --- persistence ------------------------------------------------------------
 
-def make_result(market="india", session="2026-07-24", tickers=("AAA.NS",)):
+def make_result(market="nasdaq", session="2026-07-24", tickers=("AAA",)):
     hits = tuple(
-        Hit(t, f"{t} Ltd", 8.0, 9.0, 100.0, 5000.0, 600.0, 500_000.0, "INR", session)
+        Hit(t, f"{t} Ltd", 8.0, 9.0, 100.0, 5000.0, 600.0, 500_000.0, "USD", session)
         for t in tickers)
     return ScanResult(market, session, hits, ScanCriteria(), {"total": 1})
 
@@ -503,46 +584,46 @@ class TestScanStore(unittest.TestCase):
 
     def test_round_trip(self):
         self.store.save(make_result())
-        data = self.store.latest("india")
+        data = self.store.latest("nasdaq")
         self.assertEqual(data["session_date"], "2026-07-24")
         self.assertEqual(len(data["hits"]), 1)
-        self.assertEqual(data["hits"][0]["ticker"], "AAA.NS")
+        self.assertEqual(data["hits"][0]["ticker"], "AAA")
 
     def test_latest_picks_the_newest_session(self):
         self.store.save(make_result(session="2026-07-20"))
         self.store.save(make_result(session="2026-07-24"))
-        self.assertEqual(self.store.latest("india")["session_date"], "2026-07-24")
-        self.assertEqual(self.store.list_runs("india"),
+        self.assertEqual(self.store.latest("nasdaq")["session_date"], "2026-07-24")
+        self.assertEqual(self.store.list_runs("nasdaq"),
                          ["2026-07-24", "2026-07-20"])
 
     def test_markets_are_kept_separate(self):
-        self.store.save(make_result(market="india"))
+        self.store.save(make_result(market="nasdaq"))
         self.store.save(make_result(market="nasdaq", tickers=("BBB",)))
         self.assertEqual(self.store.latest("nasdaq")["hits"][0]["ticker"], "BBB")
-        self.assertEqual(self.store.list_runs("amex"), [])
+        self.assertEqual(self.store.list_runs("nyse"), [])
 
     def test_update_hit_merges_enrichment(self):
         self.store.save(make_result())
-        self.assertTrue(self.store.update_hit("india", "2026-07-24", "AAA.NS",
+        self.assertTrue(self.store.update_hit("nasdaq", "2026-07-24", "AAA",
                                               sector="Energy", market_cap=1.2e9))
-        hit = self.store.latest("india")["hits"][0]
+        hit = self.store.latest("nasdaq")["hits"][0]
         self.assertEqual(hit["sector"], "Energy")
         self.assertEqual(hit["market_cap"], 1.2e9)
         # Untouched fields survive the merge.
         self.assertEqual(hit["rvol"], 8.0)
 
     def test_update_hit_on_a_missing_run_is_false_not_an_error(self):
-        self.assertFalse(self.store.update_hit("india", "1999-01-01", "AAA.NS",
+        self.assertFalse(self.store.update_hit("nasdaq", "1999-01-01", "AAA",
                                                sector="X"))
 
     def test_analyses_are_written_back_one_at_a_time(self):
-        self.store.save(make_result(tickers=("AAA.NS", "BBB.NS")))
-        self.store.save_analysis("india", "2026-07-24",
-                                 HitAnalysis("AAA.NS", "A note.", "ok"))
-        data = self.store.latest("india")
+        self.store.save(make_result(tickers=("AAA", "BBB")))
+        self.store.save_analysis("nasdaq", "2026-07-24",
+                                 HitAnalysis("AAA", "A note.", "ok"))
+        data = self.store.latest("nasdaq")
         # The first note is durable even though the second never arrived.
-        self.assertEqual(data["analyses"]["AAA.NS"]["summary"], "A note.")
-        self.assertNotIn("BBB.NS", data["analyses"])
+        self.assertEqual(data["analyses"]["AAA"]["summary"], "A note.")
+        self.assertNotIn("BBB", data["analyses"])
 
     def test_writes_are_atomic(self):
         self.store.save(make_result())
@@ -553,31 +634,31 @@ class TestScanStore(unittest.TestCase):
     def test_prune_drops_old_runs_and_keeps_recent_ones(self):
         self.store.save(make_result(session="2026-07-24"))
         self.store.save(make_result(session="2026-01-01"))
-        old = self.store._path("india", "2026-01-01")
+        old = self.store._path("nasdaq", "2026-01-01")
         stamp = time.time() - 120 * 86400
         os.utime(old, (stamp, stamp))
         self.store.prune(60)
-        self.assertEqual(self.store.list_runs("india"), ["2026-07-24"])
+        self.assertEqual(self.store.list_runs("nasdaq"), ["2026-07-24"])
 
     def test_latest_on_an_unknown_market_is_none(self):
         self.assertIsNone(self.store.latest("nasdaq"))
 
     def test_corrupt_file_is_ignored_rather_than_crashing(self):
         os.makedirs(self.dir, exist_ok=True)
-        with open(os.path.join(self.dir, "india_2026-07-24.json"), "w") as f:
+        with open(os.path.join(self.dir, "nasdaq_2026-07-24.json"), "w") as f:
             f.write("{not json")
-        self.assertIsNone(self.store.latest("india"))
+        self.assertIsNone(self.store.latest("nasdaq"))
 
     def test_hits_rebuild_from_stored_json(self):
-        self.store.save(make_result(tickers=("AAA.NS", "BBB.NS")))
-        hits = hits_from_stored(self.store.latest("india"))
-        self.assertEqual([h.ticker for h in hits], ["AAA.NS", "BBB.NS"])
+        self.store.save(make_result(tickers=("AAA", "BBB")))
+        hits = hits_from_stored(self.store.latest("nasdaq"))
+        self.assertEqual([h.ticker for h in hits], ["AAA", "BBB"])
         self.assertEqual(hits[0].session_date, "2026-07-24")
 
     def test_hits_rebuild_skips_malformed_rows(self):
         hits = hits_from_stored({"hits": [{"no_ticker": 1},
-                                          {"ticker": "OK.NS", "name": "Ok"}]})
-        self.assertEqual([h.ticker for h in hits], ["OK.NS"])
+                                          {"ticker": "OK", "name": "Ok"}]})
+        self.assertEqual([h.ticker for h in hits], ["OK"])
 
 
 # --- the analyst ------------------------------------------------------------
@@ -587,31 +668,31 @@ class TestAnalyst(unittest.TestCase):
         from market_scan.analyst import OpenRouterAnalyst, build_messages
         self.build_messages = build_messages
         self.Analyst = OpenRouterAnalyst
-        self.hit = Hit("DEEPINDS.NS", "Deep Industries Limited", 6.2, 8.4, 516.45,
-                       1_631_764, 263_000, 8.4e8, "INR", "2026-07-24",
+        self.hit = Hit("HOOD", "Robinhood Markets, Inc.", 6.2, 8.4, 516.45,
+                       1_631_764, 263_000, 8.4e8, "USD", "2026-07-24",
                        sector="Energy")
 
     def test_prompt_carries_the_measured_facts(self):
-        messages = self.build_messages(self.hit, "India (NSE)")
+        messages = self.build_messages(self.hit, "NASDAQ")
         self.assertEqual(messages[0]["role"], "system")
         user = messages[1]["content"]
         # The model must explain *this* move, not the company in general.
-        for fragment in ("DEEPINDS.NS", "Deep Industries Limited", "India (NSE)",
+        for fragment in ("HOOD", "Robinhood Markets, Inc.", "NASDAQ",
                          "2026-07-24", "6.2x", "+8.4%", "Energy"):
             self.assertIn(fragment, user)
 
     def test_prompt_forbids_inventing_a_catalyst(self):
-        system = self.build_messages(self.hit, "India (NSE)")[0]["content"]
+        system = self.build_messages(self.hit, "NASDAQ")[0]["content"]
         self.assertIn("no identifiable public catalyst", system)
 
     def test_prompt_asks_the_users_question(self):
-        user = self.build_messages(self.hit, "India (NSE)")[1]["content"]
-        self.assertIn("business model and investment thesis", user)
-        self.assertIn("margin expansion", user)
+        user = self.build_messages(self.hit, "NASDAQ")[1]["content"]
+        self.assertIn("business model and the investment thesis", user)
+        self.assertIn("margins expanding", user)
 
     def test_unknown_sector_and_cap_are_stated_not_faked(self):
-        bare = Hit("X.NS", "X Ltd", 6.0, 6.0, 10.0, 1.0, 1.0, 1.0, "INR", "2026-07-24")
-        user = self.build_messages(bare, "India (NSE)")[1]["content"]
+        bare = Hit("X", "X Ltd", 6.0, 6.0, 10.0, 1.0, 1.0, 1.0, "USD", "2026-07-24")
+        user = self.build_messages(bare, "NASDAQ")[1]["content"]
         self.assertIn("Sector: not known", user)
         self.assertIn("Market cap: not known", user)
 
@@ -619,7 +700,7 @@ class TestAnalyst(unittest.TestCase):
         analysis = self.Analyst("", "some/model").explain(self.hit)
         self.assertEqual(analysis.status, "failed")
         self.assertIn("OPENROUTER_API_KEY", analysis.error)
-        self.assertEqual(analysis.ticker, "DEEPINDS.NS")
+        self.assertEqual(analysis.ticker, "HOOD")
 
     def test_an_upstream_error_fails_the_note_not_the_run(self):
         analyst = self.Analyst("key", "some/model")
@@ -645,19 +726,101 @@ class TestAnalyst(unittest.TestCase):
 
 # --- enrichment -------------------------------------------------------------
 
+@contextlib.contextmanager
+def fake_yfinance(info=None, explodes=False):
+    """Swap in a stub `yfinance`, or remove it entirely.
+
+    Without this the tests reach Yahoo for real: yfinance is a pinned
+    dependency, so `import yfinance` inside enrich() succeeds and the "no
+    network" promise at the top of this file quietly stops being true.
+    """
+    previous = sys.modules.get("yfinance")
+    if info is None and not explodes:
+        sys.modules["yfinance"] = None       # makes `import yfinance` raise
+    else:
+        module = types.ModuleType("yfinance")
+
+        class Ticker:
+            def __init__(self, symbol):
+                if explodes:
+                    raise RuntimeError("Yahoo is down")
+                self.info = dict(info or {})
+
+        module.Ticker = Ticker
+        sys.modules["yfinance"] = module
+    try:
+        yield
+    finally:
+        if previous is None:
+            sys.modules.pop("yfinance", None)
+        else:
+            sys.modules["yfinance"] = previous
+
+
+class RecordingStore:
+    def __init__(self):
+        self.calls = []
+
+    def update_hit(self, market, session_date, ticker, **fields):
+        self.calls.append((ticker, fields))
+        return True
+
+
+class ExplodingStore:
+    def update_hit(self, *a, **kw):
+        raise RuntimeError("store is down")
+
+
 class TestEnrich(unittest.TestCase):
-    def test_enrichment_never_raises_when_yfinance_is_missing(self):
-        # The tests run without yfinance installed; enrichment must degrade to a
-        # no-op rather than taking the run down with it.
+    def hit(self, market_cap=None):
+        return Hit("X", "X", 6.0, 6.0, 1.0, 1.0, 1.0, 1.0, "USD", "2026-07-24",
+                   market_cap=market_cap)
+
+    def run_enrich(self, store, hits):
         from market_scan.enrich import enrich
-        hit = Hit("X.NS", "X", 6.0, 6.0, 1.0, 1.0, 1.0, 1.0, "INR", "2026-07-24")
+        return enrich(hits, store, "nasdaq", "2026-07-24")
 
-        class ExplodingStore:
-            def update_hit(self, *a, **kw):
-                raise RuntimeError("store is down")
+    def test_a_missing_yfinance_is_a_no_op_not_a_crash(self):
+        with fake_yfinance():
+            store = RecordingStore()
+            self.assertEqual(self.run_enrich(store, [self.hit()]), 0)
+            self.assertEqual(store.calls, [])
 
-        self.assertIsInstance(enrich([hit], ExplodingStore(), "india",
-                                     "2026-07-24"), int)
+    def test_sector_is_filled(self):
+        with fake_yfinance({"sector": "Energy", "marketCap": 5e8}):
+            store = RecordingStore()
+            self.assertEqual(self.run_enrich(store, [self.hit(market_cap=1e9)]), 1)
+            self.assertEqual(store.calls[0][1]["sector"], "Energy")
+
+    def test_a_cap_from_the_export_is_never_overwritten(self):
+        # Yahoo's cap can be badly wrong for microcaps, and the export's figure
+        # is at least internally consistent — so it wins.
+        with fake_yfinance({"sector": "Energy", "marketCap": 1_937_872}):
+            store = RecordingStore()
+            self.run_enrich(store, [self.hit(market_cap=72_000_000)])
+            self.assertNotIn("market_cap", store.calls[0][1])
+
+    def test_a_missing_cap_is_filled_from_yahoo(self):
+        with fake_yfinance({"marketCap": 5e8}):
+            store = RecordingStore()
+            self.run_enrich(store, [self.hit(market_cap=None)])
+            self.assertEqual(store.calls[0][1]["market_cap"], 5e8)
+
+    def test_nothing_useful_means_no_write(self):
+        with fake_yfinance({"longName": "X Ltd"}):
+            store = RecordingStore()
+            self.assertEqual(self.run_enrich(store, [self.hit(market_cap=1e9)]), 0)
+            self.assertEqual(store.calls, [])
+
+    def test_a_yahoo_failure_never_raises(self):
+        with fake_yfinance(explodes=True):
+            self.assertEqual(self.run_enrich(RecordingStore(), [self.hit()]), 0)
+
+    def test_a_store_failure_never_raises(self):
+        # The scan is already on disk; losing a sector must not cost the run.
+        with fake_yfinance({"sector": "Energy"}):
+            self.assertIsInstance(self.run_enrich(ExplodingStore(), [self.hit()]),
+                                  int)
 
 
 if __name__ == "__main__":

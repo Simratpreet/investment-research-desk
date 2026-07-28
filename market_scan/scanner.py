@@ -111,14 +111,19 @@ class MarketScanner:
         )
 
 
-def build_scanner(cache_dir: str, criteria: ScanCriteria, max_workers: int = 8,
-                  ttl_days: float = 7.0) -> MarketScanner:
-    """The standard wiring, so callers don't repeat the four constructors."""
+def build_scanner(universe_dir: str | None, criteria: ScanCriteria,
+                  max_workers: int = 8,
+                  max_age_days: float = 120.0) -> MarketScanner:
+    """The standard wiring, so callers don't repeat the four constructors.
+
+    `universe_dir` is the optional DATA_DIR override searched before the
+    exports committed alongside the package.
+    """
     from .detector import SpikeDetector
     from .feed import YahooPriceFeed
     from .session import SessionSelector
     return MarketScanner(
-        UniverseRepository(cache_dir, ttl_days=ttl_days),
+        UniverseRepository(universe_dir, max_age_days=max_age_days),
         YahooPriceFeed(),
         SessionSelector(),
         SpikeDetector(criteria),

@@ -78,17 +78,25 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   - **Criteria:** `RVOL ≥ 5×` **AND** `change ≥ +5%`, up only, 20-day baseline, all
     `MOVERS_*` in config.py. Both conditions matter: measured live, `or` yields
     800–1,200 hits/day (unreadable, unaffordable to analyse), `and` yields ~30–40.
-  - **Markets:** `india` (NSE), `nasdaq`, `nyse`, `amex`. **No CSVs in the repo** —
-    symbol lists are fetched from NSE's `EQUITY_L.csv` and NASDAQ Trader's
-    `nasdaqlisted.txt`/`otherlisted.txt`, cached as JSON on the volume with a 7-day
-    TTL. A failed refetch falls back to the stale cache; only a total absence raises.
-    Adding a market is one `Market` entry + one parser in `market_scan/universe.py`.
+  - **Markets:** `nasdaq`, `nyse`, `tsx`. Symbol lists are **screener CSV exports
+    committed to `market_scan/universes/`** (`Ticker, Company, Market Cap`; tickers
+    already in Yahoo form). Read from disk, so a scan needs no network to know what
+    to scan and the list is identical run to run. Crucially the exports are
+    **companies only** — no ETFs, no closed-end funds — which an exchange directory
+    is not; a leveraged or crypto ETF really does post 5× volume on a +5% day. The
+    detector also rejects anything Yahoo labels non-`EQUITY`, so a hand-dropped CSV
+    can't reintroduce funds. Refresh by overwriting the CSV, or drop one into
+    `DATA_DIR/market_scan/universes/` to skip a redeploy; past
+    `MOVERS_UNIVERSE_MAX_AGE_DAYS` (120) a scan still runs but is flagged stale.
+    Adding a market is one `Market` entry in `market_scan/universe.py` + a CSV.
   - **Pipeline:** `scan → PERSIST → enrich → analyse`. The run is written to disk
     before enrichment or notes begin, and both write back incrementally — an
-    OpenRouter outage or a yfinance failure costs notes, never the scan.
+    OpenRouter outage or a yfinance failure costs notes, never the scan. Enrichment
+    fetches the **sector** only; market cap comes from the export and is never
+    overwritten (Yahoo's cap is unreliable for microcaps).
   - **Cost:** notes are the only per-run spend. `MOVERS_ANALYSIS_MAX` (default 40)
-    caps them; the prompt asks for a business model *and* a thesis, so they are not
-    short. Scanning itself is free.
+    caps them and `MOVERS_ANALYSIS_CONCURRENCY` (3) overlaps the waiting; the prompt
+    asks for a business model *and* a thesis, so they are not short. Scanning is free.
   - **Schedule:** on-demand only unless `MOVERS_SCHEDULE_MARKETS` names markets
     (comma-separated), which registers a daily APScheduler job in `main.py`.
 - **Notes** (the "Research"→"Notes" tab): per-ticker markdown research notes.

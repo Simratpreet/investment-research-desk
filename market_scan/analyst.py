@@ -24,13 +24,13 @@ from .domain import Hit, HitAnalysis
 
 OR_URL = "https://openrouter.ai/api/v1"
 
-# The user's question, verbatim. Kept as one string so it reads the way it was
-# asked rather than being reassembled from fragments.
+# The question asked of every hit. One string, so it reads as a question rather
+# than being reassembled from fragments.
 QUESTION = (
-    "Why did this stock is getting investor interest recently? Are there signs "
-    "of revenue growth acceleration to come or margin expansion to happen or "
-    "deleveraging, or something else? Explain the business model and investment "
-    "thesis in brief"
+    "Why is this stock attracting investor interest right now? Are there signs "
+    "of revenue growth accelerating, margins expanding, or the balance sheet "
+    "deleveraging — or is something else driving it? Briefly explain the "
+    "business model and the investment thesis."
 )
 
 SYSTEM = (

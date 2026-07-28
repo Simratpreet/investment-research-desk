@@ -23,6 +23,17 @@ class SpikeDetector:
         if index < lookback or index >= len(series):
             return None
 
+        meta = series.meta or {}
+        # Companies only. The committed exports carry no funds, but a refreshed
+        # export dropped into DATA_DIR might, and a leveraged or crypto ETF
+        # genuinely does post 5x volume on a +5% day — exactly the row that
+        # would crowd out the businesses this page exists to surface. Yahoo
+        # labels the instrument itself, so this holds whatever the CSV says.
+        # Absent metadata defaults to EQUITY: a missing field must not silently
+        # empty the scan.
+        if (meta.get("instrumentType") or "EQUITY").upper() != "EQUITY":
+            return None
+
         volume = series.volumes[index]
         close = series.closes[index]
         prev_close = series.closes[index - 1]
@@ -46,7 +57,6 @@ class SpikeDetector:
             # A 5x day on an illiquid microcap is a rounding error, not interest.
             return None
 
-        meta = series.meta or {}
         return Hit(
             ticker=entry.symbol,
             name=meta.get("longName") or entry.name or entry.symbol,
@@ -58,4 +68,6 @@ class SpikeDetector:
             turnover=turnover,
             currency=meta.get("currency") or market.currency,
             session_date=session_date,
+            # From the export, so the note has a cap even if enrichment fails.
+            market_cap=entry.market_cap,
         )

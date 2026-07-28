@@ -68,11 +68,17 @@ MOVERS_MAX_WORKERS    = int(os.getenv("MOVERS_MAX_WORKERS", "8"))
 # they are not short.
 MOVERS_MODEL          = os.getenv("MOVERS_MODEL", "moonshotai/kimi-k3:online")
 MOVERS_ANALYSIS_MAX   = int(os.getenv("MOVERS_ANALYSIS_MAX", "40"))
+# Notes run concurrently: each is a web-search call taking most of a minute, so
+# a serial pass over a busy day would leave the page half-written for half an
+# hour. Bounded, because the point is to overlap the waiting rather than to open
+# every billable call at once.
+MOVERS_ANALYSIS_CONCURRENCY = int(os.getenv("MOVERS_ANALYSIS_CONCURRENCY", "3"))
 MOVERS_RETENTION_DAYS = int(os.getenv("MOVERS_RETENTION_DAYS", "60"))
-# Symbol lists are fetched from the exchanges' own directories and cached on the
-# volume; refetched when the cache is older than this.
-MOVERS_UNIVERSE_TTL_DAYS = float(os.getenv("MOVERS_UNIVERSE_TTL_DAYS", "7"))
-# Comma-separated market keys (india,nasdaq,nyse,amex) to scan on a daily
+# Symbol lists are CSV exports committed under market_scan/universes/ (override
+# by dropping a file into DATA_DIR/market_scan/universes/). Past this age a scan
+# still runs but is flagged, since the list predates any recent listings.
+MOVERS_UNIVERSE_MAX_AGE_DAYS = float(os.getenv("MOVERS_UNIVERSE_MAX_AGE_DAYS", "120"))
+# Comma-separated market keys (nasdaq,nyse,tsx) to scan on a daily
 # schedule. Empty => on-demand only, from the page.
 MOVERS_SCHEDULE_MARKETS = os.getenv("MOVERS_SCHEDULE_MARKETS", "")
 MOVERS_SCHEDULE_HOUR    = int(os.getenv("MOVERS_SCHEDULE_HOUR", "22"))

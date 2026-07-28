@@ -17,24 +17,37 @@ UP = "up"
 class Market:
     """One scannable exchange universe.
 
-    `source` is the upstream symbol-directory URL and `parser` the function that
-    turns its bytes into UniverseEntry rows — see universe.py. `min_turnover` is
-    in `currency` units and drops names that clear 5x volume on a handful of
-    shares (an illiquid microcap's "spike" is a rounding error).
+    `csv_file` is the export's filename inside the universes directory and
+    `parser` the function that turns its bytes into UniverseEntry rows — see
+    universe.py. `min_turnover` is in `currency` units and drops names that
+    clear 5x volume on a handful of shares (an illiquid microcap's "spike" is a
+    rounding error).
     """
     key: str
     label: str
-    source: str
+    csv_file: str
     parser: Callable[[bytes], list]
     currency: str
     min_turnover: float
+    # The date the committed export was taken, as YYYY-MM-DD. Recorded here
+    # rather than read from the file's mtime because a git checkout and a Docker
+    # build both stamp mtime with the build time — a year-old export would look
+    # brand new in production and the staleness warning would never fire.
+    # Update this when you replace the CSV.
+    exported_on: str = ""
 
 
 @dataclass(frozen=True)
 class UniverseEntry:
-    """A name to scan. Symbol is already in Yahoo form (suffix applied)."""
+    """A name to scan. Symbol is already in Yahoo form (suffix applied).
+
+    `market_cap` is absolute, in the market's currency, and comes straight from
+    the export — so a hit has a cap without a per-symbol lookup. None when the
+    export didn't carry one, in which case enrichment tries to fill it.
+    """
     symbol: str
     name: str
+    market_cap: float | None = None
 
 
 @dataclass(frozen=True)

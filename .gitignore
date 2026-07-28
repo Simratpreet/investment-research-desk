@@ -18,7 +18,7 @@ screener_alerts/annual_reports_seen.json
 screener_alerts/seen.json
 screener_alerts/pending.json
 market_scan/runs/
-market_scan/universes/
+# market_scan/universes/ is deliberately tracked — the CSV exports are source.
 
 # ─── Generated report/log artifacts (append-only, multi-MB) ───────────────
 news_alerts/reports.md

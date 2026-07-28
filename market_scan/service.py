@@ -16,6 +16,7 @@ page renders from whatever is on disk at the moment it asks.
 """
 
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 from .analyst import OpenRouterAnalyst
@@ -39,17 +40,18 @@ def _idle_state() -> dict:
 class ScanService:
     def __init__(self, store: ScanStore, universe_dir: str, criteria: ScanCriteria,
                  *, api_key_fn, model: str, max_workers: int = 8,
-                 analysis_max: int = 40, retention_days: int = 60,
-                 universe_ttl_days: float = 7.0):
+                 analysis_max: int = 40, analysis_concurrency: int = 3,
+                 retention_days: int = 60, universe_max_age_days: float = 120.0):
         self._store = store
         self._criteria = criteria
         self._api_key_fn = api_key_fn
         self._model = model
         self._analysis_max = analysis_max
+        self._analysis_concurrency = analysis_concurrency
         self._retention_days = retention_days
         self._scanner = build_scanner(universe_dir, criteria,
                                       max_workers=max_workers,
-                                      ttl_days=universe_ttl_days)
+                                      max_age_days=universe_max_age_days)
         self._lock = threading.Lock()
         self._states: dict[str, dict] = {k: _idle_state() for k in MARKETS}
         self._stops: dict[str, threading.Event] = {k: threading.Event() for k in MARKETS}
@@ -145,7 +147,14 @@ class ScanService:
         self._finish(market, f"Scan complete — {len(hits)} mover(s).{suffix}")
 
     def _analyse(self, market: str, session_date: str, label: str) -> int:
-        """Write a note per hit, capped by `analysis_max` as the cost guard."""
+        """Write a note per hit, capped by `analysis_max` as the cost guard.
+
+        Notes run concurrently. Each is an independent web-search call taking
+        the better part of a minute, so a serial pass over a 40-hit day would
+        leave the page half-written for half an hour. Concurrency is bounded —
+        by the pool here and by the analyst's own semaphore — because the point
+        is to overlap the waiting, not to open forty billable calls at once.
+        """
         stored = self._store.latest(market) or {}
         hits = hits_from_stored(stored)     # re-read so notes see enriched sectors
         hits = [h for h in hits if h.session_date == session_date]
@@ -158,19 +167,39 @@ class ScanService:
 
         if not targets:
             return 0
-        analyst = OpenRouterAnalyst(self._api_key_fn(), self._model, market_label=label)
-        written = 0
-        for i, hit in enumerate(targets, 1):
+        workers = max(1, self._analysis_concurrency)
+        analyst = OpenRouterAnalyst(self._api_key_fn(), self._model,
+                                    market_label=label, concurrency=workers)
+        total = len(targets)
+        counted = threading.Lock()
+        done = written = 0
+        self._set(market, phase="analysing", done=0, total=total,
+                  message=f"Writing notes… 0/{total}")
+
+        def one(hit):
+            nonlocal done, written
             if self._stops[market].is_set():
-                break
-            self._set(market, phase="analysing", done=i, total=len(targets),
-                      message=f"Writing notes… {i}/{len(targets)}")
-            analysis = analyst.explain(hit)
-            # Persisted one at a time: an outage half way through keeps the half
-            # that succeeded.
-            self._store.save_analysis(market, session_date, analysis)
-            if analysis.status == "ok":
-                written += 1
+                return
+            try:
+                analysis = analyst.explain(hit)
+                # Persisted as each note lands, so an outage part way through a
+                # batch keeps every note produced so far. ScanStore serialises
+                # its own writes, so concurrent saves are safe.
+                self._store.save_analysis(market, session_date, analysis)
+                ok = analysis.status == "ok"
+            except Exception:
+                # explain() doesn't raise by contract and the store is
+                # defensive, but one note failing must never cost the others.
+                ok = False
+            with counted:
+                done += 1
+                written += 1 if ok else 0
+                progress = done
+            self._set(market, done=progress, total=total,
+                      message=f"Writing notes… {progress}/{total}")
+
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(one, targets))
         return written
 
     def _finish(self, market: str, message: str):

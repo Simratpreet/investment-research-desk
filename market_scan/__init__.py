@@ -3,7 +3,7 @@
 Layered so each concern is testable on its own:
 
     domain      pure data + the filter rule
-    universe    exchange symbol directories, fetched and cached
+    universe    exchange symbol lists, read from committed CSV exports
     feed        Yahoo daily bars
     session     which bar is the last *completed* session
     detector    the spike test (pure)

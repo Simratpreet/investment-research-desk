@@ -1,18 +1,22 @@
-"""Best-effort sector and market cap for the hits.
+"""Best-effort sector for the hits, and a market cap only where one is missing.
 
-The public symbol directories carry a ticker and a company name and nothing
-else, so sector and market cap have to come from somewhere. Yahoo's
-`quoteSummary` needs a crumb+cookie handshake — unauthenticated it just returns
-429 — but `yfinance` already does that dance and is already a pinned dependency
-(`alerts/price_action.py` reads `yf.Ticker(...).info` for currency), so this
-reuses a path the app already trusts.
+The exports carry a ticker, a company name and a market cap, but no sector — so
+that is what this fetches. Yahoo's `quoteSummary` needs a crumb+cookie handshake
+(unauthenticated it just returns 429), but `yfinance` already does that dance
+and is already a pinned dependency (`alerts/price_action.py` reads
+`yf.Ticker(...).info` for currency), so this reuses a path the app already
+trusts.
 
-Two rules make this safe to bolt onto the end of a run:
+Three rules make this safe to bolt onto the end of a run:
 
-  - **Hits only, never the universe.** ~33 lookups, not 4,000.
+  - **Hits only, never the universe.** ~30 lookups, not 4,000.
   - **Never raises, never blocks the result.** The scan is already persisted
-    before this runs; a 429 leaves sector/market cap null and the table renders
-    an em dash. Missing metadata is a cosmetic loss, a lost scan is not.
+    before this runs; a 429 leaves the sector null and the table renders an em
+    dash. Missing metadata is a cosmetic loss, a lost scan is not.
+  - **Never overwrites what the export already knew.** Yahoo's cap can be badly
+    wrong for microcaps — a $0.33 name that turned over $67M in a session came
+    back as a $1.9M company — so a cap from the CSV wins and Yahoo only fills a
+    genuine gap.
 """
 
 import time
@@ -47,14 +51,20 @@ def enrich(hits, store, market: str, session_date: str,
             info = yf.Ticker(hit.ticker).info or {}
         except Exception:
             return False
+        fields = {}
         sector = info.get("sector") or info.get("industry")
-        market_cap = info.get("marketCap")
-        if not sector and not market_cap:
+        if sector:
+            fields["sector"] = sector
+        # Only ever fills a gap — see the note at the top about Yahoo's caps.
+        if hit.market_cap is None and info.get("marketCap"):
+            try:
+                fields["market_cap"] = float(info["marketCap"])
+            except (TypeError, ValueError):
+                pass
+        if not fields:
             return False
         try:
-            store.update_hit(market, session_date, hit.ticker,
-                             sector=sector,
-                             market_cap=float(market_cap) if market_cap else None)
+            store.update_hit(market, session_date, hit.ticker, **fields)
         except Exception:
             return False
         time.sleep(PAUSE_S)

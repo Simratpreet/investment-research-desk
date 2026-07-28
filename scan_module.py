@@ -15,9 +15,10 @@ import os
 
 from flask import Blueprint, jsonify, render_template, request
 
-from config import (MARKET_SCAN_DIR, MOVERS_ANALYSIS_MAX, MOVERS_LOOKBACK,
-                    MOVERS_MAX_WORKERS, MOVERS_MIN_CHANGE_PCT, MOVERS_MIN_RVOL,
-                    MOVERS_MODEL, MOVERS_RETENTION_DAYS, MOVERS_UNIVERSE_TTL_DAYS)
+from config import (MARKET_SCAN_DIR, MOVERS_ANALYSIS_CONCURRENCY,
+                    MOVERS_ANALYSIS_MAX, MOVERS_LOOKBACK, MOVERS_MAX_WORKERS,
+                    MOVERS_MIN_CHANGE_PCT, MOVERS_MIN_RVOL, MOVERS_MODEL,
+                    MOVERS_RETENTION_DAYS, MOVERS_UNIVERSE_MAX_AGE_DAYS)
 from market_scan.domain import ScanCriteria
 from market_scan.service import ScanService
 from market_scan.store import ScanStore
@@ -28,6 +29,8 @@ from voice_module import _api_key   # one OpenRouter key for the whole app
 scan_bp = Blueprint("movers", __name__)
 
 RUNS_DIR = os.path.join(MARKET_SCAN_DIR, "runs")
+# Optional override, searched before the exports committed with the package —
+# so a refreshed CSV can be dropped onto the volume without a redeploy.
 UNIVERSE_DIR = os.path.join(MARKET_SCAN_DIR, "universes")
 
 CRITERIA = ScanCriteria(min_rvol=MOVERS_MIN_RVOL,
@@ -39,8 +42,9 @@ service = ScanService(store, UNIVERSE_DIR, CRITERIA,
                       api_key_fn=_api_key, model=MOVERS_MODEL,
                       max_workers=MOVERS_MAX_WORKERS,
                       analysis_max=MOVERS_ANALYSIS_MAX,
+                      analysis_concurrency=MOVERS_ANALYSIS_CONCURRENCY,
                       retention_days=MOVERS_RETENTION_DAYS,
-                      universe_ttl_days=MOVERS_UNIVERSE_TTL_DAYS)
+                      universe_max_age_days=MOVERS_UNIVERSE_MAX_AGE_DAYS)
 
 
 def _market(data) -> str | None:
