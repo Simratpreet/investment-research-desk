@@ -18,7 +18,7 @@ from flask import Blueprint, jsonify, render_template, request
 from config import (MARKET_SCAN_DIR, MOVERS_ANALYSIS_CONCURRENCY,
                     MOVERS_ANALYSIS_MAX, MOVERS_LOOKBACK, MOVERS_MAX_WORKERS,
                     MOVERS_MIN_CHANGE_PCT, MOVERS_MIN_RVOL, MOVERS_MODEL,
-                    MOVERS_RETENTION_DAYS, MOVERS_UNIVERSE_MAX_AGE_DAYS)
+                    MOVERS_RETAIN_SESSIONS, MOVERS_UNIVERSE_MAX_AGE_DAYS)
 from market_scan.domain import ScanCriteria
 from market_scan.service import ScanService
 from market_scan.store import ScanStore
@@ -43,7 +43,7 @@ service = ScanService(store, UNIVERSE_DIR, CRITERIA,
                       max_workers=MOVERS_MAX_WORKERS,
                       analysis_max=MOVERS_ANALYSIS_MAX,
                       analysis_concurrency=MOVERS_ANALYSIS_CONCURRENCY,
-                      retention_days=MOVERS_RETENTION_DAYS,
+                      retain_sessions=MOVERS_RETAIN_SESSIONS,
                       universe_max_age_days=MOVERS_UNIVERSE_MAX_AGE_DAYS)
 
 
@@ -83,7 +83,11 @@ def get_markets():
 
 @scan_bp.route("/api/movers", methods=["GET"])
 def get_movers():
-    """The latest stored run for a market, with live scan state attached.
+    """A market's retained sessions, newest first, with live scan state attached.
+
+    Every stored session is returned, not just the newest, so the page shows a
+    week of movers rather than a single day — one quiet session then reads as a
+    quiet session rather than as an empty page.
 
     This is what the page polls while a scan is running, so it must always
     answer: a market with no run yet returns an empty payload, not a 404.
@@ -91,18 +95,39 @@ def get_movers():
     key = _market(request.args)
     if key is None:
         return jsonify({"error": "unknown market"}), 400
-    data = store.latest(key) or {}
+    runs = store.recent(key, MOVERS_RETAIN_SESSIONS)
+    latest = runs[0] if runs else {}
+
+    hits, analyses, sessions = [], {}, []
+    for run in runs:
+        session = run.get("session_date") or ""
+        run_hits = run.get("hits") or []
+        hits.extend(run_hits)
+        # Namespaced by session: the same ticker can spike on two days, and a
+        # bare ticker key would let one day's note overwrite the other's.
+        for ticker, analysis in (run.get("analyses") or {}).items():
+            analyses[f"{session}|{ticker}"] = analysis
+        sessions.append({
+            "session_date": session,
+            "hits": len(run_hits),
+            "generated_at": run.get("generated_at"),
+            "degraded": run.get("degraded", False),
+            "stats": run.get("stats", {}),
+        })
+
     return jsonify({
         "market": key,
         "label": MARKETS[key].label,
-        "session_date": data.get("session_date"),
-        "generated_at": data.get("generated_at"),
-        "hits": data.get("hits", []),
-        "analyses": data.get("analyses", {}),
-        "stats": data.get("stats", {}),
-        "degraded": data.get("degraded", False),
-        "universe_stale": data.get("universe_stale", False),
-        "criteria": data.get("criteria") or CRITERIA.to_dict(),
+        "session_date": latest.get("session_date"),
+        "generated_at": latest.get("generated_at"),
+        "sessions": sessions,
+        "retained": MOVERS_RETAIN_SESSIONS,
+        "hits": hits,
+        "analyses": analyses,
+        "stats": latest.get("stats", {}),
+        "degraded": latest.get("degraded", False),
+        "universe_stale": latest.get("universe_stale", False),
+        "criteria": latest.get("criteria") or CRITERIA.to_dict(),
         "scan": service.state(key),
     })
 

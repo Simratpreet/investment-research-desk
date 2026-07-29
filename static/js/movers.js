@@ -28,7 +28,15 @@ function markdownReady() {
   return !!(window.marked && window.DOMPurify);
 }
 
+// A row's identity across the whole table. The same ticker can spike on more
+// than one retained session, and those are separate rows with separate notes.
+function rowKey(hit) {
+  return `${hit.session_date || ""}|${hit.ticker}`;
+}
+
 const SORTS = {
+  session_date: (a, b) => String(b.session_date || "").localeCompare(String(a.session_date || ""))
+                          || b.rvol - a.rvol,
   rvol:       (a, b) => b.rvol - a.rvol,
   change_pct: (a, b) => b.change_pct - a.change_pct,
   turnover:   (a, b) => b.turnover - a.turnover,
@@ -40,6 +48,7 @@ const SORTS = {
 };
 
 const COLUMNS = [
+  { key: "session_date", label: "Session", num: false },
   { key: "name",       label: "Company",   num: false },
   { key: "sector",     label: "Sector",    num: false },
   { key: "market_cap", label: "Mkt cap",   num: true },
@@ -54,7 +63,9 @@ const Movers = {
   data: null,
   markets: [],
   poll: null,
-  sort: { key: "rvol", asc: false },
+  // Newest session first, strongest spike within it — the table spans several
+  // days now, so ordering by RVOL alone would interleave them.
+  sort: { key: "session_date", asc: false },
   expanded: new Set(),
 
   async init() {
@@ -214,9 +225,14 @@ const Movers = {
           "The last scan couldn't reach enough of the market to trust the result. " +
           "Run it again in a few minutes.", "Scan was incomplete");
       } else {
+        const n = (d.sessions || []).length;
         this.renderEmpty(
-          "Every name traded within its usual range on " + d.session_date +
-          ". That's a normal, quiet session.", "No movers cleared the threshold");
+          n > 1
+            ? `Every name traded within its usual range across the last ${n} ` +
+              "scanned sessions. That's a quiet stretch, not a failure."
+            : "Every name traded within its usual range on " + d.session_date +
+              ". That's a normal, quiet session.",
+          "No movers cleared the threshold");
       }
       return;
     }
@@ -293,7 +309,7 @@ const Movers = {
       `<h3>${hits.length} mover${hits.length === 1 ? "" : "s"}</h3>
        <span class="session-badge"></span>
        <span class="criteria-note"></span>`;
-    head.querySelector(".session-badge").textContent = d.session_date || "";
+    head.querySelector(".session-badge").textContent = sessionSpan(d);
     head.querySelector(".criteria-note").textContent =
       `RVOL ≥ ${c.min_rvol}× and change ≥ +${c.min_change_pct}% · ` +
       `${c.lookback}-day baseline`;
@@ -335,18 +351,26 @@ const Movers = {
   },
 
   renderRow(hit, d) {
-    const analysis = (d.analyses || {})[hit.ticker];
-    const open = this.expanded.has(hit.ticker);
+    const key = rowKey(hit);
+    const analysis = (d.analyses || {})[key];
+    const open = this.expanded.has(key);
 
     const tr = document.createElement("tr");
     tr.className = "row-main";
+
+    tr.append(cell(hit.session_date || "—", false, "col-session_date"));
 
     const name = document.createElement("td");
     name.className = "name-cell col-name";
     name.textContent = hit.name;
     const sub = document.createElement("small");
     sub.textContent = hit.ticker;
-    name.append(sub);
+    // Repeated under the company for narrow screens, where the session column
+    // is dropped — without it a row from five merged days has no date at all.
+    const when = document.createElement("small");
+    when.className = "row-session";
+    when.textContent = hit.session_date || "";
+    name.append(sub, when);
     tr.append(name);
 
     tr.append(cell(hit.sector || "—", !hit.sector, "col-sector"));
@@ -377,8 +401,8 @@ const Movers = {
     tr.append(toggle);
 
     const onToggle = () => {
-      if (this.expanded.has(hit.ticker)) this.expanded.delete(hit.ticker);
-      else this.expanded.add(hit.ticker);
+      if (this.expanded.has(key)) this.expanded.delete(key);
+      else this.expanded.add(key);
       this.render();
     };
     tr.addEventListener("click", onToggle);
@@ -481,6 +505,16 @@ function renderNote(analysis) {
     div.append(foot);
   }
   return div;
+}
+
+// "2026-07-28" for one stored session, "2026-07-24 → 2026-07-28 · 5 sessions"
+// for several. The table spans everything retained, so a single date in the
+// header would misdescribe what is on screen.
+function sessionSpan(d) {
+  const dates = (d.sessions || []).map((s) => s.session_date).filter(Boolean);
+  if (dates.length <= 1) return d.session_date || "";
+  const oldest = dates[dates.length - 1];
+  return `${oldest} → ${dates[0]} · ${dates.length} sessions`;
 }
 
 function phaseLabel(phase) {

@@ -41,14 +41,14 @@ class ScanService:
     def __init__(self, store: ScanStore, universe_dir: str, criteria: ScanCriteria,
                  *, api_key_fn, model: str, max_workers: int = 8,
                  analysis_max: int = 40, analysis_concurrency: int = 3,
-                 retention_days: int = 60, universe_max_age_days: float = 120.0):
+                 retain_sessions: int = 5, universe_max_age_days: float = 120.0):
         self._store = store
         self._criteria = criteria
         self._api_key_fn = api_key_fn
         self._model = model
         self._analysis_max = analysis_max
         self._analysis_concurrency = analysis_concurrency
-        self._retention_days = retention_days
+        self._retain_sessions = retain_sessions
         self._scanner = build_scanner(universe_dir, criteria,
                                       max_workers=max_workers,
                                       max_age_days=universe_max_age_days)
@@ -120,7 +120,7 @@ class ScanService:
             return
 
         self._store.save(result)
-        self._store.prune(self._retention_days)
+        self._store.prune(self._retain_sessions)
 
         if result.stopped:
             self._finish(market, f"Stopped — {len(result.hits)} mover(s) found so far.")

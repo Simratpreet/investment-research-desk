@@ -75,6 +75,13 @@ body {
   .active-bar { grid-column:1 / -1; }
 }
 
+/* The session column is a date the eye should be able to group by, so it gets
+   the mono face and recedes — it is context for the row, not its subject. */
+.col-session_date { font-family:'Geist Mono',monospace; font-size:.74rem;
+                    color:var(--text-muted); white-space:nowrap; }
+/* Redundant while the session column is on screen; the mobile rule turns it on. */
+.row-session { display:none; }
+
 /* --- Banners ------------------------------------------------------------- */
 
 .banner { border-radius:12px; padding:.8rem 1rem; font-size:.84rem; margin-bottom:1.1rem;
@@ -174,9 +181,13 @@ tr.row-note td { background:var(--surface-warm); padding:0; border-bottom:1px so
      numbers that matter; the rest stay in the note and on desktop. */
   .table-wrap { overflow-x:visible; }
   table.movers { min-width:0; }
-  .col-sector, .col-market_cap, .col-price, .col-turnover { display:none; }
+  .col-session_date, .col-sector, .col-market_cap, .col-price,
+  .col-turnover { display:none; }
   table.movers th, table.movers td { padding:.7rem .5rem; }
   table.movers th:first-child, table.movers td:first-child { padding-left:.85rem; }
   .name-cell { font-size:.83rem; }
   .note-toggle { font-size:.72rem; }
+  /* The session column is gone here, so each row carries its own date. */
+  .row-session { display:block; font-family:'Geist Mono',monospace;
+                 font-size:.68rem; color:var(--text-muted); margin-top:.15rem; }
 }

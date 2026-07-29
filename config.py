@@ -73,7 +73,11 @@ MOVERS_ANALYSIS_MAX   = int(os.getenv("MOVERS_ANALYSIS_MAX", "40"))
 # hour. Bounded, because the point is to overlap the waiting rather than to open
 # every billable call at once.
 MOVERS_ANALYSIS_CONCURRENCY = int(os.getenv("MOVERS_ANALYSIS_CONCURRENCY", "3"))
-MOVERS_RETENTION_DAYS = int(os.getenv("MOVERS_RETENTION_DAYS", "60"))
+# How many sessions of history the page keeps and shows per market. Counted in
+# stored runs rather than calendar days, so a market scanned twice a week still
+# shows five scans rather than two — and pruning can't be reset by a redeploy
+# restamping every file's mtime.
+MOVERS_RETAIN_SESSIONS = int(os.getenv("MOVERS_RETAIN_SESSIONS", "5"))
 # Symbol lists are CSV exports committed under market_scan/universes/ (override
 # by dropping a file into DATA_DIR/market_scan/universes/). Past this age a scan
 # still runs but is flagged, since the list predates any recent listings.

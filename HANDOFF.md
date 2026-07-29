@@ -103,6 +103,13 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   - **Cost:** notes are the only per-run spend. `MOVERS_ANALYSIS_MAX` (default 40)
     caps them and `MOVERS_ANALYSIS_CONCURRENCY` (3) overlaps the waiting; the prompt
     asks for a business model *and* a thesis, so they are not short. Scanning is free.
+  - **History:** the page shows the last `MOVERS_RETAIN_SESSIONS` (5) stored
+    sessions for a market in one table, with a Session column, sorted newest
+    session first then by RVOL within it. Pruning keeps the newest 5 runs **per
+    market, counted by session date** — not by file age, which would wipe a
+    market scanned weekly and would be reset anyway by a redeploy restamping
+    every file's mtime. Notes are namespaced `session|ticker` in the API, since
+    the same ticker can spike on more than one retained day.
   - **Concurrency:** scans are single-flight *per market* but independent across
     them, so several can run at once — the page's "Scans in progress" list shows
     every one, whichever market is selected, and keeps polling while any is live.

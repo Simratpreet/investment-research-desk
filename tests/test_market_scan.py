@@ -664,14 +664,55 @@ class TestScanStore(unittest.TestCase):
         # leave the previous complete file or the new one — never a partial.
         self.assertFalse([n for n in os.listdir(self.dir) if n.endswith(".tmp")])
 
-    def test_prune_drops_old_runs_and_keeps_recent_ones(self):
+    def test_prune_keeps_the_newest_n_sessions(self):
+        for day in range(20, 28):
+            self.store.save(make_result(session=f"2026-07-{day}"))
+        self.store.prune(5)
+        self.assertEqual(self.store.list_runs("nasdaq"),
+                         ["2026-07-27", "2026-07-26", "2026-07-25",
+                          "2026-07-24", "2026-07-23"])
+
+    def test_prune_counts_each_market_separately(self):
+        for day in (24, 25, 26):
+            self.store.save(make_result(market="nasdaq", session=f"2026-07-{day}"))
+            self.store.save(make_result(market="nyse", session=f"2026-07-{day}"))
+        self.store.prune(2)
+        self.assertEqual(len(self.store.list_runs("nasdaq")), 2)
+        self.assertEqual(len(self.store.list_runs("nyse")), 2)
+
+    def test_prune_ignores_file_age(self):
+        # Age is the wrong measure: a redeploy restores files from the image and
+        # stamps every one of them with the build time.
         self.store.save(make_result(session="2026-07-24"))
         self.store.save(make_result(session="2026-01-01"))
-        old = self.store._path("nasdaq", "2026-01-01")
-        stamp = time.time() - 120 * 86400
-        os.utime(old, (stamp, stamp))
-        self.store.prune(60)
+        stamp = time.time() - 900 * 86400
+        for date in ("2026-07-24", "2026-01-01"):
+            os.utime(self.store._path("nasdaq", date), (stamp, stamp))
+        self.store.prune(5)
+        self.assertEqual(len(self.store.list_runs("nasdaq")), 2)
+
+    def test_prune_always_keeps_at_least_one_run(self):
+        self.store.save(make_result(session="2026-07-24"))
+        self.store.prune(0)
         self.assertEqual(self.store.list_runs("nasdaq"), ["2026-07-24"])
+
+    def test_recent_returns_sessions_newest_first(self):
+        for day in (24, 25, 26):
+            self.store.save(make_result(session=f"2026-07-{day}"))
+        runs = self.store.recent("nasdaq", 2)
+        self.assertEqual([r["session_date"] for r in runs],
+                         ["2026-07-26", "2026-07-25"])
+
+    def test_recent_on_an_unscanned_market_is_empty(self):
+        self.assertEqual(self.store.recent("nasdaq", 5), [])
+
+    def test_recent_skips_a_corrupt_run_without_losing_the_others(self):
+        for day in (24, 25):
+            self.store.save(make_result(session=f"2026-07-{day}"))
+        with open(self.store._path("nasdaq", "2026-07-25"), "w") as f:
+            f.write("{ not json")
+        runs = self.store.recent("nasdaq", 5)
+        self.assertEqual([r["session_date"] for r in runs], ["2026-07-24"])
 
     def test_latest_on_an_unknown_market_is_none(self):
         self.assertIsNone(self.store.latest("nasdaq"))

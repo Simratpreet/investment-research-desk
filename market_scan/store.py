@@ -16,7 +16,6 @@ import json
 import os
 import re
 import threading
-import time
 
 from .domain import Hit, HitAnalysis, ScanResult
 
@@ -79,6 +78,20 @@ class ScanStore:
         with self._lock:
             return self._read(market, runs[0])
 
+    def recent(self, market: str, sessions: int) -> list[dict]:
+        """The last `sessions` stored runs for a market, newest session first.
+
+        Unreadable files are skipped rather than raising: one corrupt run must
+        not cost the days either side of it.
+        """
+        out = []
+        with self._lock:
+            for date in self.list_runs(market)[:max(0, sessions)]:
+                data = self._read(market, date)
+                if data:
+                    out.append(data)
+        return out
+
     def list_runs(self, market: str) -> list[str]:
         """Session dates for a market, newest first."""
         dates = []
@@ -88,20 +101,29 @@ class ScanStore:
                 dates.append(m.group("date"))
         return sorted(dates, reverse=True)
 
-    def prune(self, retention_days: int):
-        """Drop runs older than `retention_days`. Bounds volume growth: a daily
-        scan of four markets is ~1,500 files a year otherwise."""
-        cutoff = time.time() - retention_days * 86400
+    def prune(self, keep_sessions: int):
+        """Keep the newest `keep_sessions` runs per market, drop the rest.
+
+        Counted per market and by session date, not by file age. Age would be
+        the wrong measure twice over: a market scanned once a week would lose
+        everything between runs, and a redeploy that restores files from the
+        image stamps them all with the build time.
+        """
+        keep = max(1, keep_sessions)
         with self._lock:
+            by_market: dict[str, list[str]] = {}
             for name in self._names():
-                if not _RUN_RE.match(name):
-                    continue
-                path = os.path.join(self._root, name)
-                try:
-                    if os.path.getmtime(path) < cutoff:
-                        os.remove(path)
-                except OSError:
-                    pass
+                m = _RUN_RE.match(name)
+                if m:
+                    by_market.setdefault(m.group("market"), []).append(name)
+            for names in by_market.values():
+                # Filenames end in the ISO session date, so a reverse string
+                # sort is a reverse chronological sort.
+                for stale in sorted(names, reverse=True)[keep:]:
+                    try:
+                        os.remove(os.path.join(self._root, stale))
+                    except OSError:
+                        pass
 
     # --- internals ----------------------------------------------------------
 
