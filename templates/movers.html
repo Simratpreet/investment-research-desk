@@ -42,6 +42,9 @@
         <select id="marketSelect" aria-label="Market to scan"></select>
       </label>
       <button class="btn btn-primary" id="scanBtn">Run scan</button>
+      <!-- Offered only after a run stopped because nothing newer was published,
+           so the escape hatch appears exactly when it is the thing you want. -->
+      <button class="btn btn-ghost" id="forceBtn" hidden>Rescan anyway</button>
       <button class="btn btn-ghost" id="stopBtn" hidden>Stop</button>
       <span class="scan-meta" id="scanMeta"></span>
     </div>

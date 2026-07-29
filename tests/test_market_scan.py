@@ -521,6 +521,18 @@ class StubFeed:
         return PriceSeries(symbol, s.timestamps, s.closes, s.volumes, s.meta)
 
 
+class CountingFeed(StubFeed):
+    """Records how many symbols were actually fetched."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.calls = 0
+
+    def fetch(self, symbol):
+        self.calls += 1
+        return super().fetch(symbol)
+
+
 class StubRepo:
     def __init__(self, symbols, stale=False):
         self.symbols = symbols
@@ -600,6 +612,67 @@ class TestScanner(unittest.TestCase):
         self.assertTrue(result.universe_stale)
 
 
+def _stub_date(offset_days: int) -> str:
+    """The session date StubFeed's last bar lands on. Derived, not typed in, so
+    it can't drift from the fixture."""
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(1_700_000_000 + offset_days * DAY,
+                                  tz=timezone.utc).strftime("%Y-%m-%d")
+
+
+# StubFeed builds 21 bars, so the last is 20 days after the start; a "stale"
+# name starts 40 days earlier and therefore lands 20 days before it.
+STUB_SESSION = _stub_date(20)
+STUB_STALE_SESSION = _stub_date(-20)
+
+
+class TestSessionProbe(unittest.TestCase):
+    """A few requests answering "has this market moved on?", so a scan that
+    would land on a session already stored never makes the other 4,000."""
+
+    def probe(self, feed, symbols, **kw):
+        return build(feed, symbols).probe_session("nasdaq", **kw)
+
+    def test_reports_the_session_the_market_is_on(self):
+        self.assertEqual(self.probe(StubFeed(), [f"S{i}" for i in range(9)]),
+                         STUB_SESSION)
+
+    def test_samples_only_a_handful_of_names(self):
+        feed = CountingFeed()
+        build(feed, [f"S{i}" for i in range(400)]).probe_session("nasdaq")
+        self.assertLessEqual(feed.calls, 5)
+
+    def test_a_minority_of_stale_names_cannot_decide_it(self):
+        symbols = [f"S{i}" for i in range(9)]
+        # Two of the five sampled are weeks behind; the majority still wins.
+        self.assertEqual(self.probe(StubFeed(stale=symbols[:2]), symbols),
+                         STUB_SESSION)
+
+    def test_a_stale_majority_is_reported_as_the_session(self):
+        # Three of five behind: that is what the market looks like from here,
+        # and the caller compares it against what is already stored.
+        symbols = [f"S{i}" for i in range(9)]
+        self.assertEqual(self.probe(StubFeed(stale=symbols[:3]), symbols),
+                         STUB_STALE_SESSION)
+
+    def test_no_majority_returns_none_so_the_caller_scans(self):
+        symbols = [f"S{i}" for i in range(9)]
+        # Of the five sampled: two stale, two unreachable, one current. Nothing
+        # clears half, so the probe declines to answer.
+        self.assertIsNone(self.probe(
+            StubFeed(stale=symbols[:2], broken=symbols[2:4]), symbols))
+
+    def test_a_dead_feed_returns_none_rather_than_a_guess(self):
+        symbols = [f"S{i}" for i in range(9)]
+        # Guessing here would silently skip a real session, so the tie goes to
+        # doing the work.
+        self.assertIsNone(self.probe(StubFeed(broken=symbols), symbols))
+        self.assertIsNone(self.probe(StubFeed(missing=symbols), symbols))
+
+    def test_an_empty_universe_returns_none(self):
+        self.assertIsNone(self.probe(StubFeed(), []))
+
+
 # --- persistence ------------------------------------------------------------
 
 def make_result(market="nasdaq", session="2026-07-24", tickers=("AAA",)):
@@ -648,6 +721,31 @@ class TestScanStore(unittest.TestCase):
     def test_update_hit_on_a_missing_run_is_false_not_an_error(self):
         self.assertFalse(self.store.update_hit("nasdaq", "1999-01-01", "AAA",
                                                sector="X"))
+
+    def test_rescanning_a_session_keeps_the_notes_already_paid_for(self):
+        # Exchanges publish a session's bars hours after the close, so scanning
+        # the same day twice is routine. Wiping notes each time re-buys every
+        # one of them from the model.
+        self.store.save(make_result(tickers=("AAA", "BBB")))
+        self.store.save_analysis("nasdaq", "2026-07-24",
+                                 HitAnalysis("AAA", "A note.", "ok"))
+        self.store.save(make_result(tickers=("AAA", "BBB")))
+        data = self.store.latest("nasdaq")
+        self.assertEqual(data["analyses"]["AAA"]["summary"], "A note.")
+
+    def test_a_note_for_a_name_that_dropped_out_is_not_left_orphaned(self):
+        self.store.save(make_result(tickers=("AAA", "BBB")))
+        self.store.save_analysis("nasdaq", "2026-07-24",
+                                 HitAnalysis("BBB", "Gone next time.", "ok"))
+        self.store.save(make_result(tickers=("AAA",)))
+        self.assertNotIn("BBB", self.store.latest("nasdaq")["analyses"])
+
+    def test_a_different_session_starts_with_no_notes(self):
+        self.store.save(make_result(session="2026-07-24"))
+        self.store.save_analysis("nasdaq", "2026-07-24",
+                                 HitAnalysis("AAA", "Monday.", "ok"))
+        self.store.save(make_result(session="2026-07-25"))
+        self.assertEqual(self.store.latest("nasdaq")["analyses"], {})
 
     def test_analyses_are_written_back_one_at_a_time(self):
         self.store.save(make_result(tickers=("AAA", "BBB")))

@@ -110,6 +110,18 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
     market scanned weekly and would be reset anyway by a redeploy restamping
     every file's mtime. Notes are namespaced `session|ticker` in the API, since
     the same ticker can spike on more than one retained day.
+  - **Re-running is cheap.** An exchange publishes a session's bars hours after
+    the close — Yahoo serves the timestamp with null OHLCV meanwhile, which the
+    feed drops — so a scan run too early legitimately reports yesterday and gets
+    run again. Before scanning, a **probe** fetches the market's ~5 largest names
+    and asks what session it is on; if that matches a clean stored run, the full
+    scan is skipped (seconds, not minutes) and only missing notes are filled in.
+    An ambiguous probe (no majority, feed trouble) falls through to the real
+    scan — guessing would silently skip a session. `ScanStore.save` also keeps
+    notes already written for a session, and `_analyse` skips any hit whose note
+    is already `ok`; a `failed` or `skipped` note *is* retried, which is how a
+    re-run recovers from an OpenRouter outage. "Rescan anyway" (`force: true`)
+    appears on the page once a run reports it is up to date.
   - **Concurrency:** scans are single-flight *per market* but independent across
     them, so several can run at once — the page's "Scans in progress" list shows
     every one, whichever market is selected, and keeps polling while any is live.

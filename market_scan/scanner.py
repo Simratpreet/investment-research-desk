@@ -21,6 +21,12 @@ from .universe import MARKETS, UniverseRepository
 DEGRADED_FAILURE_RATE = 0.25
 
 
+# How many of a market's largest names decide the probe. Big names are the most
+# reliably present and the least likely to be halted or dormant, which is
+# exactly what asking "what session is this market on?" needs.
+PROBE_SAMPLE = 5
+
+
 class MarketScanner:
     def __init__(self, repository: UniverseRepository, feed, selector, detector,
                  max_workers: int = 8):
@@ -29,6 +35,43 @@ class MarketScanner:
         self._selector = selector
         self._detector = detector
         self._max_workers = max_workers
+
+    def probe_session(self, market_key: str,
+                      sample: int = PROBE_SAMPLE) -> str | None:
+        """The session this market would report right now, from a few requests.
+
+        Exists so a scan that would land on a session already stored can be
+        skipped before it makes four thousand requests and re-reads a day
+        already on disk. Exchanges publish a session's bars hours after the
+        close — Yahoo serves the timestamp with null OHLCV in the meantime — so
+        running a scan and getting yesterday again is routine, not an error.
+
+        Returns None whenever the answer isn't clear: a feed failure, or no
+        majority among the sampled names. The caller then does the full scan.
+        Guessing wrong here would silently skip a real session, so the tie goes
+        to doing the work.
+        """
+        entries, _ = self._repo.load(market_key)
+        ranked = sorted(entries, key=lambda e: e.market_cap or 0,
+                        reverse=True)[:max(1, sample)]
+        if not ranked:
+            return None
+        dates = Counter()
+        for entry in ranked:
+            try:
+                series = self._feed.fetch(entry.symbol)
+            except Exception:
+                continue
+            if series is None:
+                continue
+            index = self._selector.target_index(series)
+            if index is not None:
+                dates[self._selector.session_date(series, index)] += 1
+        if not dates:
+            return None
+        date, votes = dates.most_common(1)[0]
+        # A real majority of the sample, so one stale name cannot decide it.
+        return date if votes * 2 > len(ranked) else None
 
     def scan(self, market_key: str, progress_cb=None, stop_event=None,
              limit: int | None = None) -> ScanResult:

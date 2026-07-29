@@ -36,11 +36,25 @@ class ScanStore:
 
     def save(self, result: ScanResult) -> str:
         """Persist a completed scan. Called *before* enrichment or analysis, so
-        a failure in either leaves a usable page rather than nothing."""
+        a failure in either leaves a usable page rather than nothing.
+
+        Notes already written for this session are kept. Re-scanning the same
+        day is routine — Yahoo publishes a session's bars hours after the close,
+        so a scan run too early legitimately reports yesterday and gets run
+        again — and wiping the notes each time would re-buy every one of them
+        from the model. Notes for names no longer in the result are dropped
+        rather than left orphaned.
+        """
         payload = result.to_dict()
         payload["generated_at"] = _now()
-        payload["analyses"] = {}
         with self._lock:
+            existing = self._read(result.market, result.session_date) or {}
+            tickers = {h.get("ticker") for h in payload.get("hits", [])}
+            payload["analyses"] = {
+                ticker: analysis
+                for ticker, analysis in (existing.get("analyses") or {}).items()
+                if ticker in tickers
+            }
             self._write(result.market, result.session_date, payload)
         return self._path(result.market, result.session_date)
 

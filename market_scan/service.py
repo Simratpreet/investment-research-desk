@@ -34,7 +34,11 @@ def _now() -> str:
 def _idle_state() -> dict:
     return {"running": False, "started_at": None, "finished_at": None,
             "message": "", "phase": "idle", "done": 0, "total": 0,
-            "stopped": False}
+            "stopped": False,
+            # True when the last run stopped early because the market had not
+            # published a session newer than the one already stored. The page
+            # turns this into a "Rescan anyway" button.
+            "up_to_date": False}
 
 
 class ScanService:
@@ -72,9 +76,13 @@ class ScanService:
 
     # --- control ------------------------------------------------------------
 
-    def start(self, market: str) -> tuple[bool, str]:
+    def start(self, market: str, force: bool = False) -> tuple[bool, str]:
         """Begin a scan. False when one is already running for this market —
-        the blueprint turns that into a 409, matching News."""
+        the blueprint turns that into a 409, matching News.
+
+        `force` re-scans a session already on disk. Without it the run checks
+        first and stops if the market has published nothing newer.
+        """
         if market not in MARKETS:
             return False, "unknown market"
         with self._lock:
@@ -82,9 +90,12 @@ class ScanService:
                 return False, "A scan is already running for this market"
             self._states[market] = _idle_state()
             self._states[market].update(running=True, started_at=_now(),
-                                        phase="scanning", message="Scanning…")
+                                        phase="checking",
+                                        message="Checking for a new session…"
+                                                if not force else "Scanning…")
         self._stops[market].clear()
-        threading.Thread(target=self._run, args=(market,), daemon=True).start()
+        threading.Thread(target=self._run, args=(market, force),
+                         daemon=True).start()
         return True, "Scan started"
 
     def stop(self, market: str) -> bool:
@@ -98,8 +109,46 @@ class ScanService:
 
     # --- the run ------------------------------------------------------------
 
-    def _run(self, market: str):
+    def _held_session(self, market: str) -> str | None:
+        """The stored session, if the market has published nothing newer.
+
+        A few requests answer this; the full scan is thousands. Only a clean,
+        completed run counts — a degraded or stopped one is worth redoing, and
+        so is a session with notes still missing, which is why the caller still
+        runs the analysis pass before finishing.
+        """
+        stored = self._store.latest(market)
+        if not stored or stored.get("degraded") or stored.get("stopped"):
+            return None
+        session = stored.get("session_date")
+        if not session:
+            return None
+        try:
+            probed = self._scanner.probe_session(market)
+        except Exception:
+            return None      # unclear: fall through and do the real scan
+        return session if probed == session else None
+
+    def _run(self, market: str, force: bool = False):
         label = MARKETS[market].label
+
+        if not force and not self._stops[market].is_set():
+            held = self._held_session(market)
+            if held:
+                # Nothing newer to scan. Still top up any notes the last run
+                # failed to write, then stop — re-reading a day already on disk
+                # buys nothing and re-buys every note.
+                self._set(market, phase="analysing",
+                          message="Already scanned — checking notes…")
+                added = self._analyse(market, held, label)
+                message = (f"Already up to date — {label} has published nothing "
+                           f"newer than {held}.")
+                if added:
+                    message += f" {added} missing note(s) written."
+                self._finish(market, message, up_to_date=True)
+                return
+
+        self._set(market, phase="scanning", message="Scanning…")
         try:
             result = self._scanner.scan(
                 market,
@@ -158,9 +207,18 @@ class ScanService:
         stored = self._store.latest(market) or {}
         hits = hits_from_stored(stored)     # re-read so notes see enriched sectors
         hits = [h for h in hits if h.session_date == session_date]
-        targets, skipped = hits[:self._analysis_max], hits[self._analysis_max:]
 
-        for hit in skipped:
+        # A note already written for this session is not bought again. Only an
+        # `ok` note counts as done — a failure or a cap skip is retried, which
+        # is what makes re-running a scan the way to fill in what an OpenRouter
+        # outage cost you.
+        done = {ticker for ticker, analysis in (stored.get("analyses") or {}).items()
+                if (analysis or {}).get("status") == "ok"}
+        pending = [h for h in hits if h.ticker not in done]
+        targets, over_cap = (pending[:self._analysis_max],
+                             pending[self._analysis_max:])
+
+        for hit in over_cap:
             self._store.save_analysis(market, session_date, HitAnalysis(
                 hit.ticker, status="skipped",
                 error=f"beyond the {self._analysis_max}-note cap for one run"))
@@ -202,6 +260,6 @@ class ScanService:
             list(pool.map(one, targets))
         return written
 
-    def _finish(self, market: str, message: str):
+    def _finish(self, market: str, message: str, up_to_date: bool = False):
         self._set(market, running=False, finished_at=_now(), phase="idle",
-                  message=message)
+                  message=message, up_to_date=up_to_date)

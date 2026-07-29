@@ -137,10 +137,13 @@ def start_scan():
     """Kick off a scan in the background. Returns immediately; poll /api/movers."""
     if not rate_limit_ok(f"movers:{client_ip(request)}", 10, 300):
         return jsonify({"error": "Too many scans — wait a few minutes."}), 429
-    key = _market(request.get_json(silent=True) or {})
+    body = request.get_json(silent=True) or {}
+    key = _market(body)
     if key is None:
         return jsonify({"error": "unknown market"}), 400
-    started, message = service.start(key)
+    # Without `force` the run checks first and stops if the exchange has
+    # published nothing newer than the session already stored.
+    started, message = service.start(key, force=bool(body.get("force")))
     if not started:
         # Matches the News/Announcements contract: a second scan is a 409.
         return jsonify({"message": message, "scan": service.state(key)}), 409

@@ -7,6 +7,7 @@
 const marketSelect = document.getElementById("marketSelect");
 const scanBtn = document.getElementById("scanBtn");
 const stopBtn = document.getElementById("stopBtn");
+const forceBtn = document.getElementById("forceBtn");
 const scanMeta = document.getElementById("scanMeta");
 const progress = document.getElementById("progress");
 const progressFill = document.getElementById("progressFill");
@@ -72,6 +73,7 @@ const Movers = {
     await this.loadMarkets();
     marketSelect.addEventListener("change", () => this.select(marketSelect.value));
     scanBtn.addEventListener("click", () => this.startScan());
+    forceBtn.addEventListener("click", () => this.startScan(true));
     stopBtn.addEventListener("click", () => this.stopScan());
     await this.load();
   },
@@ -207,6 +209,8 @@ const Movers = {
 
     scanBtn.hidden = running;
     stopBtn.hidden = !running;
+    // Only worth offering once a run has told us there is nothing newer.
+    forceBtn.hidden = running || !scan.up_to_date;
     scanBtn.disabled = false;
 
     this.renderProgress(scan, running);
@@ -418,14 +422,15 @@ const Movers = {
     return [tr, noteRow];
   },
 
-  async startScan() {
+  async startScan(force = false) {
     scanBtn.disabled = true;
+    forceBtn.hidden = true;
     scanBtn.textContent = "Starting…";
     try {
       const r = await fetch("/api/movers/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ market: this.market }),
+        body: JSON.stringify({ market: this.market, force }),
       });
       if (r.status === 409) banner.textContent = "A scan is already running for this market.";
     } catch (e) { /* the reload below surfaces the real state */ }
@@ -520,6 +525,7 @@ function sessionSpan(d) {
 function phaseLabel(phase) {
   return phase === "analysing" ? "Writing notes"
        : phase === "enriching" ? "Fetching sector data"
+       : phase === "checking" ? "Checking for a new session"
        : "Scanning";
 }
 
