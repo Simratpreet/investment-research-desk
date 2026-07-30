@@ -18,6 +18,7 @@ tens of minutes, and a run that dies part-way must still leave the dashboard
 better off than it found it.
 """
 import argparse
+import gc
 import hashlib
 import io
 import itertools
@@ -71,6 +72,22 @@ PDF_FETCH_DELAY_SECONDS = 1.0
 PDF_MAX_PAGES = 6           # pages read per filing (more source -> more detail)
 PDF_MAX_CHARS = 4000        # chars of filing text fed to the model per filing
 PDF_MAX_TOTAL_PAGES = 40
+# Hard ceiling on a filing we will even read into memory. The page limit below
+# is checked only after pypdf has parsed the file, by which point the memory is
+# already spent — and pypdf can hold many multiples of a file's size for a
+# scanned or image-heavy PDF. A 2026-07-30 run was SIGKILLed by the kernel OOM
+# killer here (exit -9, which no in-process handler can catch), so the size has
+# to be refused before the allocation, not after. These are the same documents
+# the page limit already meant to discard: annual reports and investor decks.
+PDF_MAX_BYTES = 8_000_000
+# Ceiling on the PDF bytes one run will pull in total. The per-file cap bounds
+# the peak; this bounds the sum. Measured on the batch that was killed: its 250
+# filings were 564 MB of PDF between them, flowing through a 985 MB machine one
+# at a time — and CPython holds on to freed arenas rather than returning them
+# promptly, so 250 multi-megabyte allocations accumulate rather than cancel.
+# Past this the run stops enriching and summarizes with what it has, which is a
+# slightly thinner digest instead of no digest at all.
+PDF_MAX_TOTAL_BYTES = 150_000_000
 # Announcements summarized per OpenRouter call. Sized so each one gets a real
 # share of the 16k output budget — see summarize_all.
 SUMMARY_BATCH_SIZE = 40
@@ -170,14 +187,35 @@ def fetch(url, cookie=None):
             raise
 
 
-def fetch_bytes(url):
+class TooLarge(Exception):
+    """The document is past PDF_MAX_BYTES and was not read."""
+
+
+def fetch_bytes(url, max_bytes=None):
+    """The document's bytes. Raises TooLarge past `max_bytes` without holding it.
+
+    The cap is enforced twice on purpose: Content-Length is the cheap check and
+    skips the transfer entirely, but it is a claim by the server, absent on
+    chunked responses and occasionally wrong — so the read is bounded too. Both
+    matter here, because the thing being avoided is an allocation big enough for
+    the kernel to kill the process over.
+    """
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     delay = REQUEST_DELAY_SECONDS
     for attempt in range(1, MAX_RETRIES + 1):
         _respect_cooldown()
         try:
             with urllib.request.urlopen(req, timeout=30) as resp:
-                return resp.read()
+                if max_bytes is None:
+                    return resp.read()
+                declared = resp.headers.get("Content-Length")
+                if declared and declared.isdigit() and int(declared) > max_bytes:
+                    raise TooLarge(f"{int(declared) / 1e6:.1f} MB declared")
+                # One byte past the cap is enough to know it is over it.
+                data = resp.read(max_bytes + 1)
+                if len(data) > max_bytes:
+                    raise TooLarge(f"over {max_bytes / 1e6:.0f} MB")
+                return data
         except urllib.error.HTTPError as e:
             if e.code == 429:
                 _trigger_cooldown(GLOBAL_COOLDOWN_SECONDS)
@@ -195,14 +233,16 @@ def fetch_bytes(url):
             raise
 
 
-def extract_pdf_text(url):
+def extract_pdf_text(url, budget=None):
     """Download an announcement PDF and pull out its text. Discards anything at or
     beyond PDF_MAX_TOTAL_PAGES (annual reports, investor decks, etc. — long documents
     that aren't worth the extraction time/tokens); for eligible short filings, only
     reads the first PDF_MAX_PAGES pages/PDF_MAX_CHARS chars. Returns None on any
     failure or when discarded, so callers fall back to screener's own blurb."""
     try:
-        data = fetch_bytes(url)
+        data = fetch_bytes(url, max_bytes=PDF_MAX_BYTES)
+        if budget is not None:
+            budget[0] += len(data)
         reader = PdfReader(io.BytesIO(data))
         page_count = len(reader.pages)
         if page_count >= PDF_MAX_TOTAL_PAGES:
@@ -213,6 +253,11 @@ def extract_pdf_text(url):
             text_parts.append(page.extract_text() or "")
         text = re.sub(r"\s+", " ", " ".join(text_parts)).strip()
         return text[:PDF_MAX_CHARS] if text else None
+    except TooLarge as e:
+        # Expected and routine, not a failure: the digest falls back to
+        # screener's blurb for these.
+        log(f"  [skip] PDF at {url} is {e}, discarding")
+        return None
     except Exception as e:
         log(f"  [warn] PDF extraction failed for {url}: {e}")
         return None
@@ -224,13 +269,22 @@ def enrich_with_pdf_text(new_entries, on_checkpoint):
     just screener's often-terse one-line blurb. Checkpoints periodically like the
     main scan, since this also makes network calls and can be interrupted."""
     pending_indices = [i for i, e in enumerate(new_entries) if not e.get("pdf_done")]
+    budget = [0]
     for n, i in enumerate(pending_indices):
+        if budget[0] >= PDF_MAX_TOTAL_BYTES:
+            log(f"  [budget] {budget[0] / 1e6:.0f} MB of filings read; leaving the "
+                f"remaining {len(pending_indices) - n} on screener's blurb")
+            break
         e = new_entries[i]
-        e["pdf_text"] = extract_pdf_text(e["url"])
+        e["pdf_text"] = extract_pdf_text(e["url"], budget)
         e["pdf_done"] = True
         if (n + 1) % CHECKPOINT_EVERY == 0 or n == len(pending_indices) - 1:
             on_checkpoint(new_entries)
-            log(f"  [checkpoint] PDF text fetched for {n + 1}/{len(pending_indices)} new announcements")
+            # Freed PDF buffers leave CPython holding the arenas; collecting on
+            # the checkpoint keeps a 250-filing run from drifting upward.
+            gc.collect()
+            log(f"  [checkpoint] PDF text fetched for {n + 1}/{len(pending_indices)} "
+                f"new announcements ({budget[0] / 1e6:.0f} MB read)")
         if n < len(pending_indices) - 1:
             time.sleep(PDF_FETCH_DELAY_SECONDS)
 
@@ -635,7 +689,13 @@ def main():
     update_store(batch, "_Summarizing… reload shortly for the digest._", run_id)
     log(f"Published {len(batch)} announcements to the dashboard; summarizing now.")
 
-    enrich_with_pdf_text(batch, lambda done: save_pending(done + remainder))
+    try:
+        enrich_with_pdf_text(batch, lambda done: save_pending(done + remainder))
+    except Exception as e:
+        # Enrichment is an upgrade to the digest, never a gate on it. Whatever
+        # was fetched before the failure is kept; the rest fall back to
+        # screener's blurb, which is what the digest used before PDFs existed.
+        log(f"[warn] PDF enrichment stopped early: {type(e).__name__}: {e}")
 
     if api_key:
         digest = summarize_all(batch, api_key)
