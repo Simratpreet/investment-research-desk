@@ -81,14 +81,15 @@ PDF_MAX_TOTAL_PAGES = 40
 # to be refused before the allocation, not after. These are the same documents
 # the page limit already meant to discard: annual reports and investor decks.
 PDF_MAX_BYTES = 8_000_000
-# Ceiling on the PDF bytes one run will pull in total. The per-file cap bounds
-# the peak; this bounds the sum. Measured on the batch that was killed: its 250
-# filings were 564 MB of PDF between them, flowing through a 985 MB machine one
-# at a time — and CPython holds on to freed arenas rather than returning them
-# promptly, so 250 multi-megabyte allocations accumulate rather than cancel.
-# Past this the run stops enriching and summarizes with what it has, which is a
-# slightly thinner digest instead of no digest at all.
-PDF_MAX_TOTAL_BYTES = 150_000_000
+# There is deliberately no per-run byte ceiling. One existed briefly, on the
+# theory that 250 filings totalling 564 MB would accumulate inside a 985 MB
+# machine because CPython does not return freed arenas promptly. That reasoning
+# died with the change below: the parent holds one downloaded file at a time and
+# hands it to a child that exits, so there is nothing left to accumulate. All
+# the ceiling did in practice was stop enrichment at 86 of 190 filings and leave
+# the other 104 announcements summarized from screener's one-line blurb. Bytes
+# read are still counted, but only to report them.
+#
 # Address-space cap applied inside the PDF worker child, and a wall-clock
 # deadline for it. Generous enough for any legitimate filing (the largest real
 # one measured parses inside 100 MB) and small enough that a decompression bomb
@@ -337,7 +338,7 @@ def parse_pdf_isolated(data, url):
     return None
 
 
-def extract_pdf_text(url, budget=None):
+def extract_pdf_text(url, counter=None):
     """Download an announcement PDF and pull out its text.
 
     Returns None on any failure or when discarded, so callers fall back to
@@ -354,8 +355,8 @@ def extract_pdf_text(url, budget=None):
     except Exception as e:
         log(f"  [warn] PDF download failed for {url}: {e}")
         return None
-    if budget is not None:
-        budget[0] += len(data)
+    if counter is not None:
+        counter[0] += len(data)
     return parse_pdf_isolated(data, url)
 
 
@@ -365,14 +366,10 @@ def enrich_with_pdf_text(new_entries, on_checkpoint):
     just screener's often-terse one-line blurb. Checkpoints periodically like the
     main scan, since this also makes network calls and can be interrupted."""
     pending_indices = [i for i, e in enumerate(new_entries) if not e.get("pdf_done")]
-    budget = [0]
+    read = [0]                      # bytes downloaded, for the checkpoint line
     for n, i in enumerate(pending_indices):
-        if budget[0] >= PDF_MAX_TOTAL_BYTES:
-            log(f"  [budget] {budget[0] / 1e6:.0f} MB of filings read; leaving the "
-                f"remaining {len(pending_indices) - n} on screener's blurb")
-            break
         e = new_entries[i]
-        e["pdf_text"] = extract_pdf_text(e["url"], budget)
+        e["pdf_text"] = extract_pdf_text(e["url"], read)
         e["pdf_done"] = True
         if (n + 1) % CHECKPOINT_EVERY == 0 or n == len(pending_indices) - 1:
             on_checkpoint(new_entries)
@@ -380,7 +377,7 @@ def enrich_with_pdf_text(new_entries, on_checkpoint):
             # the checkpoint keeps a 250-filing run from drifting upward.
             gc.collect()
             log(f"  [checkpoint] PDF text fetched for {n + 1}/{len(pending_indices)} "
-                f"new announcements ({budget[0] / 1e6:.0f} MB read)")
+                f"new announcements ({read[0] / 1e6:.0f} MB read)")
         if n < len(pending_indices) - 1:
             time.sleep(PDF_FETCH_DELAY_SECONDS)
 
