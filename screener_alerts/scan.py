@@ -23,6 +23,7 @@ import hashlib
 import io
 import itertools
 import json
+import multiprocessing
 import os
 import re
 import sys
@@ -88,6 +89,14 @@ PDF_MAX_BYTES = 8_000_000
 # Past this the run stops enriching and summarizes with what it has, which is a
 # slightly thinner digest instead of no digest at all.
 PDF_MAX_TOTAL_BYTES = 150_000_000
+# Address-space cap applied inside the PDF worker child, and a wall-clock
+# deadline for it. Generous enough for any legitimate filing (the largest real
+# one measured parses inside 100 MB) and small enough that a decompression bomb
+# trips it long before the machine is in trouble. Breaching either kills only
+# the child — see parse_pdf_isolated for why that indirection is the whole
+# point.
+PDF_WORKER_MEMORY_BYTES = int(os.environ.get("SCREENER_PDF_MEM_MB", "400")) * 1024 * 1024
+PDF_PARSE_TIMEOUT = float(os.environ.get("SCREENER_PDF_TIMEOUT", "45"))
 # Announcements summarized per OpenRouter call. Sized so each one gets a real
 # share of the 16k output budget — see summarize_all.
 SUMMARY_BATCH_SIZE = 40
@@ -233,34 +242,121 @@ def fetch_bytes(url, max_bytes=None):
             raise
 
 
+def _cap_child_memory(limit=PDF_WORKER_MEMORY_BYTES):
+    """Cap this (child) process's address space. Best-effort."""
+    try:
+        import resource
+        _, hard = resource.getrlimit(resource.RLIMIT_AS)
+        target = limit if hard == resource.RLIM_INFINITY or hard > limit else hard
+        resource.setrlimit(resource.RLIMIT_AS, (target, hard))
+    except Exception:
+        pass
+
+
+def _pdf_worker(conn, data):
+    """Parse a PDF and send the result back. Runs in a forked child.
+
+    Deliberately does not call log(): two processes appending to one file
+    interleave badly. It reports through the pipe and the parent does the
+    logging, which also means the parent's message survives the child dying.
+    """
+    try:
+        _cap_child_memory()
+        reader = PdfReader(io.BytesIO(data))
+        pages = len(reader.pages)
+        if pages >= PDF_MAX_TOTAL_PAGES:
+            conn.send(("skip", f"{pages} pages (>= {PDF_MAX_TOTAL_PAGES})"))
+            return
+        parts = [(p.extract_text() or "") for p in reader.pages[:PDF_MAX_PAGES]]
+        text = re.sub(r"\s+", " ", " ".join(parts)).strip()
+        conn.send(("ok", text[:PDF_MAX_CHARS]))
+    except BaseException as e:                      # MemoryError included
+        try:
+            conn.send(("error", f"{type(e).__name__}: {e}"[:200]))
+        except Exception:
+            pass
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def parse_pdf_isolated(data, url):
+    """Extract text in a child process, so a bad filing cannot end the run.
+
+    This is the protection the whole scan turns on. A PDF's content streams are
+    compressed, so a file well inside PDF_MAX_BYTES can expand to hundreds of
+    megabytes when pypdf decompresses it — Unihealth Hospitals' 7.6 MB filing
+    did exactly that on 2026-07-30 and the kernel SIGKILLed the scan three times
+    running. SIGKILL cannot be caught, so no in-process guard can help: the only
+    way to survive it is for the thing that dies to be a process we can afford
+    to lose. The child gets a hard address-space cap and a wall-clock deadline;
+    whichever it breaches, the parent reads the exit code and moves to the next
+    filing.
+    """
+    ctx = multiprocessing.get_context("fork")
+    receiver, sender = ctx.Pipe(duplex=False)
+    proc = ctx.Process(target=_pdf_worker, args=(sender, data), daemon=True)
+    proc.start()
+    sender.close()          # parent holds no write end, so EOF is meaningful
+
+    outcome, timed_out = None, False
+    try:
+        if receiver.poll(PDF_PARSE_TIMEOUT):
+            outcome = receiver.recv()
+        else:
+            timed_out = True
+    except EOFError:
+        pass                # child died before it could answer
+    finally:
+        receiver.close()
+        proc.join(5)
+        if proc.is_alive():
+            proc.kill()
+            proc.join(5)
+
+    if outcome is None:
+        # Report the cause we actually observed. `timed_out` has to be checked
+        # first: killing the child on timeout sets its exit code to -9 too, and
+        # reporting that as an out-of-memory would send the next person reading
+        # this log after entirely the wrong problem.
+        if timed_out:
+            log(f"  [skip] PDF parse exceeded {PDF_PARSE_TIMEOUT:.0f}s, worker killed: {url}")
+        elif proc.exitcode == -9:
+            log(f"  [skip] PDF exhausted its {PDF_WORKER_MEMORY_BYTES // (1024 * 1024)} MB "
+                f"worker and was killed: {url}")
+        else:
+            log(f"  [skip] PDF worker exited {proc.exitcode}: {url}")
+        return None
+
+    kind, payload = outcome
+    if kind == "ok":
+        return payload or None
+    log(f"  [skip] PDF {kind} for {url}: {payload}")
+    return None
+
+
 def extract_pdf_text(url, budget=None):
-    """Download an announcement PDF and pull out its text. Discards anything at or
-    beyond PDF_MAX_TOTAL_PAGES (annual reports, investor decks, etc. — long documents
-    that aren't worth the extraction time/tokens); for eligible short filings, only
-    reads the first PDF_MAX_PAGES pages/PDF_MAX_CHARS chars. Returns None on any
-    failure or when discarded, so callers fall back to screener's own blurb."""
+    """Download an announcement PDF and pull out its text.
+
+    Returns None on any failure or when discarded, so callers fall back to
+    screener's own blurb — the digest worked that way before PDF text existed,
+    and treating enrichment as optional is what keeps one bad filing from
+    costing the whole run.
+    """
     try:
         data = fetch_bytes(url, max_bytes=PDF_MAX_BYTES)
-        if budget is not None:
-            budget[0] += len(data)
-        reader = PdfReader(io.BytesIO(data))
-        page_count = len(reader.pages)
-        if page_count >= PDF_MAX_TOTAL_PAGES:
-            log(f"  [skip] PDF at {url} has {page_count} pages (>= {PDF_MAX_TOTAL_PAGES}), discarding")
-            return None
-        text_parts = []
-        for page in reader.pages[:PDF_MAX_PAGES]:
-            text_parts.append(page.extract_text() or "")
-        text = re.sub(r"\s+", " ", " ".join(text_parts)).strip()
-        return text[:PDF_MAX_CHARS] if text else None
     except TooLarge as e:
-        # Expected and routine, not a failure: the digest falls back to
-        # screener's blurb for these.
+        # Expected and routine, not a failure.
         log(f"  [skip] PDF at {url} is {e}, discarding")
         return None
     except Exception as e:
-        log(f"  [warn] PDF extraction failed for {url}: {e}")
+        log(f"  [warn] PDF download failed for {url}: {e}")
         return None
+    if budget is not None:
+        budget[0] += len(data)
+    return parse_pdf_isolated(data, url)
 
 
 def enrich_with_pdf_text(new_entries, on_checkpoint):
@@ -612,6 +708,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=None, help="Only process the first N watchlist companies (for testing)")
     parser.add_argument("--seed-only", action="store_true", help="Mark all currently visible announcements as seen without summarizing (baseline seed)")
+    parser.add_argument("--drain", action="store_true",
+                        help="Publish and summarize what is already pending, without "
+                             "rescanning the watchlist for new announcements")
     args = parser.parse_args()
 
     log("=" * 60)
@@ -646,7 +745,16 @@ def main():
     new_entries = [] if args.seed_only else load_pending()
     if new_entries:
         log(f"Resuming {len(new_entries)} pending announcements left over from an interrupted prior run")
-    fetch_all_announcements(codes, seen, new_entries, persist_pending=not args.seed_only)
+    if args.drain:
+        # Clearing a backlog does not need the watchlist swept again. The sweep
+        # is ~20 minutes and, worse, it discovers more announcements — so while
+        # a backlog exists, every ordinary run adds to the queue faster than it
+        # drains it. Draining publishes what is already known and nothing else.
+        log(f"Drain mode: publishing from the existing backlog, not rescanning "
+            f"{len(codes)} companies.")
+    else:
+        fetch_all_announcements(codes, seen, new_entries,
+                                persist_pending=not args.seed_only)
 
     if args.seed_only:
         log(f"Seeding baseline: marking {len(new_entries)} currently visible announcements as seen (no summary generated).")
