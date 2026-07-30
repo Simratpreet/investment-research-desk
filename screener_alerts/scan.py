@@ -73,14 +73,18 @@ PDF_FETCH_DELAY_SECONDS = 1.0
 PDF_MAX_PAGES = 6           # pages read per filing (more source -> more detail)
 PDF_MAX_CHARS = 4000        # chars of filing text fed to the model per filing
 PDF_MAX_TOTAL_PAGES = 40
-# Hard ceiling on a filing we will even read into memory. The page limit below
-# is checked only after pypdf has parsed the file, by which point the memory is
-# already spent — and pypdf can hold many multiples of a file's size for a
-# scanned or image-heavy PDF. A 2026-07-30 run was SIGKILLed by the kernel OOM
-# killer here (exit -9, which no in-process handler can catch), so the size has
-# to be refused before the allocation, not after. These are the same documents
-# the page limit already meant to discard: annual reports and investor decks.
-PDF_MAX_BYTES = 8_000_000
+# Refuse a filing before transferring it. This is a backstop against something
+# absurd — a 500 MB scanned annual report — not a content filter.
+#
+# It was 8 MB for a day, set when a large PDF could still OOM the scan process
+# and nothing else stopped it. Parsing now happens in a child with its own
+# memory cap and deadline, so that job is done properly elsewhere, and all the
+# tight limit achieved was discarding the best source documents: quarterly
+# investor presentations run 8-20 MB and are the densest thing a company
+# publishes — revenue, margins, order book, guidance. Macpower's Q1 FY27 deck
+# was refused at 8.9 MB despite being well inside the 40-page limit that exists
+# to drop annual reports.
+PDF_MAX_BYTES = int(os.environ.get("SCREENER_PDF_MAX_MB", "30")) * 1_000_000
 # There is deliberately no per-run byte ceiling. One existed briefly, on the
 # theory that 250 filings totalling 564 MB would accumulate inside a 985 MB
 # machine because CPython does not return freed arenas promptly. That reasoning
