@@ -350,6 +350,29 @@ _scan_procs = {"news": None, "ann": None}
 _scan_procs_lock = threading.Lock()
 
 
+def _record_scan_failure(kind, cwd, rc, lines):
+    """Append a failed scan's output to its own log file.
+
+    Without this a scan that dies leaves no evidence anywhere: its log simply
+    stops mid-run, and everything the process printed on the way out goes into a
+    pipe that only the last line of ever survives — in memory, lost on restart.
+    Best-effort by definition, so it can never turn a scan failure into a crash.
+    """
+    path = {"ann": ANN_LOG_FILE, "news": os.path.join(cwd, "logs", "scan.log")}.get(kind)
+    if not path:
+        return
+    try:
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{stamp}  [server] scan exited with code {rc}. "
+                    f"Last {min(len(lines), 40)} line(s) of its output:\n")
+            for line in lines[-40:]:
+                f.write(f"{stamp}    | {line}\n")
+    except OSError:
+        pass
+
+
 def _run_scan(kind, argv, cwd, state, lock, timeout, ok_msg="Scan complete."):
     """Run a scan subprocess, tracking its handle so it can be stopped, and
     record the outcome in `state`. SIGTERM on stop — scan.py checkpoints its
@@ -369,9 +392,17 @@ def _run_scan(kind, argv, cwd, state, lock, timeout, ok_msg="Scan complete."):
             rc = proc.returncode
             lines = (err or out or "").strip().splitlines()
             tail = lines[-1] if lines else ""
+            if rc != 0:
+                # Keep the whole tail on disk, not just its last line in memory.
+                # Two announcement scans died on 2026-07-29 and left no record
+                # anywhere: the scan's own log stops mid-run, `message` is
+                # in-process state lost on restart, and everything else went
+                # into this pipe and was dropped.
+                _record_scan_failure(kind, cwd, rc, lines)
         except subprocess.TimeoutExpired:
             proc.kill(); proc.communicate()
             rc, tail = -1, f"Scan timed out after {timeout // 60} min."
+            _record_scan_failure(kind, cwd, rc, [tail])
     except Exception as e:
         rc, tail = -1, f"Scan failed to launch: {e}"
     finally:

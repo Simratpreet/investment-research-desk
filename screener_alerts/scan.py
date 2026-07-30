@@ -7,11 +7,20 @@ Project files (all alongside this script):
   cookie.txt          - Cookie header value copied from a logged-in browser session
   openrouter_key.txt   - OpenRouter API key (fallback; primary is ../.env)
   seen.json           - state file of announcement URLs already processed (auto-managed)
-  digest.md           - running log of hourly digests (auto-managed)
+  pending.json        - announcements found but not yet published (auto-managed)
+  announcements_store.json - what the dashboard renders (auto-managed)
   scan.log            - timestamped run log, tail it or view from the dashboard (auto-managed)
+
+A run publishes a bounded batch (MAX_ANNOUNCEMENTS_PER_RUN) and leaves the rest
+pending for the next one, writing the batch to the store *before* it enriches
+and summarizes. That ordering is the point: enrichment and summarization take
+tens of minutes, and a run that dies part-way must still leave the dashboard
+better off than it found it.
 """
 import argparse
+import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -37,7 +46,11 @@ STATE_DIR.mkdir(parents=True, exist_ok=True)
 COOKIE_FILE = CONFIG_DIR / "cookie.txt"
 KEY_FILE = CONFIG_DIR / "openrouter_key.txt"
 SEEN_FILE = STATE_DIR / "seen.json"
-DIGEST_FILE = STATE_DIR / "digest.md"
+# There is deliberately no digest.md. It was the original output — a running
+# markdown log read by hand — and the structured store below replaced it for the
+# dashboard. Nothing read the file afterwards: no route served it and no page
+# fetched it, while it grew unbounded on the volume. Its text lives on in each
+# run's `digest` field in the store, which is what the UI actually renders.
 PENDING_FILE = STATE_DIR / "pending.json"
 # Structured store the dashboard reads (one entry per scan run, newest last).
 STORE_FILE = STATE_DIR / "announcements_store.json"
@@ -58,6 +71,15 @@ PDF_FETCH_DELAY_SECONDS = 1.0
 PDF_MAX_PAGES = 6           # pages read per filing (more source -> more detail)
 PDF_MAX_CHARS = 4000        # chars of filing text fed to the model per filing
 PDF_MAX_TOTAL_PAGES = 40
+# Announcements summarized per OpenRouter call. Sized so each one gets a real
+# share of the 16k output budget — see summarize_all.
+SUMMARY_BATCH_SIZE = 40
+# Announcements published per run. A run must end with something on the
+# dashboard, so a backlog is drained in bounded batches instead of being
+# re-attempted whole and lost whole: before this, each failed run added new
+# announcements while finishing none, and pending only ever grew (64 -> 546 ->
+# 586). The remainder stays pending and the next run picks it up.
+MAX_ANNOUNCEMENTS_PER_RUN = int(os.environ.get("SCREENER_MAX_PER_RUN", "250"))
 
 # Shared circuit breaker: if ANY thread hits a 429, every thread pauses together
 # instead of each one independently retrying into the same rate limit — that
@@ -319,6 +341,49 @@ def get_company_announcements(code):
     return name, entries
 
 
+def summarize_all(new_entries, api_key):
+    """Digest every entry, in batches, and join the results.
+
+    One call for everything does not work at scale. The input is the smaller
+    problem — 586 filings at PDF_MAX_CHARS each is ~600k tokens, past even
+    Grok's 500k window — but the output is the binding one: a single 16k-token
+    reply spread over 586 announcements is ~27 tokens each, nowhere near the
+    "3-6 sentences" the prompt asks for. Batching gives every announcement a
+    real share of an output budget.
+
+    Batches are grouped by company so one company's filings stay in one call and
+    can be summarised together, which is how the digest reads anyway.
+    """
+    batches, current = [], []
+    for _, entries in itertools.groupby(sorted(new_entries,
+                                               key=lambda e: e.get("company") or ""),
+                                        key=lambda e: e.get("company") or ""):
+        entries = list(entries)
+        # Keep a company whole unless it alone exceeds the batch size.
+        if current and len(current) + len(entries) > SUMMARY_BATCH_SIZE:
+            batches.append(current)
+            current = []
+        current.extend(entries)
+    if current:
+        batches.append(current)
+
+    parts, failed = [], 0
+    for n, batch in enumerate(batches, 1):
+        log(f"  [digest] summarizing batch {n}/{len(batches)} ({len(batch)} announcements)")
+        try:
+            parts.append(summarize_with_openrouter(batch, api_key))
+        except Exception as e:
+            # One failed batch costs its own summaries, not the whole digest.
+            failed += 1
+            log(f"  [warn] batch {n} failed: {e}")
+            parts.append("_(summarization failed for these — raw list)_\n\n"
+                         + "\n".join(f"- [{x['company']}]({x['url']}) {x['title']}"
+                                     for x in batch))
+    if failed:
+        log(f"[warn] {failed}/{len(batches)} digest batches failed")
+    return "\n\n".join(parts)
+
+
 def summarize_with_openrouter(new_entries, api_key):
     lines = []
     for e in new_entries:
@@ -409,20 +474,17 @@ def summarize_with_openrouter(new_entries, api_key):
             raise
 
 
-def append_digest(text):
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    ts = __import__("subprocess").check_output(
-        ["date", "+%Y-%m-%d %H:%M %Z"]
-    ).decode().strip()
-    with DIGEST_FILE.open("a", encoding="utf-8") as f:
-        f.write(f"\n## {ts}\n\n{text}\n")
+def update_store(new_entries, digest_text, run_id=None):
+    """Write this run to announcements_store.json (structured, read by the
+    dashboard): the digest markdown plus the raw source filings (company, title,
+    link) so the UI can render summaries and link through. Merged, not
+    clobbered; capped to the last MAX_STORE_RUNS runs; written atomically.
 
-
-def update_store(new_entries, digest_text):
-    """Append this run to announcements_store.json (structured, read by the
-    dashboard): the GLM digest markdown plus the raw source filings (company,
-    title, link) so the UI can render summaries and link through. Merged, not
-    clobbered; capped to the last MAX_STORE_RUNS runs; written atomically."""
+    `run_id` replaces an entry already written under that id instead of adding a
+    second one. That is what lets a run publish its announcements the moment it
+    has them and fill the summaries in afterwards, so a failure during
+    enrichment costs the digest rather than the whole run.
+    """
     from datetime import datetime, timezone
     try:
         store = json.loads(STORE_FILE.read_text(encoding="utf-8"))
@@ -432,8 +494,14 @@ def update_store(new_entries, digest_text):
     ts = datetime.now(timezone.utc).astimezone().isoformat(timespec="minutes")
     items = [{"company": e["company"], "code": e["code"], "title": e["title"],
               "url": e["url"], "blurb": e.get("blurb", "")} for e in new_entries]
-    runs.append({"ts": ts, "count": len(new_entries),
-                 "digest": digest_text, "items": items})
+    entry = {"ts": ts, "count": len(new_entries), "digest": digest_text,
+             "items": items, "run_id": run_id}
+    existing = next((i for i, r in enumerate(runs)
+                     if run_id and r.get("run_id") == run_id), None)
+    if existing is None:
+        runs.append(entry)
+    else:
+        runs[existing] = entry
     runs = runs[-MAX_STORE_RUNS:]
     tmp = STORE_FILE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps({"generated_at": ts, "runs": runs},
@@ -509,7 +577,6 @@ def main():
         codes = get_watchlist_companies(cookie)
     except RuntimeError as e:
         log(str(e))
-        append_digest(f"**Error:** {e}")
         sys.exit(1)
 
     if not codes:
@@ -540,26 +607,61 @@ def main():
 
     log(f"New announcements: {len(new_entries)}")
 
-    enrich_with_pdf_text(new_entries, save_pending)
+    # Seen is saved before the work below. These announcements are already
+    # recorded as pending, so re-discovering them next run would only duplicate
+    # them; a crash from here on loses time, never an announcement.
+    save_seen(seen)
+
+    # Publish a bounded batch and leave the rest pending, so a run always ends
+    # with something on the dashboard.
+    batch, remainder = (new_entries[:MAX_ANNOUNCEMENTS_PER_RUN],
+                        new_entries[MAX_ANNOUNCEMENTS_PER_RUN:])
+    if remainder:
+        log(f"Publishing {len(batch)} this run; {len(remainder)} stay pending "
+            f"for the next one (cap {MAX_ANNOUNCEMENTS_PER_RUN}).")
+
+    # Publish before the slow work, not after. Enrichment and summarization take
+    # tens of minutes and are where the two runs on 2026-07-29 died; holding the
+    # announcements back until then meant a run that didn't finish showed
+    # nothing at all, while its discoveries piled up in pending. The dashboard
+    # now has the filings — company, title, link, blurb — within seconds, and
+    # the digest replaces this placeholder when it is ready.
+    # Derived from the batch's contents, not the clock, so a run that dies and
+    # is retried replaces its own half-finished entry instead of publishing the
+    # same announcements twice. The retry sees the same pending list and so
+    # forms the same batch and the same id.
+    run_id = hashlib.sha1("\n".join(sorted(e["url"] for e in batch))
+                          .encode("utf-8")).hexdigest()[:16]
+    update_store(batch, "_Summarizing… reload shortly for the digest._", run_id)
+    log(f"Published {len(batch)} announcements to the dashboard; summarizing now.")
+
+    enrich_with_pdf_text(batch, lambda done: save_pending(done + remainder))
 
     if api_key:
-        try:
-            digest = summarize_with_openrouter(new_entries, api_key)
-        except Exception as e:
-            log(f"[warn] OpenRouter summarization failed: {e}")
-            digest = "_(OpenRouter summarization failed — raw list below)_\n\n" + "\n".join(
-                f"- [{e['company']}]({e['url']}) {e['title']}" for e in new_entries
-            )
+        digest = summarize_all(batch, api_key)
     else:
         log(f"No OpenRouter key found at {KEY_FILE}, logging raw announcements only.")
-        digest = "\n".join(f"- [{e['company']}]({e['url']}) {e['title']}" for e in new_entries)
+        digest = "\n".join(f"- [{e['company']}]({e['url']}) {e['title']}" for e in batch)
 
-    append_digest(digest)
-    update_store(new_entries, digest)
-    save_seen(seen)
-    save_pending([])
-    log("Digest appended.")
+    update_store(batch, digest, run_id)
+    save_pending(remainder)
+    log(f"Digest written. {len(batch)} published, {len(remainder)} still pending.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except BaseException as e:
+        # Nothing above logged the two runs that died on 2026-07-29: main() had
+        # no handler, so a traceback went to stderr, and the server keeps only
+        # the last line of that in memory. scan.log simply stopped mid-run and
+        # the cause was unrecoverable. Anything that ends this process now says
+        # so in the log first. BaseException so a SIGINT-driven KeyboardInterrupt
+        # is recorded too; a SIGKILL still can't be caught by anyone.
+        import traceback
+        log(f"[fatal] {type(e).__name__}: {e}")
+        for line in traceback.format_exc().rstrip().splitlines():
+            log(f"  {line}")
+        raise
