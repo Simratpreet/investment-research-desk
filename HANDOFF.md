@@ -75,9 +75,12 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   before it reaches the watchlist. Per-market on demand; a sortable table (company,
   sector, mkt cap, RVOL, change, price, turnover) with an expandable per-stock AI
   note. Empty is a normal outcome, rendered as such.
-  - **Criteria:** `RVOL ≥ 5×` **AND** `change ≥ +5%`, up only, 20-day baseline, all
-    `MOVERS_*` in config.py. Both conditions matter: measured live, `or` yields
-    800–1,200 hits/day (unreadable, unaffordable to analyse), `and` yields ~30–40.
+  - **Criteria:** `RVOL ≥ 3×` **AND** `change ≥ +3%`, up only, 20-day baseline, all
+    `MOVERS_*` in config.py and env-overridable. Requiring *both* is the part that
+    matters: measured live, `or` yields 800–1,200 hits/day (unreadable,
+    unaffordable to analyse). Thresholds were 5×/5% until 2026-07-31 and were
+    relaxed to catch accumulation that starts quieter than a violent day; expect
+    materially more hits, with `MOVERS_ANALYSIS_MAX` bounding the LLM spend.
   - **Markets:** `nasdaq`, `nyse`, `tsx`, `tsxv`, `asx`, `etr`, `sw`, `sto` — 9,549
     symbols. Symbol lists are **screener CSV exports committed to
     `market_scan/universes/`** (`Ticker, Company[, Market Cap][, Industry]`; tickers

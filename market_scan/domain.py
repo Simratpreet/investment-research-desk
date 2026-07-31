@@ -75,12 +75,17 @@ class PriceSeries:
 class ScanCriteria:
     """The whole filter rule, in one place.
 
-    Both conditions must hold. Measured live, `or` yields 800-1,200 hits/day
-    across these markets — unreadable, and unaffordable to run an LLM over.
-    `and` yields ~33/day, which per-stock analysis handles comfortably.
+    Both conditions must hold — that is the load-bearing part, not the numbers.
+    Measured live, `or` yields 800-1,200 hits/day across these markets, which is
+    unreadable and unaffordable to run an LLM over; `and` keeps it to a page you
+    can actually read.
+
+    The thresholds themselves are a judgement call and live in config.py, where
+    they are env-overridable. These defaults exist only for direct construction
+    and tests.
     """
-    min_rvol: float = 5.0
-    min_change_pct: float = 5.0
+    min_rvol: float = 3.0
+    min_change_pct: float = 3.0
     lookback: int = 20
     direction: str = UP
 

@@ -51,13 +51,19 @@ VOLUME_SPIKE_MULTIPLIER = 2.0  # Alert when volume >= N × 20-day average
 
 # --- Movers (market-wide spike scanner) ---
 # A "mover" needs BOTH an unusual volume day and a real price rise on the last
-# completed session. Measured live, either-condition yields 800-1,200 hits a day
-# across these markets — unreadable, and unaffordable to run an LLM over.
-# Both-conditions yields ~30-40, which per-stock analysis handles comfortably.
-# A quiet day can legitimately yield zero; the page renders that as a normal
-# outcome, not an error.
-MOVERS_MIN_RVOL       = float(os.getenv("MOVERS_MIN_RVOL", "5.0"))
-MOVERS_MIN_CHANGE_PCT = float(os.getenv("MOVERS_MIN_CHANGE_PCT", "5.0"))
+# completed session. Requiring both is what makes the page readable: measured
+# live, either-condition alone yields 800-1,200 hits a day across these markets,
+# which is unreadable and unaffordable to run an LLM over.
+#
+# Relaxed from 5x/5% to 3x/3% to widen the net — 5x volume *and* a 5% rise is a
+# violent day, and plenty of genuine accumulation starts quieter than that.
+# Expect materially more hits per run; MOVERS_ANALYSIS_MAX is what bounds the
+# spend, and anything past it is marked "skipped" rather than dropped.
+#
+# A quiet day can still legitimately yield zero; the page renders that as a
+# normal outcome, not an error.
+MOVERS_MIN_RVOL       = float(os.getenv("MOVERS_MIN_RVOL", "3.0"))
+MOVERS_MIN_CHANGE_PCT = float(os.getenv("MOVERS_MIN_CHANGE_PCT", "3.0"))
 MOVERS_LOOKBACK       = int(os.getenv("MOVERS_LOOKBACK", "20"))
 # Concurrency against Yahoo's chart endpoint. The feed paces itself globally
 # (see market_scan/feed.py), so this bounds threads, not request rate.
