@@ -124,6 +124,7 @@ REASON_MODELS = [
     {"id": "anthropic/claude-opus-5:online",   "label": "Claude Opus 5"},
     {"id": "anthropic/claude-sonnet-5:online", "label": "Claude Sonnet 5"},
     {"id": "z-ai/glm-5.2:online",           "label": "GLM-5.2"},
+    {"id": "deepseek/deepseek-v4-flash-0731:online", "label": "DeepSeek V4 Flash"},
 ]
 REASON_MODEL_IDS = {m["id"] for m in REASON_MODELS}
 # REASON_MODEL = "google/gemini-3.1-pro-preview:online"
