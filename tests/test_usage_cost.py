@@ -16,7 +16,7 @@ from voice_module import (DEFAULT_MODEL_COST, PROMPT_PRESETS, STT_COST_PER_M,
                           STT_OUT_COST_PER_M, TTS_MODELS, reason, stt_cost,
                           stt_is_estimate, transcribe, tts_cost, usage_cost,
                           voice_bp)
-from flask import Flask
+from flask import Flask, request
 
 
 class _FakeResp:
@@ -243,6 +243,60 @@ class TestVoicePageRendersPresets(unittest.TestCase):
         option_ids = re.findall(r'<option value="([^"]*)"', block)
         # Idle placeholder + one option per allowlist entry, exactly.
         self.assertEqual(option_ids, [""] + [p["id"] for p in PROMPT_PRESETS])
+
+
+class TestTtsOffToggle(unittest.TestCase):
+    """Per-message TTS-off toggle: tts_enabled=0 skips TTS + audio in payload."""
+
+    def _run_ask(self, tts_enabled, synth_result):
+        captured = {}
+        with mock.patch.object(voice_module, "_VOICE_SEMA",
+                               mock.MagicMock()), \
+             mock.patch.object(voice_module, "reason",
+                               return_value=("answer", {"cost": 1})), \
+             mock.patch.object(voice_module, "synthesize_audio_cached",
+                               return_value=synth_result) as synth, \
+             mock.patch.object(voice_module, "usage_cost",
+                               return_value=(1.0, 100)), \
+             mock.patch.object(voice_module, "stt_cost", return_value=None), \
+             mock.patch.object(voice_module, "stt_is_estimate",
+                               return_value=True), \
+             mock.patch.object(voice_module, "_finish_job",
+                               side_effect=lambda jid, payload, status:
+                               captured.update(payload=payload, status=status)):
+            voice_module._run_ask(
+                "job1", "my question", None, None, None, [], "AAA", [],
+                "x-ai/grok-4.5:online", conv_id=None, tts_cfg=TTS_MODELS[0],
+                tts_enabled=tts_enabled)
+        return captured, synth
+
+    def test_disabled_skips_tts_and_omits_audio(self):
+        captured, synth = self._run_ask(False, (b"audio", "audio/mpeg", True))
+        synth.assert_not_called()
+        payload = captured["payload"]
+        self.assertNotIn("audio", payload)
+        self.assertIsNone(payload["voice_cost"])
+        self.assertEqual(payload["voice_chars"], 0)
+
+    def test_enabled_calls_tts_and_includes_audio(self):
+        captured, synth = self._run_ask(True, (b"audio", "audio/mpeg", True))
+        synth.assert_called_once()
+        payload = captured["payload"]
+        self.assertIn("audio", payload)
+        self.assertIsNotNone(payload["voice_cost"])
+
+    def test_parser_lenient(self):
+        # Mirrors the exact expression in voice_ask: "0" -> off; anything else
+        # (or missing) -> on. Never raises on a garbage value.
+        def parse(form):
+            app = Flask(__name__)
+            with app.test_request_context("/api/voice/ask", method="POST",
+                                          data=form):
+                return (request.form.get("tts_enabled") or "1") != "0"
+        self.assertFalse(parse({"tts_enabled": "0"}))
+        self.assertTrue(parse({}))                       # absent
+        self.assertTrue(parse({"tts_enabled": "1"}))     # on
+        self.assertTrue(parse({"tts_enabled": "garbage"}))  # lenient
 
 
 if __name__ == "__main__":

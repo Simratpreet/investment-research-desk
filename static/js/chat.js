@@ -3,6 +3,7 @@ const statusEl = document.getElementById("status");
 const symbolEl = document.getElementById("symbol");
 const modelEl = document.getElementById("model");
 const ttsEl = document.getElementById("ttsModel");
+const ttsToggle = document.getElementById("ttsToggle");
 let mediaRecorder, chunks = [], stream, recMime = "";
 
 // Remember the last chosen reasoning model across visits. A saved id that is no
@@ -754,6 +755,7 @@ async function submit(fd) {
   fd.append("docs", JSON.stringify([...attached]));
   fd.append("model", modelEl.value);
   fd.append("tts_model", ttsEl.value);
+  fd.append("tts_enabled", ttsToggle.checked ? "1" : "0");
   fd.append("conversation_id", Conversations.currentId || "");
   inFlight = true;
   recBtn.disabled = textBtn.disabled = true;

@@ -1009,6 +1009,11 @@ def voice_ask():
     model = resolve_model(request.form.get("model"))
     tts_cfg = resolve_tts_model(request.form.get("tts_model"))
 
+    # TTS-off per message: "0" skips the answer's speech synthesis. Anything
+    # else (or absent) keeps current behavior. Lenient parse — a bad value or
+    # a missing field must never fail the ask.
+    tts_enabled = (request.form.get("tts_enabled") or "1") != "0"
+
     doc_ids = []
     raw_docs = request.form.get("docs")
     if raw_docs:
@@ -1078,7 +1083,7 @@ def voice_ask():
         _jobs[job_id] = {"status": "running", "created": time.time()}
     threading.Thread(
         target=_run_ask,
-        args=(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id, tts_cfg),
+        args=(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id, tts_cfg, tts_enabled),
         daemon=True,
     ).start()
     return jsonify({"job_id": job_id, "status": "running",
@@ -1092,7 +1097,7 @@ def _finish_job(job_id: str, payload: dict, status: str):
             job.update(status=status, payload=payload, done=time.time())
 
 
-def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id=None, tts_cfg=None):
+def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, model, conv_id=None, tts_cfg=None, tts_enabled=True):
     """The STT -> reason -> TTS pipeline, run off-request. Never raises."""
     try:
         try:
@@ -1106,7 +1111,10 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             answer, usage = reason(question, context, symbol, history, model)
             if not answer:
                 return _finish_job(job_id, {"error": "the model returned an empty answer — try rephrasing"}, "error")
-            audio, mime, tts_synth = synthesize_audio_cached(answer, tts_cfg)
+            audio = mime = None
+            tts_synth = False
+            if tts_enabled:
+                audio, mime, tts_synth = synthesize_audio_cached(answer, tts_cfg)
             # Accounting is deliberately in its own guarded block: a cost bug
             # must never sink a paid-for answer. The helpers are total, but
             # defend anyway in case that guarantee is broken later.
@@ -1154,7 +1162,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             except Exception as e:
                 log.warning("failed to persist turn to %s: %s", conv_id, e)
 
-        _finish_job(job_id, {
+        payload = {
             "symbol": sym,   # "" in free-conversation mode
             "model": model,
             "sources": sources,
@@ -1165,8 +1173,12 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             "stt_cost": stt_amt,
             "stt_est": stt_est, "voice_est": True,
             "conversation_id": conv_id,
-            "audio": f"data:{mime};base64," + base64.b64encode(audio).decode("ascii"),
-        }, "done")
+        }
+        # Only attach audio when it was produced (TTS-off turns omit it so the
+        # card renders text-only; None would crash base64.b64encode).
+        if audio is not None:
+            payload["audio"] = f"data:{mime};base64," + base64.b64encode(audio).decode("ascii")
+        _finish_job(job_id, payload, "done")
     finally:
         _VOICE_SEMA.release()
 

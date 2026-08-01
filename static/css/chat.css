@@ -110,6 +110,16 @@
   .preset-field select:focus-visible { outline:2px solid var(--accent); outline-offset:1px;
                                        border-color:var(--accent); }
 
+  /* TTS on/off switch — compact pill next to the prompt preset, same size. */
+  .tts-toggle-field { display:inline-flex; align-items:center; gap:.4rem; margin:0;
+                      padding:.38rem .7rem; border:1px solid var(--border); border-radius:999px;
+                      background:var(--surface-warm); color:var(--text-secondary);
+                      font-size:.78rem; font-weight:600; cursor:pointer; user-select:none;
+                      transition:border-color .16s, color .16s, background .16s; }
+  .tts-toggle-field:hover { border-color:var(--accent); color:var(--text); background:var(--green-bg); }
+  .tts-toggle-field:has(input:checked) { color:var(--text); }
+  .tts-toggle-field input { accent-color:var(--accent); cursor:pointer; }
+
 
   /* Mic as an icon button — voice is an alternative input, not a rival CTA */
   .icon-btn { width:2.45rem; height:2.45rem; border-radius:50%; border:1px solid var(--border);
