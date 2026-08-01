@@ -205,6 +205,9 @@
   .sources { color:var(--text-muted); font-size:.74rem; margin-top:.6rem; word-break:break-word;
              font-family:'Geist Mono',monospace; line-height:1.5; }
 
+  .entry-cost { color:var(--text-muted); font-size:.72rem; margin-top:.35rem; }
+  .entry-cost.entry-voice, .entry-cost.entry-stt { margin-left:.6rem; margin-top:.1rem; }
+
   /* --- Custom audio player ---------------------------------------------------
      Sits at the TOP of the answer (right under the label) and sticks there
      while you read, so Play/skip are always reachable without scrolling to the

@@ -112,6 +112,9 @@ def _sweep_jobs():
 
 OR_URL = "https://openrouter.ai/api/v1"
 STT_MODEL = "openai/gpt-4o-transcribe"
+# usd per 1M prompt tokens for STT_MODEL, from OpenRouter audio pricing.
+# Placeholder — tracked follow-up, see cost spec §9.
+STT_COST_PER_M = 4.20   # usd per 1M tokens
 
 # Reasoning models offered in the Chat page dropdown. This is an allowlist, not
 # a suggestion list: voice_ask only ever forwards an id found here, so a crafted
@@ -129,6 +132,82 @@ REASON_MODELS = [
 REASON_MODEL_IDS = {m["id"] for m in REASON_MODELS}
 # REASON_MODEL = "google/gemini-3.1-pro-preview:online"
 REASON_MODEL = REASON_MODELS[0]["id"]   # default when none is chosen
+
+# usd per 1M tokens, per model id, from OpenRouter /api/v1/models pricing.*
+# Kept in step with REASON_MODELS, but these are placeholders — the real values
+# are a maintenance task (see the cost spec §9). Because the primary source is
+# OpenRouter's own usage.cost, small drift here only affects the token-math
+# fallback and is non-fatal.
+MODEL_COSTS = {
+    # (in, out) usd per 1M tokens, matching DEFAULT_MODEL_COST's tuple shape.
+    "x-ai/grok-4.5:online":              (3.00, 15.00),
+    "moonshotai/kimi-k3:online":         (1.10, 4.40),
+    "openai/gpt-5.6-sol:online":         (2.50, 10.00),
+    "anthropic/claude-opus-5:online":    (5.00, 25.00),
+    "anthropic/claude-sonnet-5:online":  (3.00, 15.00),
+    "z-ai/glm-5.2:online":               (0.80, 0.80),
+    "deepseek/deepseek-v4-flash-0731:online": (0.25, 1.25),
+}
+DEFAULT_MODEL_COST = (1.00, 5.00)   # sane default for any unlisted id
+
+
+def usage_cost(usage: dict | None, model_id: str) -> tuple[float | None, int | None]:
+    """Return (cost_usd, total_tokens) for a completed call. NEVER raises.
+
+    Prefers OpenRouter's own usage.cost (captures the `:online` web-search spend
+    that token math can't). Falls back to MODEL_COSTS x token counts. Returns
+    (None, None) when the usage block is missing or unconsumable — the UI shows
+    nothing for these, never a wrong number.
+    """
+    if not usage:
+        return None, None
+    prompt = usage.get("prompt_tokens")
+    comp = usage.get("completion_tokens")
+    # None unless at least one token count is actually present, so a missing
+    # usage never renders a misleading "0 tokens".
+    if isinstance(prompt, int) or isinstance(comp, int):
+        total = int(usage.get("total_tokens") or ((prompt or 0) + (comp or 0)))
+    else:
+        total = None
+    cost = usage.get("cost")
+    if isinstance(cost, str):
+        try:
+            cost = float(cost.lstrip("$").replace(",", ""))
+        except ValueError:
+            cost = None
+    if not isinstance(cost, (int, float)):
+        cost = None
+    if cost is None and isinstance(prompt, int) and isinstance(comp, int):
+        p, o = MODEL_COSTS.get(model_id, DEFAULT_MODEL_COST)
+        cost = (prompt / 1e6 * p) + (comp / 1e6 * o)
+    return (round(cost, 6) if cost is not None else None), total
+
+
+def stt_cost(usage: dict | None) -> float | None:
+    """Estimated usd for an STT call. Prefer usage.cost; else prompt_tokens x
+    price. String-cost coercion identical to usage_cost. NEVER raises."""
+    if not usage:
+        return None
+    cost = usage.get("cost")
+    if isinstance(cost, str):
+        try:
+            cost = float(cost.lstrip("$").replace(",", ""))
+        except ValueError:
+            cost = None
+    if not isinstance(cost, (int, float)):
+        cost = None
+    if cost is None and isinstance(usage.get("prompt_tokens"), int):
+        cost = usage["prompt_tokens"] / 1e6 * STT_COST_PER_M
+    return round(cost, 6) if cost is not None else None
+
+
+def tts_cost(chars: int, cfg: dict) -> float | None:
+    """Estimated usd to synthesize `chars` chars with `cfg`. None when the model
+    has no per-char price set. NEVER raises."""
+    p = cfg.get("cost_per_char")
+    return round(chars * p, 6) if p is not None else None
+
+
 # TTS models offered in the Chat dropdown. Unlike reasoning models these are NOT
 # uniform — each has its own voice set and audio format, verified against the
 # endpoint. Two pipelines:
@@ -137,10 +216,14 @@ REASON_MODEL = REASON_MODELS[0]["id"]   # default when none is chosen
 #   mp3  — one request, return the encoded audio as-is. These aren't instruction-
 #          following, so NO performance prompt (they'd read it aloud).
 TTS_MODELS = [
+    # cost_per_char is a placeholder (usd per char, from OpenRouter audio
+    # pricing) — tracked follow-up, see cost spec §9.
     {"id": "google/gemini-3.1-flash-tts-preview", "label": "Gemini Flash — expressive",
-     "voice": "Charon", "pipeline": "pcm"},
-    {"id": "x-ai/grok-voice-tts-1.0", "label": "Grok Voice", "voice": "eve", "pipeline": "mp3"},
-    {"id": "hexgrad/kokoro-82m", "label": "Kokoro — open weights", "voice": "af_heart", "pipeline": "mp3"},
+     "voice": "Charon", "pipeline": "pcm", "cost_per_char": 0.0000175},
+    {"id": "x-ai/grok-voice-tts-1.0", "label": "Grok Voice", "voice": "eve",
+     "pipeline": "mp3", "cost_per_char": 0.0000175},
+    {"id": "hexgrad/kokoro-82m", "label": "Kokoro — open weights", "voice": "af_heart",
+     "pipeline": "mp3", "cost_per_char": 0.0000175},
 ]
 TTS_MODEL_BY_ID = {m["id"]: m for m in TTS_MODELS}
 TTS_MODEL = TTS_MODELS[0]["id"]   # default
@@ -368,7 +451,7 @@ _STT_PROMPT = ("An English-language question about a public company's quarterly 
                "results, guidance and management commentary.")
 
 
-def transcribe(audio_b64: str, fmt: str) -> str:
+def transcribe(audio_b64: str, fmt: str) -> tuple[str, dict | None]:
     resp = requests.post(
         f"{OR_URL}/audio/transcriptions",
         headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
@@ -381,7 +464,9 @@ def transcribe(audio_b64: str, fmt: str) -> str:
         timeout=120,
     )
     resp.raise_for_status()
-    return (resp.json().get("text") or "").strip()
+    data = resp.json()
+    usage = data.get("usage") or None
+    return (data.get("text") or "").strip(), usage
 
 
 _SPOKEN_STYLE = (
@@ -457,9 +542,14 @@ def resolve_model(requested: str) -> str:
     return requested if requested in REASON_MODEL_IDS else REASON_MODEL
 
 
-def reason(question: str, context: str, symbol: str, history=None, model=None) -> str:
+def reason(question: str, context: str, symbol: str, history=None, model=None) -> tuple[str, dict | None]:
     """`context` is pre-assembled labelled blocks (filings and/or uploaded
-    documents) built by voice_ask — it may be empty in free conversation."""
+    documents) built by voice_ask — it may be empty in free conversation.
+
+    Returns `(answer, usage)`: `usage` is the OpenRouter `usage` dict (which
+    carries OpenRouter's own computed `cost`, capturing the `:online` web-search
+    spend that token math can't) or None when absent. Cost is computed once
+    here and persisted by the caller."""
     if symbol:
         system = (
             f"You are an expert equity-research analyst answering a spoken question about {symbol.upper()}. "
@@ -507,10 +597,13 @@ def reason(question: str, context: str, symbol: str, history=None, model=None) -
         timeout=300,
     )
     resp.raise_for_status()
+    data = resp.json()
     # content can be null on a refusal or reasoning-only turn — coalesce, don't .strip(None).
-    msg = (resp.json().get("choices") or [{}])[0].get("message") or {}
+    msg = (data.get("choices") or [{}])[0].get("message") or {}
+    usage = data.get("usage") or None
     # Sanitise here so the displayed text and the TTS input are the same string.
-    return _clean_answer((msg.get("content") or "").strip())
+    answer = _clean_answer((msg.get("content") or "").strip())
+    return answer, usage
 
 
 def _chunk(text: str, limit: int):
@@ -697,20 +790,22 @@ def _tts_cache_key(text: str, cfg: dict, ext: str) -> str:
 
 
 def synthesize_audio_cached(text: str, cfg: dict = None):
-    """(bytes, mime) for `text`, served from the S3 cache when present else
-    synthesized and cached. Any cache error degrades to a plain synthesis so a
-    flaky bucket can never break playback."""
+    """(bytes, mime, synthesized) for `text`, served from the S3 cache when
+    present else synthesized and cached. Any cache error degrades to a plain
+    synthesis so a flaky bucket can never break playback. `synthesized` is
+    True only when a fresh synthesis actually ran (a cache hit is free), which
+    is what decides whether a TTS cost should be shown."""
     cfg = cfg or TTS_MODELS[0]
     mime = "audio/wav" if cfg["pipeline"] == "pcm" else "audio/mpeg"
     ext = "wav" if cfg["pipeline"] == "pcm" else "mp3"
     if not VOICE_S3_BUCKET:
-        return synthesize_audio(text, cfg)[0], mime
+        return synthesize_audio(text, cfg)[0], mime, True
     key = _tts_cache_key(text, cfg, ext)
     try:
         obj = _s3().get_object(Bucket=VOICE_S3_BUCKET, Key=key)
         data = obj["Body"].read()
         if data:
-            return data, mime
+            return data, mime, False
     except Exception:
         pass  # miss or transient error — synthesize
     audio, mime, _ = synthesize_audio(text, cfg)
@@ -718,7 +813,7 @@ def synthesize_audio_cached(text: str, cfg: dict = None):
         _s3().put_object(Bucket=VOICE_S3_BUCKET, Key=key, Body=audio, ContentType=mime)
     except Exception as e:
         log.warning("TTS cache write failed for %s: %s", key, e)
-    return audio, mime
+    return audio, mime, True
 
 
 def synthesize_wav_cached(text: str) -> bytes:
@@ -757,7 +852,7 @@ def voice_transcribe():
         return jsonify({"error": "no audio"}), 400
     try:
         audio_b64 = base64.b64encode(audio.read()).decode("ascii")
-        text = transcribe(audio_b64, _audio_fmt(audio))
+        text, _usage = transcribe(audio_b64, _audio_fmt(audio))
     except requests.HTTPError as e:
         status = e.response.status_code if e.response is not None else "?"
         log.warning("STT upstream error (status=%s): %s", status, e)
@@ -805,7 +900,7 @@ def _run_speak(job_id, text, tts_cfg=None):
     """Synthesize off-request and stash the result in the job store. Never raises."""
     try:
         try:
-            audio, mime = synthesize_audio_cached(text, tts_cfg)
+            audio, mime, _synth = synthesize_audio_cached(text, tts_cfg)
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else "?"
             log.warning("TTS upstream error (status=%s): %s", status, e)
@@ -932,16 +1027,32 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
     """The STT -> reason -> TTS pipeline, run off-request. Never raises."""
     try:
         try:
+            stt_usage = None
             if typed:
                 question = typed
             else:
-                question = transcribe(audio_b64, fmt)
+                question, stt_usage = transcribe(audio_b64, fmt)
                 if not question:
                     return _finish_job(job_id, {"error": "couldn't understand the audio — try again"}, "error")
-            answer = reason(question, context, symbol, history, model)
+            answer, usage = reason(question, context, symbol, history, model)
             if not answer:
                 return _finish_job(job_id, {"error": "the model returned an empty answer — try rephrasing"}, "error")
-            audio, mime = synthesize_audio_cached(answer, tts_cfg)
+            audio, mime, tts_synth = synthesize_audio_cached(answer, tts_cfg)
+            # Accounting is deliberately in its own guarded block: a cost bug
+            # must never sink a paid-for answer. The helpers are total, but
+            # defend anyway in case that guarantee is broken later.
+            cost = tokens = voice_cost = stt_amt = None
+            tts_chars = 0
+            try:
+                cost, tokens = usage_cost(usage, model)
+                stt_amt = stt_cost(stt_usage)
+                if tts_synth:
+                    # characters actually sent to TTS ~= the stripped text
+                    # synthesize_audio processes (see _clean text below).
+                    tts_chars = len(re.sub(r"[\[\]*`#]", " ", answer))
+                    voice_cost = tts_cost(tts_chars, tts_cfg)
+            except Exception:
+                log.warning("cost accounting failed for turn (answer still delivered)")
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else "?"
             log.warning("voice upstream error (status=%s): %s", status, e)
@@ -960,6 +1071,9 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
                 conversations.append_turn(conv_id, {
                     "question": question, "answer": answer, "symbol": sym,
                     "model": model, "sources": sources,
+                    "cost": cost, "tokens": tokens,
+                    "voice_cost": voice_cost, "voice_chars": tts_chars,
+                    "stt_cost": stt_amt,
                     "ts": datetime.now(timezone.utc).isoformat(),
                 })
             except Exception as e:
@@ -971,6 +1085,9 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             "sources": sources,
             "question": question,
             "answer": answer,
+            "cost": cost, "tokens": tokens,
+            "voice_cost": voice_cost, "voice_chars": tts_chars,
+            "stt_cost": stt_amt,
             "conversation_id": conv_id,
             "audio": f"data:{mime};base64," + base64.b64encode(audio).decode("ascii"),
         }, "done")

@@ -243,7 +243,9 @@ const Conversations = {
     document.getElementById("log").innerHTML = "";
     for (const t of turns) {                 // oldest→newest; addEntry prepends
       addEntry({ question: t.question, answer: t.answer, symbol: t.symbol,
-                 model: t.model, sources: t.sources }, { historical: true });
+                 model: t.model, sources: t.sources, cost: t.cost, tokens: t.tokens,
+                 voice_cost: t.voice_cost, stt_cost: t.stt_cost },
+               { historical: true });
       history.push({ role: "user", content: t.question });
       history.push({ role: "assistant", content: t.answer });
     }
@@ -475,6 +477,14 @@ async function pollSynth(btn, jobId, started) {
 // before, which read as two unrelated objects rather than a single turn.
 // opts.historical: a turn loaded from saved history. Persistence is text-only,
 // so there's no audio to play — render without a player and don't autoplay.
+function fmtCost(cost, tokens) {
+  if (cost == null && tokens == null) return null;   // historical/unmeasurable
+  const parts = [];
+  if (cost != null) parts.push("$" + cost.toFixed(4));
+  if (tokens != null) parts.push(tokens.toLocaleString() + " tokens");
+  return parts.join(" · ");
+}
+
 function addEntry(j, opts = {}) {
   const label = (text, tag) => {
     const el = document.createElement("div");
@@ -517,6 +527,29 @@ function addEntry(j, opts = {}) {
     const src = document.createElement("div"); src.className = "sources";
     src.textContent = "Sources: " + sources.join(", ");
     a.append(src);
+  }
+
+  // Cost of producing this answer (and the token spend that drove it). Shown
+  // only when the server recorded it; absent for pre-cost historical turns and
+  // unmeasurable refusals — never a fabricated $0.00.
+  const spendLine = fmtCost(j.cost, j.tokens);
+  if (spendLine) {
+    const spend = document.createElement("div");
+    spend.className = "entry-cost";
+    spend.textContent = spendLine;   // textContent — the codebase is XSS-strict
+    a.append(spend);
+  }
+  if (j.voice_cost != null) {        // TTS: estimate, only when a fresh synthesis ran
+    const v = document.createElement("div");
+    v.className = "entry-cost entry-voice";
+    v.textContent = "voice ~$" + j.voice_cost.toFixed(4);
+    a.append(v);
+  }
+  if (j.stt_cost != null) {          // STT: voice-mic turns only
+    const v = document.createElement("div");
+    v.className = "entry-cost entry-stt";
+    v.textContent = "speech ~$" + j.stt_cost.toFixed(4);
+    a.append(v);
   }
 
   el.append(q, a);
