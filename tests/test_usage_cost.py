@@ -4,6 +4,7 @@ Run with:  python3 -m unittest discover tests
 """
 
 import os
+import re
 import sys
 import unittest
 from unittest import mock
@@ -11,9 +12,11 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import voice_module
-from voice_module import (DEFAULT_MODEL_COST, STT_COST_PER_M, STT_OUT_COST_PER_M,
-                          TTS_MODELS, reason, stt_cost, stt_is_estimate,
-                          transcribe, tts_cost, usage_cost)
+from voice_module import (DEFAULT_MODEL_COST, PROMPT_PRESETS, STT_COST_PER_M,
+                          STT_OUT_COST_PER_M, TTS_MODELS, reason, stt_cost,
+                          stt_is_estimate, transcribe, tts_cost, usage_cost,
+                          voice_bp)
+from flask import Flask
 
 
 class _FakeResp:
@@ -200,6 +203,46 @@ class TestSynthesizeAudioCachedFlag(unittest.TestCase):
             data, _mime, synthesized = voice_module.synthesize_audio_cached("text")
         self.assertEqual(data, b"new-audio")
         self.assertTrue(synthesized)
+
+
+class TestVoicePageRendersPresets(unittest.TestCase):
+    """The Chat page renders the prompt-preset picker from the server allowlist,
+    so UI and server can't drift (mirrors how the model dropdowns render)."""
+
+    @classmethod
+    def setUpClass(cls):
+        repo = os.path.join(os.path.dirname(__file__), "..")
+        app = Flask(__name__,
+                    template_folder=os.path.join(repo, "templates"),
+                    static_folder=os.path.join(repo, "static"))
+        app.register_blueprint(voice_bp)
+
+        @app.context_processor
+        def _asset_version():
+            return {"asset_v": "test"}
+
+        cls.client = app.test_client()
+
+    def test_voice_renders_preset_select_from_allowlist(self):
+        resp = self.client.get("/voice")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.get_data(as_text=True)
+        self.assertIn('id="promptPreset"', html)
+        self.assertIn('id="promptPresetsData"', html)
+        for p in PROMPT_PRESETS:
+            self.assertIn(f'value="{p["id"]}"', html)   # option value
+            self.assertIn(p["label"], html)             # visible label
+        self.assertIn("Prompt…", html)                  # idle placeholder
+
+    def test_preset_option_ids_match_allowlist_exactly(self):
+        resp = self.client.get("/voice")
+        html = resp.get_data(as_text=True)
+        # Scope to the promptPreset <select> block so model/tts dropdowns don't count.
+        block = html.split('id="promptPreset"', 1)[1]
+        block = block.split("</select>", 1)[0]
+        option_ids = re.findall(r'<option value="([^"]*)"', block)
+        # Idle placeholder + one option per allowlist entry, exactly.
+        self.assertEqual(option_ids, [""] + [p["id"] for p in PROMPT_PRESETS])
 
 
 if __name__ == "__main__":

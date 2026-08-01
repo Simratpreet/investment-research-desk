@@ -78,6 +78,29 @@ function autosize() {
 }
 qtextEl.addEventListener("input", autosize);
 
+// Serve the prompt-preset list to JS as JSON from the server template (a single
+// source of truth — no parallel copy of the prompt text in JS that could drift).
+const PROMPT_PRESETS_BY_ID = (() => {
+  try {
+    const el = document.getElementById("promptPresetsData");
+    return Object.fromEntries(JSON.parse(el.textContent).map(p => [p.id, p]));
+  } catch (e) { return {}; }
+})();
+
+// Selecting a preset drops its prompt into the composer (user can edit before
+// asking). The select resets to the idle placeholder after each pick so the
+// same preset can be chosen back-to-back.
+const presetEl = document.getElementById("promptPreset");
+if (presetEl) presetEl.addEventListener("change", () => {
+  const p = PROMPT_PRESETS_BY_ID[presetEl.value];
+  if (!p) return;
+  qtextEl.value = p.text;
+  autosize();                 // grow the textarea to fit the prompt
+  presetEl.value = "";        // reset so re-picking works
+  qtextEl.focus();
+  setStatus(`Preset "${p.label}" added to your question — edit it, then Ask.`);
+});
+
 updateContext();   // paint the chip immediately, before docs load
 
 // Safari/iOS MediaRecorder with no mimeType records mp4/AAC but we used to hardcode

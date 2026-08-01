@@ -100,6 +100,17 @@
                   flex-wrap:wrap; padding:.55rem .75rem .75rem 1rem; }
   .composer-actions { display:flex; align-items:center; gap:.5rem; margin-left:auto; }
 
+  /* Prompt preset picker — a compact pill in the composer bar, matching the chip/select size. */
+  .preset-field { margin:0; }
+  .preset-field select { max-width:12rem; padding:.42rem .7rem; border:1px solid var(--border);
+                         border-radius:999px; background:var(--surface-warm); color:var(--text-secondary);
+                         font-size:.78rem; font-weight:600; cursor:pointer;
+                         transition:border-color .16s, color .16s, background .16s; }
+  .preset-field select:hover { border-color:var(--accent); color:var(--text); background:var(--green-bg); }
+  .preset-field select:focus-visible { outline:2px solid var(--accent); outline-offset:1px;
+                                       border-color:var(--accent); }
+
+
   /* Mic as an icon button — voice is an alternative input, not a rival CTA */
   .icon-btn { width:2.45rem; height:2.45rem; border-radius:50%; border:1px solid var(--border);
               background:var(--surface-warm); color:var(--text-secondary); font-size:1rem; cursor:pointer;

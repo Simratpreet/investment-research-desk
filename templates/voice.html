@@ -56,6 +56,14 @@
           <span id="chipDocs">no documents</span>
           <span class="chip-caret" aria-hidden="true">⌄</span>
         </button>
+        <label class="field preset-field" for="promptPreset">
+          <select id="promptPreset" aria-label="Insert a pre-written prompt" title="Insert a pre-written prompt">
+            <option value="">Prompt…</option>
+            {% for p in prompt_presets %}
+            <option value="{{ p.id }}">{{ p.label }}</option>
+            {% endfor %}
+          </select>
+        </label>
         <div class="composer-actions">
           <button id="rec" class="icon-btn" title="Ask by voice" aria-label="Ask by voice">🎙</button>
           <button id="askText" class="btn btn-primary">Ask</button>
@@ -122,5 +130,6 @@
   </main>
   </div>
 
+<script type="application/json" id="promptPresetsData">{{ prompt_presets|tojson }}</script>
 <script src="{{ url_for('static', filename='js/chat.js') }}?v={{ asset_v }}"></script>
 </body></html>

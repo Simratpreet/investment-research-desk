@@ -247,6 +247,50 @@ TTS_MODELS = [
 TTS_MODEL_BY_ID = {m["id"]: m for m in TTS_MODELS}
 TTS_MODEL = TTS_MODELS[0]["id"]   # default
 TTS_VOICE = TTS_MODELS[0]["voice"]
+
+
+# Pre-authored prompts selectable on the Chat page. Each is {id, label, text}.
+# Selecting one fills the chat input (`#qtext`) — the user can edit it before
+# asking; the question is then sent unchanged through /api/voice/ask. This is an
+# allowlist served to the template (and as JSON to the frontend), so UI and
+# server can't drift. Add more entries to extend the picker.
+PROMPT_PRESETS = [
+    {
+        "id": "podcast-note",
+        "label": "Podcast research note",
+        "text": (
+            "Act as a research analyst writing a podcast-style spoken note about the "
+            "company in the context (the filings, transcripts and documents I've "
+            "attached). It will be read aloud by a text-to-speech engine while I'm "
+            "driving, so write it to be listened to, not skimmed.\n\n"
+            "Write it as flowing spoken prose — never bullet points, headings, tables, "
+            "or symbols that won't read naturally out loud. Aim for roughly 1,800–2,200 "
+            "words (about 10–15 minutes of speech). Open by naming the company plainly, "
+            "then cover in order:\n"
+            "1. What the business does and how it makes money (the business model).\n"
+            "2. Where it sits in the value chain — its suppliers and customers, and what "
+            "leverage it has over each.\n"
+            "3. The competitive landscape — who the real rivals are, the basis of "
+            "competition, and what moat (if any) protects it.\n"
+            "4. The investment thesis — the bull case, the bear case, and the key "
+            "numbers or assumptions that would break it.\n\n"
+            "Quality requirements:\n"
+            "- Every sentence must carry information. Cut fluff, filler, hedging, and "
+            "sugar-coating. Do not pad to reach length; if the facts are weak, say so "
+            "plainly.\n"
+            "- Do not introduce any term, acronym, or metric you have not defined. The "
+            "first time you mention anything technical, give a one-line plain-English "
+            "explanation.\n"
+            "- Ground every claim in the attached material. Say explicitly what the "
+            "filings support vs. what is inference or judgment.\n"
+            "- Be balanced and honest — state risks and negatives as clearly as positives.\n"
+            "- Use natural complete sentences suited to TTS: no URLs, symbols, or "
+            "abbreviations that would be mispronounced.\n\n"
+            "Write the note now, in one continuous piece of prose."
+        ),
+    },
+]
+PROMPT_PRESETS_BY_ID = {p["id"]: p for p in PROMPT_PRESETS}
 TTS_PCM_RATE = 24000
 # Measured, not estimated: this voice speaks ~17.5 chars/sec (calibrated by
 # synthesizing 400/700/1000-char samples and dividing PCM bytes by 48000 B/s).
@@ -846,7 +890,8 @@ def voice_page():
     # so UI and server can never drift apart.
     return render_template("voice.html", models=REASON_MODELS,
                            default_model=REASON_MODEL,
-                           tts_models=TTS_MODELS, default_tts=TTS_MODEL)
+                           tts_models=TTS_MODELS, default_tts=TTS_MODEL,
+                           prompt_presets=PROMPT_PRESETS)
 
 
 def _audio_fmt(audio) -> str:
