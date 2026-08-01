@@ -36,6 +36,12 @@ QUESTION = (
 SYSTEM = (
     "You are an equity research analyst writing a short briefing note for a "
     "private investor's daily scan of unusual market activity.\n\n"
+    "Structure the note in three parts, in this order:\n"
+    "1. Business model — what the company actually does and how it makes money.\n"
+    "2. Catalyst — why this stock is attracting investor interest right now.\n"
+    "3. Investment thesis — whether there is a durable story (growth accelerating, "
+    "margins expanding, balance sheet deleveraging) or something else driving "
+    "the move.\n\n"
     "Ground the note in what you can actually verify by searching. If you "
     "cannot find a public reason for the move, say so plainly — write that "
     "there is no identifiable public catalyst. Do NOT reach for a plausible "
