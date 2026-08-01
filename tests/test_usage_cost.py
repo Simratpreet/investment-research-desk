@@ -11,8 +11,9 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import voice_module
-from voice_module import (DEFAULT_MODEL_COST, reason, stt_cost, transcribe,
-                          tts_cost, usage_cost)
+from voice_module import (DEFAULT_MODEL_COST, STT_COST_PER_M, STT_OUT_COST_PER_M,
+                          TTS_MODELS, reason, stt_cost, stt_is_estimate,
+                          transcribe, tts_cost, usage_cost)
 
 
 class _FakeResp:
@@ -86,14 +87,31 @@ class TestSttCost(unittest.TestCase):
     def test_string_cost_coerced(self):
         self.assertEqual(stt_cost({"cost": "$0.004200"}), 0.0042)
 
-    def test_falls_back_to_token_math(self):
-        # gpt-4o-transcribe: 4.20 per 1M prompt tokens; 1M -> 4.2
-        self.assertAlmostEqual(stt_cost({"prompt_tokens": 1_000_000}), 4.2)
+    def test_falls_back_to_measured_prices(self):
+        # gpt-4o-transcribe measured: 2.50/M in, 10.00/M out.
+        # 1M in -> 2.50; plus 1M out -> 10.00.
+        self.assertAlmostEqual(
+            stt_cost({"input_tokens": 1_000_000, "output_tokens": 1_000_000}), 12.5)
+        self.assertAlmostEqual(stt_cost({"input_tokens": 1_000_000}), 2.5)
 
     def test_missing_usage_is_none(self):
         self.assertIsNone(stt_cost(None))
         self.assertIsNone(stt_cost({}))
-        self.assertIsNone(stt_cost({"prompt_tokens": "nope"}))
+        self.assertIsNone(stt_cost({"input_tokens": "nope"}))
+
+
+class TestSttIsEstimate(unittest.TestCase):
+    """stt_est must mean 'the figure is genuinely an estimate', i.e. exact
+    usage.cost was absent — never 'which helper ran' (spec v2 §3.2)."""
+
+    def test_exact_when_usage_cost_present(self):
+        self.assertFalse(stt_is_estimate({"cost": 0.000123, "input_tokens": 10}))
+        self.assertFalse(stt_is_estimate({"cost": "$0.000123"}))
+
+    def test_estimate_when_cost_absent(self):
+        self.assertTrue(stt_is_estimate({"input_tokens": 10, "output_tokens": 3}))
+        self.assertTrue(stt_is_estimate(None))
+        self.assertTrue(stt_is_estimate({}))
 
 
 class TestTtsCost(unittest.TestCase):
@@ -103,6 +121,27 @@ class TestTtsCost(unittest.TestCase):
 
     def test_no_price_is_none(self):
         self.assertIsNone(tts_cost(1000, {"voice": "x"}))
+
+
+class TestMeasuredPrices(unittest.TestCase):
+    """Spec v2 §3.1: real unit prices measured from billed OpenRouter requests
+    replace the old placeholder sentinels (STT 4.20, TTS 1.75e-05)."""
+
+    def test_stt_prices_are_measured(self):
+        self.assertNotEqual(STT_COST_PER_M, 4.20)          # old placeholder
+        self.assertEqual(STT_COST_PER_M, 2.50)             # measured in/M
+        self.assertEqual(STT_OUT_COST_PER_M, 10.00)        # measured out/M
+
+    def test_tts_prices_are_measured_per_model(self):
+        by_id = {m["id"]: m for m in TTS_MODELS}
+        for mid, expected in [
+            ("google/gemini-3.1-flash-tts-preview", 0.00003276),
+            ("x-ai/grok-voice-tts-1.0", 0.00001500),
+            ("hexgrad/kokoro-82m", 0.00000062),
+        ]:
+            cpc = by_id[mid]["cost_per_char"]
+            self.assertAlmostEqual(cpc, expected)
+            self.assertNotEqual(cpc, 0.0000175)            # old placeholder
 
 
 class TestReasonAndTranscribeTuples(unittest.TestCase):

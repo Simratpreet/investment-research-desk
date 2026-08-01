@@ -244,7 +244,7 @@ const Conversations = {
     for (const t of turns) {                 // oldest→newest; addEntry prepends
       addEntry({ question: t.question, answer: t.answer, symbol: t.symbol,
                  model: t.model, sources: t.sources, cost: t.cost, tokens: t.tokens,
-                 voice_cost: t.voice_cost, stt_cost: t.stt_cost },
+                 voice_cost: t.voice_cost, stt_cost: t.stt_cost, stt_est: t.stt_est },
                { historical: true });
       history.push({ role: "user", content: t.question });
       history.push({ role: "assistant", content: t.answer });
@@ -539,7 +539,7 @@ function addEntry(j, opts = {}) {
     spend.textContent = spendLine;   // textContent — the codebase is XSS-strict
     a.append(spend);
   }
-  if (j.voice_cost != null) {        // TTS: estimate, only when a fresh synthesis ran
+  if (j.voice_cost != null) {        // TTS: always an estimate (option b)
     const v = document.createElement("div");
     v.className = "entry-cost entry-voice";
     v.textContent = "voice ~$" + j.voice_cost.toFixed(4);
@@ -548,7 +548,11 @@ function addEntry(j, opts = {}) {
   if (j.stt_cost != null) {          // STT: voice-mic turns only
     const v = document.createElement("div");
     v.className = "entry-cost entry-stt";
-    v.textContent = "speech ~$" + j.stt_cost.toFixed(4);
+    // Exact when the transcription JSON had usage.cost; `~` only on the rare
+    // measured fallback (stt_est true). stt_est defaults to fallback for
+    // pre-flag historical turns.
+    const est = j.stt_est === undefined ? true : j.stt_est;
+    v.textContent = "speech " + (est ? "~$" : "$") + j.stt_cost.toFixed(4);
     a.append(v);
   }
 

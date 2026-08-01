@@ -112,9 +112,11 @@ def _sweep_jobs():
 
 OR_URL = "https://openrouter.ai/api/v1"
 STT_MODEL = "openai/gpt-4o-transcribe"
-# usd per 1M prompt tokens for STT_MODEL, from OpenRouter audio pricing.
-# Placeholder — tracked follow-up, see cost spec §9.
-STT_COST_PER_M = 4.20   # usd per 1M tokens
+# usd per 1M tokens for STT_MODEL, measured from actual billed transcriptions
+# (usage.cost / token counts, see tests/test_usage_cost.py + cost spec v2 §3.1).
+# Fallback only — the primary source is the transcription JSON's exact usage.cost.
+STT_COST_PER_M = 2.50       # usd per 1M input tokens (measured)
+STT_OUT_COST_PER_M = 10.00  # usd per 1M output tokens (measured)
 
 # Reasoning models offered in the Chat page dropdown. This is an allowlist, not
 # a suggestion list: voice_ask only ever forwards an id found here, so a crafted
@@ -184,8 +186,9 @@ def usage_cost(usage: dict | None, model_id: str) -> tuple[float | None, int | N
 
 
 def stt_cost(usage: dict | None) -> float | None:
-    """Estimated usd for an STT call. Prefer usage.cost; else prompt_tokens x
-    price. String-cost coercion identical to usage_cost. NEVER raises."""
+    """Estimated usd for an STT call. Prefer usage.cost; else a measured
+    per-token price x input/output tokens. String-cost coercion identical to
+    usage_cost. NEVER raises."""
     if not usage:
         return None
     cost = usage.get("cost")
@@ -196,9 +199,23 @@ def stt_cost(usage: dict | None) -> float | None:
             cost = None
     if not isinstance(cost, (int, float)):
         cost = None
-    if cost is None and isinstance(usage.get("prompt_tokens"), int):
-        cost = usage["prompt_tokens"] / 1e6 * STT_COST_PER_M
+    if cost is None:
+        # Transcriptions report input_tokens/output_tokens (not prompt_tokens).
+        # Fall back to the measured per-M prices so a missing usage.cost still
+        # yields an honest figure for the speech line.
+        p_in = usage.get("input_tokens")
+        p_out = usage.get("output_tokens")
+        if isinstance(p_in, (int, float)):
+            cost = p_in / 1e6 * STT_COST_PER_M
+            if isinstance(p_out, (int, float)):
+                cost += p_out / 1e6 * STT_OUT_COST_PER_M
     return round(cost, 6) if cost is not None else None
+
+
+def stt_is_estimate(usage: dict | None) -> bool:
+    """True when the STT figure is a fallback estimate, i.e. the transcription
+    JSON had no exact usage.cost to read. NEVER raises."""
+    return not (usage and usage.get("cost") is not None)
 
 
 def tts_cost(chars: int, cfg: dict) -> float | None:
@@ -215,15 +232,17 @@ def tts_cost(chars: int, cfg: dict) -> float | None:
 #          so it gets the performance prompt). Loses prosody past ~1 min, hence chunking.
 #   mp3  — one request, return the encoded audio as-is. These aren't instruction-
 #          following, so NO performance prompt (they'd read it aloud).
+# cost_per_char (usd per audio char) is MEASURED from real billed OpenRouter
+# requests at a realistic answer length (~800 chars, diluting the per-request
+# floor), see tests/test_usage_cost.py + cost spec v2 §3.1. `~` always marks
+# the voice line as an estimate.
 TTS_MODELS = [
-    # cost_per_char is a placeholder (usd per char, from OpenRouter audio
-    # pricing) — tracked follow-up, see cost spec §9.
     {"id": "google/gemini-3.1-flash-tts-preview", "label": "Gemini Flash — expressive",
-     "voice": "Charon", "pipeline": "pcm", "cost_per_char": 0.0000175},
+     "voice": "Charon", "pipeline": "pcm", "cost_per_char": 0.00003276},
     {"id": "x-ai/grok-voice-tts-1.0", "label": "Grok Voice", "voice": "eve",
-     "pipeline": "mp3", "cost_per_char": 0.0000175},
+     "pipeline": "mp3", "cost_per_char": 0.00001500},
     {"id": "hexgrad/kokoro-82m", "label": "Kokoro — open weights", "voice": "af_heart",
-     "pipeline": "mp3", "cost_per_char": 0.0000175},
+     "pipeline": "mp3", "cost_per_char": 0.00000062},
 ]
 TTS_MODEL_BY_ID = {m["id"]: m for m in TTS_MODELS}
 TTS_MODEL = TTS_MODELS[0]["id"]   # default
@@ -1042,10 +1061,15 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             # must never sink a paid-for answer. The helpers are total, but
             # defend anyway in case that guarantee is broken later.
             cost = tokens = voice_cost = stt_amt = None
+            stt_est = True
             tts_chars = 0
             try:
                 cost, tokens = usage_cost(usage, model)
                 stt_amt = stt_cost(stt_usage)
+                # stt_est means "the figure is genuinely an estimate" — True
+                # only when there was no exact usage.cost to read. An STT that
+                # resolved exact via usage.cost renders `speech $Z` (no ~).
+                stt_est = stt_is_estimate(stt_usage)
                 if tts_synth:
                     # characters actually sent to TTS ~= the stripped text
                     # synthesize_audio processes (see _clean text below).
@@ -1074,6 +1098,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
                     "cost": cost, "tokens": tokens,
                     "voice_cost": voice_cost, "voice_chars": tts_chars,
                     "stt_cost": stt_amt,
+                    "stt_est": stt_est, "voice_est": True,
                     "ts": datetime.now(timezone.utc).isoformat(),
                 })
             except Exception as e:
@@ -1088,6 +1113,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             "cost": cost, "tokens": tokens,
             "voice_cost": voice_cost, "voice_chars": tts_chars,
             "stt_cost": stt_amt,
+            "stt_est": stt_est, "voice_est": True,
             "conversation_id": conv_id,
             "audio": f"data:{mime};base64," + base64.b64encode(audio).decode("ascii"),
         }, "done")
