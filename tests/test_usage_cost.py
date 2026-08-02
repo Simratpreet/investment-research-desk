@@ -177,32 +177,58 @@ class TestReasonAndTranscribeTuples(unittest.TestCase):
 
 
 class TestSynthesizeAudioCachedFlag(unittest.TestCase):
-    """synthesize_audio_cached returns a synthesized flag: True only when a
-    fresh synthesis ran, False on an S3 cache hit (a free replay)."""
+    """synthesize_audio_cached returns (audio, mime, synthesized, stored):
+    synthesized True only when a fresh synthesis ran; stored True only when the
+    render is stably in the S3 cache (a hit or a successful PUT)."""
 
     class _FakeBody:
         def read(self):
             return b"cached-audio-bytes"
 
-    def test_cache_hit_is_false(self):
+    def test_cache_hit_is_false_synthesized_true_stored(self):
         client = mock.MagicMock()
         client.get_object.return_value = {"Body": self._FakeBody()}
         with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
              mock.patch.object(voice_module, "_s3", return_value=client):
-            data, mime, synthesized = voice_module.synthesize_audio_cached("text")
+            data, mime, synthesized, stored = voice_module.synthesize_audio_cached("text")
         self.assertEqual(data, b"cached-audio-bytes")
+        self.assertEqual(mime, "audio/wav")
         self.assertFalse(synthesized)
+        self.assertTrue(stored)
 
-    def test_fresh_synthesis_is_true(self):
+    def test_fresh_synthesis_is_true_and_stored(self):
         client = mock.MagicMock()
         client.get_object.side_effect = Exception("miss")
         with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
              mock.patch.object(voice_module, "_s3", return_value=client), \
              mock.patch.object(voice_module, "synthesize_audio",
                                return_value=(b"new-audio", "audio/mpeg", None)):
-            data, _mime, synthesized = voice_module.synthesize_audio_cached("text")
+            data, _mime, synthesized, stored = voice_module.synthesize_audio_cached("text")
         self.assertEqual(data, b"new-audio")
         self.assertTrue(synthesized)
+        self.assertTrue(stored)
+        client.put_object.assert_called_once()
+
+    def test_write_failure_is_not_stored(self):
+        client = mock.MagicMock()
+        client.get_object.side_effect = Exception("miss")
+        client.put_object.side_effect = Exception("write failed")
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client), \
+             mock.patch.object(voice_module, "synthesize_audio",
+                               return_value=(b"new-audio", "audio/mpeg", None)):
+            data, _mime, synthesized, stored = voice_module.synthesize_audio_cached("text")
+        self.assertEqual(data, b"new-audio")     # still delivers the render
+        self.assertTrue(synthesized)
+        self.assertFalse(stored)                  # but not a stable S3 copy
+
+    def test_no_bucket_is_not_stored(self):
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", ""), \
+             mock.patch.object(voice_module, "synthesize_audio",
+                               return_value=(b"audio", "audio/mpeg", None)):
+            _data, _mime, synthesized, stored = voice_module.synthesize_audio_cached("text")
+        self.assertTrue(synthesized)
+        self.assertFalse(stored)
 
 
 class TestVoicePageRendersPresets(unittest.TestCase):
@@ -271,7 +297,7 @@ class TestTtsOffToggle(unittest.TestCase):
         return captured, synth
 
     def test_disabled_skips_tts_and_omits_audio(self):
-        captured, synth = self._run_ask(False, (b"audio", "audio/mpeg", True))
+        captured, synth = self._run_ask(False, (b"audio", "audio/mpeg", True, True))
         synth.assert_not_called()
         payload = captured["payload"]
         self.assertNotIn("audio", payload)
@@ -279,7 +305,7 @@ class TestTtsOffToggle(unittest.TestCase):
         self.assertEqual(payload["voice_chars"], 0)
 
     def test_enabled_calls_tts_and_includes_audio(self):
-        captured, synth = self._run_ask(True, (b"audio", "audio/mpeg", True))
+        captured, synth = self._run_ask(True, (b"audio", "audio/mpeg", True, True))
         synth.assert_called_once()
         payload = captured["payload"]
         self.assertIn("audio", payload)
@@ -373,6 +399,134 @@ class TestMp3Chunking(unittest.TestCase):
             audio, mime, ext = voice_module.synthesize_audio("hi", pcm)
         pw.assert_called_once_with("hi")
         self.assertEqual((audio, mime, ext), (b"WAV", "audio/wav", "wav"))
+
+
+class _ReplayBase(unittest.TestCase):
+    """Shared blueprint test client for the audio-replay route tests. The
+    app-wide /api auth gate is out of scope here (owned by server.py)."""
+
+    @classmethod
+    def setUpClass(cls):
+        app = Flask(__name__)
+        app.register_blueprint(voice_bp)
+        cls.client = app.test_client()
+
+
+class TestPersistAudioKey(unittest.TestCase):
+    """Change A: _run_ask records audio_key only when the clip is stably stored
+    (revya's stored-guard), so a failed S3 write never persists a 404-ing key."""
+
+    def _run_ask(self, synth_result):
+        convs = mock.MagicMock()
+        with mock.patch.object(voice_module, "_VOICE_SEMA", mock.MagicMock()), \
+             mock.patch.object(voice_module, "conversations", convs), \
+             mock.patch.object(voice_module, "reason",
+                               return_value=("answer", {"cost": 1})), \
+             mock.patch.object(voice_module, "synthesize_audio_cached",
+                               return_value=synth_result), \
+             mock.patch.object(voice_module, "usage_cost",
+                               return_value=(1.0, 100)), \
+             mock.patch.object(voice_module, "stt_cost", return_value=None), \
+             mock.patch.object(voice_module, "stt_is_estimate",
+                               return_value=True), \
+             mock.patch.object(voice_module, "_finish_job"):
+            voice_module._run_ask(
+                "job1", "my question", None, None, None, [], "AAA", [],
+                "x-ai/grok-4.5:online", conv_id="c" * 32, tts_cfg=TTS_MODELS[0],
+                tts_enabled=True)
+        return convs
+
+    def test_records_key_when_stored(self):
+        convs = self._run_ask((b"audio", "audio/mpeg", True, True))
+        turn = convs.append_turn.call_args.args[1]
+        cfg = TTS_MODELS[0]
+        expected = voice_module._tts_cache_key(
+            "answer", cfg, "wav" if cfg["pipeline"] == "pcm" else "mp3")
+        self.assertEqual(turn["audio_key"], expected)
+
+    def test_omits_key_when_write_failed(self):
+        convs = self._run_ask((b"audio", "audio/mpeg", True, False))
+        turn = convs.append_turn.call_args.args[1]
+        self.assertNotIn("audio_key", turn)
+
+
+class TestVoiceAudioRoute(_ReplayBase):
+    """Change B: /api/voice/audio/<key> streams only valid tts-cache objects,
+    never arbitrary keys (filings share the bucket — must not leak)."""
+
+    class _Body:
+        def read(self):
+            return b"MP3DATA"
+
+    def test_streams_valid_mp3(self):
+        client = mock.MagicMock()
+        client.get_object.return_value = {"Body": self._Body()}
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client):
+            r = self.client.get("/api/voice/audio/tts-cache/" + "a" * 64 + ".mp3")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_data(), b"MP3DATA")
+        self.assertEqual(r.mimetype, "audio/mpeg")
+
+    def test_streams_wav_content_type(self):
+        client = mock.MagicMock()
+        client.get_object.return_value = {"Body": self._Body()}
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client):
+            r = self.client.get("/api/voice/audio/tts-cache/" + "a" * 64 + ".wav")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.mimetype, "audio/wav")
+
+    def test_missing_object_404(self):
+        client = mock.MagicMock()
+        client.get_object.side_effect = Exception("nope")
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client):
+            r = self.client.get("/api/voice/audio/tts-cache/" + "b" * 64 + ".mp3")
+        self.assertEqual(r.status_code, 404)
+
+    def test_non_tts_cache_keys_rejected_400(self):
+        client = mock.MagicMock()
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client):
+            for bad in ["AAPL/2026-08-01.x.txt",        # a filing, same bucket
+                        "tts-cache/../../etc/passwd",   # traversal attempt
+                        "tts-cache/" + "Z" * 64 + ".mp3",  # non-hex digest
+                        "tts-cache/" + "a" * 64 + ".txt"]:  # wrong extension
+                r = self.client.get("/api/voice/audio/" + bad)
+                self.assertEqual(r.status_code, 400, bad)
+        client.get_object.assert_not_called()   # never touched S3 on a bad key
+
+    def test_404_when_bucket_unset(self):
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", ""):
+            r = self.client.get("/api/voice/audio/tts-cache/" + "c" * 64 + ".mp3")
+        self.assertEqual(r.status_code, 404)
+
+
+class TestConversationAudioUrl(_ReplayBase):
+    """Change C: get_conversation enriches turns with audio_url from audio_key."""
+
+    def test_enriches_turn_with_audio_url(self):
+        key = "tts-cache/" + "a" * 64 + ".mp3"
+        convs = mock.MagicMock()
+        convs.get.return_value = {"id": "x", "turns": [
+            {"question": "q1", "answer": "a1", "audio_key": key},
+            {"question": "q2", "answer": "a2"},
+        ]}
+        with mock.patch.object(voice_module, "conversations", convs):
+            r = self.client.get("/api/voice/conversations/cid")
+        self.assertEqual(r.status_code, 200)
+        turns = r.get_json()["turns"]
+        self.assertEqual(turns[0]["audio_url"], "/api/voice/audio/" + key)
+        # Back-compat seam (revya SA426): absent, never a stub empty string.
+        self.assertNotIn("audio_url", turns[1])
+
+    def test_not_found_404(self):
+        convs = mock.MagicMock()
+        convs.get.return_value = None
+        with mock.patch.object(voice_module, "conversations", convs):
+            r = self.client.get("/api/voice/conversations/cid")
+        self.assertEqual(r.status_code, 404)
 
 
 if __name__ == "__main__":

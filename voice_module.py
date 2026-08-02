@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
 HISTORY_TURNS = 12  # cap prior turns fed back (6 Q&A pairs) to bound token growth
 
 import requests
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, Response, jsonify, render_template, request
 
 from config import VOICE_S3_BUCKET, AWS_REGION, DATA_DIR
 from security import client_ip, rate_limit_ok
@@ -876,22 +876,27 @@ def _tts_cache_key(text: str, cfg: dict, ext: str) -> str:
 
 
 def synthesize_audio_cached(text: str, cfg: dict = None):
-    """(bytes, mime, synthesized) for `text`, served from the S3 cache when
-    present else synthesized and cached. Any cache error degrades to a plain
-    synthesis so a flaky bucket can never break playback. `synthesized` is
-    True only when a fresh synthesis actually ran (a cache hit is free), which
-    is what decides whether a TTS cost should be shown."""
+    """(bytes, mime, synthesized, stored) for `text`, served from the S3 cache
+    when present else synthesized and cached. Any cache error degrades to a
+    plain synthesis so a flaky bucket can never break playback. `synthesized`
+    is True only when a fresh synthesis actually ran (a cache hit is free),
+    which is what decides whether a TTS cost should be shown. `stored` is
+    True only when the render is stably present in S3 under its content-
+    addressed key (a cache hit, or a fresh render whose PUT succeeded); False
+    when no bucket is configured or the cache write failed. Callers persist an
+    audio reference only when `stored`, so a failed write can't record a key
+    that would 404 on replay."""
     cfg = cfg or TTS_MODELS[0]
     mime = "audio/wav" if cfg["pipeline"] == "pcm" else "audio/mpeg"
     ext = "wav" if cfg["pipeline"] == "pcm" else "mp3"
     if not VOICE_S3_BUCKET:
-        return synthesize_audio(text, cfg)[0], mime, True
+        return synthesize_audio(text, cfg)[0], mime, True, False
     key = _tts_cache_key(text, cfg, ext)
     try:
         obj = _s3().get_object(Bucket=VOICE_S3_BUCKET, Key=key)
         data = obj["Body"].read()
         if data:
-            return data, mime, False
+            return data, mime, False, True
     except Exception:
         pass  # miss or transient error — synthesize
     audio, mime, _ = synthesize_audio(text, cfg)
@@ -899,7 +904,8 @@ def synthesize_audio_cached(text: str, cfg: dict = None):
         _s3().put_object(Bucket=VOICE_S3_BUCKET, Key=key, Body=audio, ContentType=mime)
     except Exception as e:
         log.warning("TTS cache write failed for %s: %s", key, e)
-    return audio, mime, True
+        return audio, mime, True, False
+    return audio, mime, True, True
 
 
 def synthesize_wav_cached(text: str) -> bytes:
@@ -987,7 +993,7 @@ def _run_speak(job_id, text, tts_cfg=None):
     """Synthesize off-request and stash the result in the job store. Never raises."""
     try:
         try:
-            audio, mime, _synth = synthesize_audio_cached(text, tts_cfg)
+            audio, mime, _synth, _stored = synthesize_audio_cached(text, tts_cfg)
         except requests.HTTPError as e:
             status = e.response.status_code if e.response is not None else "?"
             log.warning("TTS upstream error (status=%s): %s", status, e)
@@ -1131,8 +1137,16 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
                 return _finish_job(job_id, {"error": "the model returned an empty answer — try rephrasing"}, "error")
             audio = mime = None
             tts_synth = False
+            audio_key = None
             if tts_enabled:
-                audio, mime, tts_synth = synthesize_audio_cached(answer, tts_cfg)
+                audio, mime, tts_synth, audio_stored = synthesize_audio_cached(answer, tts_cfg)
+                if audio_stored:
+                    # Only record a replay key when the clip is actually stably
+                    # in S3 — a failed cache write still returns in-memory audio,
+                    # but persisting that key would 404 (not regenerate) on replay.
+                    audio_key = _tts_cache_key(
+                        answer, tts_cfg,
+                        "wav" if tts_cfg["pipeline"] == "pcm" else "mp3")
             # Accounting is deliberately in its own guarded block: a cost bug
             # must never sink a paid-for answer. The helpers are total, but
             # defend anyway in case that guarantee is broken later.
@@ -1168,7 +1182,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
         sym = symbol.upper()
         if conv_id:
             try:
-                conversations.append_turn(conv_id, {
+                turn = {
                     "question": question, "answer": answer, "symbol": sym,
                     "model": model, "sources": sources,
                     "cost": cost, "tokens": tokens,
@@ -1176,7 +1190,15 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
                     "stt_cost": stt_amt,
                     "stt_est": stt_est, "voice_est": True,
                     "ts": datetime.now(timezone.utc).isoformat(),
-                })
+                }
+                # A replay key is recorded only when the render is stably in S3
+                # (see audio_stored above); pre-existing turns and failed writes
+                # carry none, so the page falls back to regenerate. Optional by
+                # design — the reader treats an absent audio_key as "no stored
+                # clip" (back-compat seam, revya SA426).
+                if audio_key:
+                    turn["audio_key"] = audio_key
+                conversations.append_turn(conv_id, turn)
             except Exception as e:
                 log.warning("failed to persist turn to %s: %s", conv_id, e)
 
@@ -1270,6 +1292,37 @@ def remove_doc(doc_id):
 # --- Conversation history ---------------------------------------------------
 # Text-only persistence for the sidebar. All behind the app-wide auth gate.
 
+# A stored-audio URL must be strictly bounded: the SAME bucket also holds the
+# voice loader's <SYMBOL>/*.txt filings, so the stream route below must never
+# accept an arbitrary key. Constrain it to the content-addressed tts-cache
+# prefix + exactly a 64-hex digest + .wav/.mp3. Filings can't match, and it
+# leaks nothing on a miss (404). (revya SA425 — auth boundary.)
+_TTS_KEY_RE = re.compile(r"^tts-cache/[0-9a-f]{64}\.(wav|mp3)$")
+
+
+@voice_bp.route("/api/voice/audio/<path:key>", methods=["GET"])
+def voice_audio(key):
+    """Stream a stored TTS clip from the S3 cache. Sits behind the app-wide
+    /api auth gate. Rejects (400) any key that isn't a well-formed
+    content-addressed tts-cache object and 404s on a genuine miss — no open
+    stream on the bucket, no object-existence leak. Correct Content-Type and
+    immutable-ish cache headers; the clip is content-addressed so a key maps
+    to exactly one bytes payload."""
+    if not VOICE_S3_BUCKET:
+        return jsonify({"error": "audio storage not configured"}), 404
+    if not _TTS_KEY_RE.fullmatch(key):
+        return jsonify({"error": "bad audio key"}), 400
+    try:
+        obj = _s3().get_object(Bucket=VOICE_S3_BUCKET, Key=key)
+        data = obj["Body"].read()
+    except Exception:
+        return jsonify({"error": "audio clip not found"}), 404
+    mime = "audio/wav" if key.endswith(".wav") else "audio/mpeg"
+    return Response(data, mimetype=mime,
+                    headers={"Cache-Control": "private, max-age=86400",
+                             "Content-Length": str(len(data))})
+
+
 @voice_bp.route("/api/voice/conversations", methods=["GET"])
 def list_conversations():
     return jsonify({"conversations": conversations.list()})
@@ -1280,6 +1333,17 @@ def get_conversation(conv_id):
     conv = conversations.get(conv_id)
     if conv is None:
         return jsonify({"error": "not found"}), 404
+    # Enrich each turn with the stream URL for its stored clip when one is
+    # recorded. Turn dicts are copied so the stored object is never mutated.
+    # Old turns (no audio_key) simply get no audio_url -> the client falls back
+    # to the regenerate button (back-compat seam, revya SA426).
+    turns = []
+    for t in (conv.get("turns") or []):
+        t = dict(t)
+        if t.get("audio_key"):
+            t["audio_url"] = f"/api/voice/audio/{t['audio_key']}"
+        turns.append(t)
+    conv["turns"] = turns
     return jsonify(conv)
 
 

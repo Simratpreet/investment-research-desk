@@ -268,7 +268,8 @@ const Conversations = {
     for (const t of turns) {                 // oldest→newest; addEntry prepends
       addEntry({ question: t.question, answer: t.answer, symbol: t.symbol,
                  model: t.model, sources: t.sources, cost: t.cost, tokens: t.tokens,
-                 voice_cost: t.voice_cost, stt_cost: t.stt_cost, stt_est: t.stt_est },
+                 voice_cost: t.voice_cost, stt_cost: t.stt_cost, stt_est: t.stt_est,
+                 audio: t.audio_url || undefined },
                { historical: true });
       history.push({ role: "user", content: t.question });
       history.push({ role: "assistant", content: t.answer });
