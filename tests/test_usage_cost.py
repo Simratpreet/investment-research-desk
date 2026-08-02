@@ -5,6 +5,7 @@ Run with:  python3 -m unittest discover tests
 
 import os
 import re
+import struct
 import sys
 import unittest
 from unittest import mock
@@ -12,6 +13,7 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import voice_module
+import mp3_repair
 from voice_module import (DEFAULT_MODEL_COST, PROMPT_PRESETS, STT_COST_PER_M,
                           STT_OUT_COST_PER_M, TTS_MODELS, reason, stt_cost,
                           stt_is_estimate, transcribe, tts_cost, usage_cost,
@@ -229,6 +231,46 @@ class TestSynthesizeAudioCachedFlag(unittest.TestCase):
             _data, _mime, synthesized, stored = voice_module.synthesize_audio_cached("text")
         self.assertTrue(synthesized)
         self.assertFalse(stored)
+    def test_cache_hit_heals_stale_bytes_and_reputs(self):
+        client = mock.MagicMock()
+        client.get_object.return_value = {"Body": self._FakeBody()}
+        repaired = b"repaired-audio-bytes"
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client), \
+             mock.patch.object(voice_module, "repair_xing_header",
+                               return_value=repaired):
+            data, mime, synthesized, stored = voice_module.synthesize_audio_cached("text")
+        self.assertEqual(data, repaired)
+        self.assertEqual(mime, "audio/wav")
+        self.assertFalse(synthesized)
+        self.assertTrue(stored)
+        client.put_object.assert_called_once_with(
+            Bucket="bucket", Key=mock.ANY, Body=repaired, ContentType="audio/wav")
+
+    def test_cache_hit_already_repaired_no_writeback(self):
+        client = mock.MagicMock()
+        client.get_object.return_value = {"Body": self._FakeBody()}
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client), \
+             mock.patch.object(voice_module, "repair_xing_header",
+                               side_effect=lambda b: b):   # idempotent no-op
+            data, _mime, synthesized, stored = voice_module.synthesize_audio_cached("text")
+        self.assertEqual(data, b"cached-audio-bytes")
+        self.assertTrue(stored)
+        client.put_object.assert_not_called()
+
+    def test_cache_hit_heal_write_failure_still_serves(self):
+        client = mock.MagicMock()
+        client.get_object.return_value = {"Body": self._FakeBody()}
+        client.put_object.side_effect = Exception("heal write failed")
+        repaired = b"repaired-audio-bytes"
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client), \
+             mock.patch.object(voice_module, "repair_xing_header",
+                               return_value=repaired):
+            data, _mime, synthesized, stored = voice_module.synthesize_audio_cached("text")
+        self.assertEqual(data, repaired)      # still delivers healed bytes
+        self.assertTrue(stored)
 
 
 class TestVoicePageRendersPresets(unittest.TestCase):
@@ -501,6 +543,19 @@ class TestVoiceAudioRoute(_ReplayBase):
         with mock.patch.object(voice_module, "VOICE_S3_BUCKET", ""):
             r = self.client.get("/api/voice/audio/tts-cache/" + "c" * 64 + ".mp3")
         self.assertEqual(r.status_code, 404)
+    def test_stream_stale_clip_is_repaired(self):
+        client = mock.MagicMock()
+        client.get_object.return_value = {"Body": self._Body()}
+        repaired = b"REPAIRED-MP3"
+        with mock.patch.object(voice_module, "VOICE_S3_BUCKET", "bucket"), \
+             mock.patch.object(voice_module, "_s3", return_value=client), \
+             mock.patch.object(voice_module, "repair_xing_header",
+                               return_value=repaired):
+            r = self.client.get("/api/voice/audio/tts-cache/" + "d" * 64 + ".mp3")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_data(), repaired)
+        self.assertEqual(r.headers.get("Content-Length"), str(len(repaired)))
+        self.assertEqual(r.mimetype, "audio/mpeg")
 
 
 class TestConversationAudioUrl(_ReplayBase):
@@ -528,6 +583,56 @@ class TestConversationAudioUrl(_ReplayBase):
             r = self.client.get("/api/voice/conversations/cid")
         self.assertEqual(r.status_code, 404)
 
+
+
+class TestRepairXingHeader(unittest.TestCase):
+    """repair_xing_header heals a stale leading Xing to the whole-stream frame
+    count on real MPEG bytes; idempotent and garbage-safe (Spec §4.1)."""
+
+    _HDR = (0x7FF << 21) | (3 << 19) | (1 << 17) | (1 << 16) | (9 << 12)  # MPEG1 L3 128k 44.1k
+
+    @staticmethod
+    def _frame():
+        return struct.pack(">I", TestRepairXingHeader._HDR) + bytes(413)
+
+    @staticmethod
+    def _stream(stale_frames):
+        body = TestRepairXingHeader._frame()
+        total = len(body) * 5
+        frame0 = (struct.pack(">I", TestRepairXingHeader._HDR)
+                  + bytes(32)                      # stereo MPEG1 side info
+                  + b"Xing"
+                  + struct.pack(">I", 0b111)       # frames | bytes | toc
+                  + struct.pack(">I", stale_frames)
+                  + struct.pack(">I", total)
+                  + bytes(100)                     # toc
+                  + bytes(417 - 4 - 32 - 4 - 4 - 4 - 4 - 100))
+        return frame0 + body * 5                   # 5 whole-stream audio frames
+
+    @staticmethod
+    def _led_frames(data):
+        frames = list(mp3_repair._iter_frames(data, 0))
+        tag = mp3_repair._tag_position(data, frames[0])
+        flags = struct.unpack(">I", data[tag + 4:tag + 8])[0]
+        return struct.unpack(">I", data[tag + 8:tag + 12])[0]  # frames field
+
+    def test_rewrites_stale_leading_xing_to_whole_stream(self):
+        stale = self._stream(stale_frames=2)      # leading Xing: only first chunk
+        self.assertEqual(self._led_frames(stale), 2)
+        repaired = mp3_repair.repair_xing_header(stale)
+        self.assertNotEqual(repaired, stale)
+        self.assertEqual(self._led_frames(repaired), 5)   # whole stream
+        self.assertEqual(len(repaired), len(stale))        # byte-length-neutral
+        # duration from the repaired leading Xing == true whole-stream duration
+        self.assertEqual(mp3_repair.stream_duration(repaired),
+                         mp3_repair.stream_duration(stale))
+
+    def test_idempotent_and_garbage_safe(self):
+        stream = self._stream(stale_frames=2)
+        once = mp3_repair.repair_xing_header(stream)
+        self.assertEqual(mp3_repair.repair_xing_header(once), once)
+        garbage = b"definitely not an mp3 stream"
+        self.assertEqual(mp3_repair.repair_xing_header(garbage), garbage)
 
 if __name__ == "__main__":
     unittest.main()

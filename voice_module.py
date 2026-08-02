@@ -896,6 +896,20 @@ def synthesize_audio_cached(text: str, cfg: dict = None):
         obj = _s3().get_object(Bucket=VOICE_S3_BUCKET, Key=key)
         data = obj["Body"].read()
         if data:
+            # Cached bytes may predate (or miss) the chunked-serving Xing repair:
+            # heal the leading header here so players see the whole-stream
+            # duration. Idempotent + garbage-safe (no-op unless a Xing header
+            # exists and describes only part of the stream); re-PUT only when it
+            # changed so an already-correct clip is never rewritten. A failed
+            # heal write is ignored - the repaired bytes are still served.
+            repaired = repair_xing_header(data)
+            if repaired != data:
+                try:
+                    _s3().put_object(Bucket=VOICE_S3_BUCKET, Key=key,
+                                     Body=repaired, ContentType=mime)
+                except Exception:
+                    pass
+                data = repaired
             return data, mime, False, True
     except Exception:
         pass  # miss or transient error — synthesize
@@ -1315,6 +1329,11 @@ def voice_audio(key):
     try:
         obj = _s3().get_object(Bucket=VOICE_S3_BUCKET, Key=key)
         data = obj["Body"].read()
+        # Heal a stale clip on the way out: rewrite the leading Xing header so
+        # the player derives the whole-stream duration. Idempotent and
+        # byte-length-neutral (no-op when already correct or not repairable), so
+        # the Content-Length below stays accurate.
+        data = repair_xing_header(data)
     except Exception:
         return jsonify({"error": "audio clip not found"}), 404
     mime = "audio/wav" if key.endswith(".wav") else "audio/mpeg"
