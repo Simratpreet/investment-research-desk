@@ -299,5 +299,81 @@ class TestTtsOffToggle(unittest.TestCase):
         self.assertTrue(parse({"tts_enabled": "garbage"}))  # lenient
 
 
+class TestMp3Chunking(unittest.TestCase):
+    """MP3 path now chunks like the PCM path so long Kokoro/Grok answers stay
+    under the provider's per-request length cap (a single unchunked long
+    request 400'd deterministically). Uses the existing per-chunk transient
+    retry inside _tts_request; must never hard-code the limit itself."""
+
+    @staticmethod
+    def _mp3_cfg():
+        return next(c for c in voice_module.TTS_MODELS
+                    if c["pipeline"] == "mp3")
+
+    def test_mp3_long_text_chunks_under_limit(self):
+        # Long text -> multiple _tts_request calls, each with a sub-limit
+        # input; output is the byte-concatenation, Xing-repaired once.
+        mp3 = self._mp3_cfg()
+        limit = voice_module.TTS_CHAR_LIMIT
+        long_text = ("The quick brown fox jumps over the lazy dog. " * limit)
+        inputs, calls = [], []
+        with mock.patch.object(voice_module, "_tts_request",
+                               side_effect=lambda t, cfg, fmt:
+                               (inputs.append(t), calls.append((cfg, fmt)),
+                                b"SEG")[2]), \
+             mock.patch.object(voice_module, "repair_xing_header",
+                               side_effect=lambda b: b):
+            out = voice_module._synthesize_mp3(long_text, mp3)
+        # More than one chunk was synthesized.
+        self.assertGreater(len(inputs), 1)
+        # Every chunk request stayed under the provider length cap.
+        for chunk in inputs:
+            self.assertLessEqual(len(chunk), limit)
+        # Each request used the mp3 format and the same model config.
+        for cfg, fmt in calls:
+            self.assertEqual(cfg, mp3)
+            self.assertEqual(fmt, "mp3")
+        # Output is the byte-concatenation of the chunk renderings.
+        self.assertEqual(out, b"SEG" * len(inputs))
+
+    def test_mp3_short_text_single_request(self):
+        # A short answer (< TTS_CHAR_LIMIT) is a single request, unchanged.
+        mp3 = self._mp3_cfg()
+        short = "A short answer."
+        calls = []
+        with mock.patch.object(voice_module, "_tts_request",
+                               side_effect=lambda t, cfg, fmt:
+                               (calls.append((t, fmt)), b"ONE")[1]), \
+             mock.patch.object(voice_module, "repair_xing_header",
+                               side_effect=lambda b: b):
+            out = voice_module._synthesize_mp3(short, mp3)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], short)
+        self.assertEqual(calls[0][1], "mp3")
+        self.assertEqual(out, b"ONE")
+
+    def test_mp3_empty_raises(self):
+        with self.assertRaises(ValueError):
+            voice_module._synthesize_mp3("   ", self._mp3_cfg())
+
+    def test_synthesize_audio_routes_mp3_to_chunked_path(self):
+        mp3 = self._mp3_cfg()
+        with mock.patch.object(voice_module, "_synthesize_mp3",
+                               return_value=b"OUT") as sm:
+            audio, mime, ext = voice_module.synthesize_audio("hello", mp3)
+        sm.assert_called_once_with("hello", mp3)
+        self.assertEqual((audio, mime, ext), (b"OUT", "audio/mpeg", "mp3"))
+
+    def test_pcm_path_unaffected(self):
+        # Regression guard: the mp3 change must not disturb the PCM/Gemini path.
+        pcm = voice_module.TTS_MODELS[0]
+        self.assertEqual(pcm["pipeline"], "pcm")
+        with mock.patch.object(voice_module, "_synthesize_pcm_wav",
+                               return_value=b"WAV") as pw:
+            audio, mime, ext = voice_module.synthesize_audio("hi", pcm)
+        pw.assert_called_once_with("hi")
+        self.assertEqual((audio, mime, ext), (b"WAV", "audio/wav", "wav"))
+
+
 if __name__ == "__main__":
     unittest.main()

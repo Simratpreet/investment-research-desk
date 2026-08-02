@@ -811,21 +811,38 @@ def _synthesize_pcm_wav(text: str) -> bytes:
     return buf.getvalue()
 
 
+def _synthesize_mp3(text: str, cfg: dict) -> bytes:
+    """MP3 path now chunks like the PCM path: one request per chunk, each under
+    the provider's length cap. A single unchunked long request 400s determinis-
+    tically (Kokoro + Grok are both MP3). Reuses _chunk + the existing
+    per-chunk transient retry inside _tts_request. No new retries, no fallback.
+    Chunks are byte-concatenated, then repair_xing_header repatches the leading
+    Xing header to describe the whole stream (the same fix it today applies to
+    Kokoro's internally-concatenated segments)."""
+    chunks = _chunk(text, TTS_CHAR_LIMIT)
+    if not chunks:
+        raise ValueError("nothing to synthesize")
+    if len(chunks) == 1:
+        return repair_xing_header(_tts_request(chunks[0], cfg, "mp3"))
+    return repair_xing_header(b"".join(_tts_request(c, cfg, "mp3") for c in chunks))
+
+
 def synthesize_audio(text: str, cfg: dict = None):
     """Render `text` with the given TTS model config. Returns (bytes, mime, ext).
-    PCM models get the chunk/seam pipeline; MP3 models get one passthrough call."""
+    PCM models get the chunk/seam pipeline; MP3 models get the chunked pipeline
+    (Kokoro/Grok both 400 deterministically on a single long unchunked request)."""
     cfg = cfg or TTS_MODELS[0]
     # Strip markup TTS reads oddly (applies to every model).
     cleaned = re.sub(r"[\[\]*`#]", " ", text)
     if cfg["pipeline"] == "pcm":
         return _synthesize_pcm_wav(cleaned), "audio/wav", "wav"
-    # MP3 models aren't instruction-following and have their own length handling;
-    # one request. Kokoro returns its segments concatenated, so the leading Xing
-    # header describes only the first — repair it or Safari plays ~11s of a
-    # 100s answer and calls it done (see mp3_repair).
+    # MP3 models aren't instruction-following. Chunk them like the PCM path so
+    # each request stays under the provider's length cap (the old single
+    # unchunked request 400'd deterministically past ~2.1k chars). The Xing
+    # header is repaired across the joined chunks (see _synthesize_mp3).
     if not cleaned.strip():
         raise ValueError("nothing to synthesize")
-    return repair_xing_header(_tts_request(cleaned, cfg, "mp3")), "audio/mpeg", "mp3"
+    return _synthesize_mp3(cleaned, cfg), "audio/mpeg", "mp3"
 
 
 # Back-compat alias — the old name returned a WAV via the default (Gemini) model.
@@ -844,7 +861,9 @@ TTS_CACHE_PREFIX = "tts-cache/"
 # Bumped when the MP3 post-processing changes, so clips cached by an older
 # rendering aren't served forever. WAV renderings are unaffected and keep their
 # keys — re-synthesizing those costs a Gemini call per chunk.
-MP3_RENDER_VERSION = "xing-repaired"
+# "xing-repaired" -> "chunked-v1": mp3 now renders chunked (multiple requests,
+# byte-concat + one Xing repair), so invalidate any cached long unchunked clips.
+MP3_RENDER_VERSION = "chunked-v1"
 
 
 def _tts_cache_key(text: str, cfg: dict, ext: str) -> str:
