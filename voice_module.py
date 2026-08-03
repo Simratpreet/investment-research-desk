@@ -289,7 +289,8 @@ PROMPT_PRESETS = [
             "filings support vs. what is inference or judgment.\n"
             "- Be balanced and honest — state risks and negatives as clearly as positives.\n"
             "- Use natural complete sentences suited to TTS: no URLs, symbols, or "
-            "abbreviations that would be mispronounced."
+            "abbreviations that would be mispronounced. Write numbers as digits (e.g. "
+            "\"1.2x\", \"₹4,800 crore\", \"32%\"), not spelled out in words.\n\n"
             "Write the note now, in one continuous piece of prose."
         ),
     },
