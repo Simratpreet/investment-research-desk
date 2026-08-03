@@ -320,6 +320,24 @@
             background: var(--surface-warm);
         }
 
+        /* Sortable columns: clickable, hint at affordance, mark the active order. */
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th.sortable:hover { color: var(--text); }
+        th.sortable[aria-sort="none"] .sort-arrow { opacity: 0.25; }
+        th.sortable[aria-sort="ascending"],
+        th.sortable[aria-sort="descending"] { color: var(--text); }
+        .sort-arrow {
+            font-size: 0.7rem;
+            line-height: 1;
+            vertical-align: 1px;
+            margin-left: 2px;
+            display: inline-block;
+        }
+
         tbody td {
             padding: 0.65rem 1rem;
             font-size: 0.85rem;

@@ -100,10 +100,10 @@
                 <table>
                 <thead>
                     <tr>
-                        <th scope="col">Company</th>
+                        <th scope="col" id="watchlist-head-ticker" class="sortable" aria-sort="ascending" onclick="setWatchlistSort('ticker')">Company <span class="sort-arrow" aria-hidden="true">▲</span></th>
                         <th scope="col">Exchange</th>
                         <th scope="col">Monitoring</th>
-                        <th scope="col">Added</th>
+                        <th scope="col" id="watchlist-head-added" class="sortable" aria-sort="none" onclick="setWatchlistSort('added')">Added <span class="sort-arrow" aria-hidden="true">↕</span></th>
                         <th scope="col"><span class="sr-only">Actions</span></th>
                     </tr>
                 </thead>

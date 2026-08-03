@@ -129,6 +129,49 @@ let watchlist = [];
         const WATCHLIST_PAGE_SIZE = 50;
         let watchlistPage = 1;
 
+        // Sortable watchlist table. Default stays A–Z by ticker (today's behavior) so
+        // first load is unchanged; the user can opt into sorting by When-added.
+        const SORTS = {
+            ticker: (a, b) => String(a.ticker || '').localeCompare(String(b.ticker || ''),
+                undefined, { sensitivity: 'base' }),
+            added: (a, b) => addedTs(a) - addedTs(b),
+        };
+        // asc = ascending for the column's natural order; added sorts oldest→newest when
+        // asc, so its default click is `desc` (newest-first — the common ask). Ticker's
+        // natural default is asc (A–Z), which is also the on-load order.
+        let watchlistSort = { key: 'ticker', dir: 'asc' };
+        // Missing/invalid added_date sorts as oldest (ts 0).
+        function addedTs(s) { const t = Date.parse(s.added_date); return isNaN(t) ? 0 : t; }
+        function setWatchlistSort(key) {
+            if (key === watchlistSort.key) {
+                watchlistSort.dir = watchlistSort.dir === 'asc' ? 'desc' : 'asc';
+            } else {
+                // First click on a column uses its natural default direction.
+                watchlistSort = { key, dir: key === 'added' ? 'desc' : 'asc' };
+            }
+            watchlistPage = 1;   // a new sort starts at page 1 (mirrors search)
+            renderWatchlist();
+        }
+
+        // Reflect the active sort in the table headers: aria-sort on the active column,
+        // a ▲/▼ marker on the active header, and a subtle chevron on the other sortable
+        // one. Called on every render so it stays in sync with the data.
+        const SORTABLE_HEADERS = { ticker: 'ticker', added: 'added' };
+        function renderWatchlistHeaders() {
+            for (const [key, id] of Object.entries(SORTABLE_HEADERS)) {
+                const th = document.getElementById(`watchlist-head-${id}`);
+                if (!th) continue;
+                const active = watchlistSort.key === key;
+                th.setAttribute('aria-sort', active
+                    ? (watchlistSort.dir === 'asc' ? 'ascending' : 'descending')
+                    : 'none');
+                const arrow = th.querySelector('.sort-arrow');
+                if (arrow) arrow.textContent = active
+                    ? (watchlistSort.dir === 'asc' ? '▲' : '▼')
+                    : '↕';
+            }
+        }
+
         function filterWatchlist() {
             watchlistQuery = document.getElementById('watchlist-search').value.trim().toLowerCase();
             watchlistPage = 1;   // a new search starts at page 1
@@ -150,9 +193,11 @@ let watchlist = [];
                 return [s.ticker, s.company, s.exchange]
                     .some(value => String(value || '').toLowerCase().includes(watchlistQuery));
             });
-            // A–Z by ticker, case-insensitive.
-            filtered.sort((a, b) => String(a.ticker || '').localeCompare(String(b.ticker || ''),
-                undefined, { sensitivity: 'base' }));
+            // Sort by the active column (A–Z by ticker is the default on load).
+            filtered.sort((a, b) => watchlistSort.dir === 'asc'
+                ? SORTS[watchlistSort.key](a, b)
+                : SORTS[watchlistSort.key](b, a));
+            renderWatchlistHeaders();
 
             const resultCount = document.getElementById('watchlist-result-count');
             resultCount.textContent = watchlistQuery
@@ -189,9 +234,12 @@ let watchlist = [];
             const pageItems = filtered.slice(start, start + WATCHLIST_PAGE_SIZE);
 
             tbody.innerHTML = pageItems.map(s => {
-                const added = new Date(s.added_date).toLocaleDateString('en-GB', {
-                    day: 'numeric', month: 'short', year: 'numeric'
-                });
+                const addedTsVal = addedTs(s);
+                const added = addedTsVal
+                    ? new Date(addedTsVal).toLocaleDateString('en-GB', {
+                        day: 'numeric', month: 'short', year: 'numeric'
+                    })
+                    : '—';
                 const ticker = escapeHtml(s.ticker);
                 const exchange = escapeHtml(s.exchange);
                 const companyName = escapeHtml(s.company || '');
