@@ -680,6 +680,21 @@ class TestFillPendingClose(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(filled.closes[-1], 120.0)
 
+    def test_a_mid_series_pending_bar_is_never_filled_from_the_next_bell(self):
+        # Explicit session_date backfill of a still-pending day, run right
+        # after the NEXT session's bell and before the target's EOD publish:
+        # regularMarketTime now points at the next session's close, so the
+        # meta can no longer prove the target day closed. Filling would stamp
+        # the next session's price into the target bar — wrong data on the
+        # page. A null close mid-series is never the current session (the feed
+        # contract: lag bars only occur at the series end), so no fill.
+        from market_scan.scanner import _fill_pending_close
+        s = self.build([100.0, 100.0, None, None], rmp=206.64, prev=200.75)
+        filled, ok = _fill_pending_close(s, len(s) - 2)
+        self.assertFalse(ok)
+        self.assertEqual(filled.closes[-2], None)   # target day untouched
+        self.assertEqual(filled.closes[-1], None)   # next bar untouched too
+
 
 # --- the scanner's failure isolation ---------------------------------------
 

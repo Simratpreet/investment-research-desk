@@ -59,6 +59,16 @@ def _fill_pending_close(series: PriceSeries,
     rmp = meta.get("regularMarketPrice")
     if end is None or rmt is None or rmp is None:
         return series, False
+    if index != len(series) - 1:
+        # The meta's regularMarketTime/regularMarketPrice describe the LAST
+        # session's bell, so only the last bar can be the session they prove.
+        # A mid-series null close is a different day's bar (the feed contract
+        # says lag bars only occur at the series end) — filling it would stamp
+        # the next session's closing price into the backfilled target day.
+        # Reachable on an explicit session_date backfill of a still-pending
+        # day run right after the next session's bell and before the target's
+        # EOD publish.
+        return series, False
     if not (rmt >= end - FILL_EPSILON_S):
         # Last trade before the bell: this is an intraday price, not a close.
         return series, False
