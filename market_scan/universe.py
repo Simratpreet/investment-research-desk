@@ -144,31 +144,49 @@ def _entries(rows, symbol_key: str, name_key: str,
 # venue. The US pair sits highest; TSX Venture sits lowest because its names are
 # genuinely tiny and a US-sized floor would empty the market entirely; Stockholm
 # looks large only because a krona is worth about a tenth of a dollar.
+#
+# `tz_name` (IANA) is the calendar-session resolver's fallback for the local
+# date; `holidays` are recurring fixed-date closures ("MM-DD") — best-effort, a
+# missed holiday costs a harmless scan attempt. See session.target_session.
+def _holidays(*days: str) -> frozenset[str]:
+    return frozenset(days)
+
+
 MARKETS: dict[str, Market] = {
     "nasdaq": Market("nasdaq", "NASDAQ", "nasdaq_stocks.csv",
                      parse_screener_export, "USD", 1_000_000,
-                     exported_on="2026-06-22"),
+                     exported_on="2026-06-22", tz_name="America/New_York",
+                     holidays=_holidays("01-01", "06-19", "07-04", "12-25")),
     "nyse": Market("nyse", "NYSE", "nyse_stocks.csv",
                    parse_screener_export, "USD", 1_000_000,
-                   exported_on="2026-06-22"),
+                   exported_on="2026-06-22", tz_name="America/New_York",
+                   holidays=_holidays("01-01", "06-19", "07-04", "12-25")),
     "tsx": Market("tsx", "Toronto Stock Exchange", "tsx_stocks.csv",
                   parse_screener_export, "CAD", 500_000,
-                  exported_on="2026-06-21"),
+                  exported_on="2026-06-21", tz_name="America/Toronto",
+                  holidays=_holidays("01-01", "07-01", "12-25", "12-26")),
     "tsxv": Market("tsxv", "TSX Venture", "tsxv_stocks.csv",
                    parse_tsxv_export, "CAD", 100_000,
-                   exported_on="2026-06-27"),
+                   exported_on="2026-06-27", tz_name="America/Toronto",
+                   holidays=_holidays("01-01", "07-01", "12-25", "12-26")),
     "asx": Market("asx", "Australia (ASX)", "asx_stocks.csv",
                   parse_screener_export, "AUD", 500_000,
-                  exported_on="2026-06-23"),
+                  exported_on="2026-06-23", tz_name="Australia/Sydney",
+                  holidays=_holidays("01-01", "01-26", "12-25", "12-26")),
     "etr": Market("etr", "Frankfurt (XETRA)", "etr_stocks.csv",
                   parse_screener_export, "EUR", 500_000,
-                  exported_on="2026-06-21"),
+                  exported_on="2026-06-21", tz_name="Europe/Berlin",
+                  holidays=_holidays("01-01", "05-01", "12-24", "12-25", "12-26")),
     "sw": Market("sw", "SIX Swiss", "sw_stocks.csv",
                  parse_screener_export, "CHF", 500_000,
-                 exported_on="2026-06-23"),
+                 exported_on="2026-06-23", tz_name="Europe/Zurich",
+                 holidays=_holidays("01-01", "01-02", "05-01", "08-01",
+                                    "12-25", "12-26")),
     "sto": Market("sto", "Stockholm (Nasdaq)", "sto_stocks.csv",
                   parse_screener_export, "SEK", 5_000_000,
-                  exported_on="2026-06-23"),
+                  exported_on="2026-06-23", tz_name="Europe/Stockholm",
+                  holidays=_holidays("01-01", "01-06", "05-01", "06-06",
+                                     "12-24", "12-25", "12-26")),
 }
 
 

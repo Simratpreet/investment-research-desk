@@ -93,6 +93,14 @@ MOVERS_UNIVERSE_MAX_AGE_DAYS = float(os.getenv("MOVERS_UNIVERSE_MAX_AGE_DAYS", "
 MOVERS_SCHEDULE_MARKETS = os.getenv("MOVERS_SCHEDULE_MARKETS", "")
 MOVERS_SCHEDULE_HOUR    = int(os.getenv("MOVERS_SCHEDULE_HOUR", "22"))
 MOVERS_SCHEDULE_MINUTE  = int(os.getenv("MOVERS_SCHEDULE_MINUTE", "30"))
+# Retry-watcher cadence for a session that traded but has not been published
+# yet: poll at these intervals (10 min doubling up to 4 h), then a daily check,
+# until the day's bars land. Each poll is the 5-name probe, not a full scan.
+MOVERS_RETRY_INTERVALS = tuple(
+    int(x) for x in os.getenv(
+        "MOVERS_RETRY_INTERVALS", "600,1200,2400,4800,9600,14400").split(",")
+    if x.strip())
+MOVERS_RETRY_DAILY_S = int(os.getenv("MOVERS_RETRY_DAILY_S", "86400"))
 
 # --- Check Schedule ---
 # Alert checks run once a day at ALERT_SCHEDULE_HOUR:MINUTE in ALERT_SCHEDULE_TZ

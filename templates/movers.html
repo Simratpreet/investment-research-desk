@@ -42,6 +42,13 @@
         <select id="marketSelect" aria-label="Market to scan"></select>
       </label>
       <button class="btn btn-primary" id="scanBtn">Run scan</button>
+      <!-- Backfill: pick a past session to scan it explicitly — the escape
+           hatch for a day Yahoo never published (or a day from before this
+           page had it). Empty = the market's calendar target. -->
+      <label class="market-picker date-picker">
+        <span class="market-picker-label">Session</span>
+        <input type="date" id="sessionDate" aria-label="Backfill session date">
+      </label>
       <!-- Offered only after a run stopped because nothing newer was published,
            so the escape hatch appears exactly when it is the thing you want. -->
       <button class="btn btn-ghost" id="forceBtn" hidden>Rescan anyway</button>

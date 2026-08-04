@@ -8,6 +8,7 @@ const marketSelect = document.getElementById("marketSelect");
 const scanBtn = document.getElementById("scanBtn");
 const stopBtn = document.getElementById("stopBtn");
 const forceBtn = document.getElementById("forceBtn");
+const sessionDateInput = document.getElementById("sessionDate");
 const scanMeta = document.getElementById("scanMeta");
 const progress = document.getElementById("progress");
 const progressFill = document.getElementById("progressFill");
@@ -82,6 +83,9 @@ const Movers = {
     if (!key || key === this.market) return;
     this.market = key;
     marketSelect.value = key;
+    // A backfill date is a one-shot for a specific market/session — don't
+    // carry it across to a different market's scan.
+    sessionDateInput.value = "";
     try { localStorage.setItem("movers.market", key); } catch (e) { /* private mode */ }
     this.expanded.clear();
     this.data = null;
@@ -105,7 +109,10 @@ const Movers = {
   },
 
   optionLabel(m) {
-    return m.last_session ? `${m.label} · ${m.last_session}` : m.label;
+    // A market with a traded-but-unpublished day says so right in the picker,
+    // so "waiting on data" can't be missed by someone watching another market.
+    const base = m.last_session ? `${m.label} · ${m.last_session}` : m.label;
+    return m.pending ? `${base} · awaiting ${m.pending.session_date}` : base;
   },
 
   // Every market's scan state, not just the selected one — scans are
@@ -224,6 +231,14 @@ const Movers = {
       if (!d.session_date) {
         this.renderEmpty("Pick a market and run a scan to see what moved.",
                          "Nothing scanned yet");
+      } else if (d.pending) {
+        // A traded-but-unpublished day is the one case where "no movers" would
+        // be a lie: the market did trade, the data just isn't out yet.
+        this.renderEmpty(
+          `${d.pending.session_date} traded — no source has finished ` +
+          "publishing it yet. The page backfills automatically the moment " +
+          "the data lands; nothing to do.",
+          "Waiting on data");
       } else if (d.degraded) {
         this.renderEmpty(
           "The last scan couldn't reach enough of the market to trust the result. " +
@@ -273,6 +288,13 @@ const Movers = {
   renderBanner(d, scan) {
     const st = d.stats || {};
     const notes = [];
+    if (d.pending) {
+      // The table shows the last completed sessions; a newer pending day is
+      // what "waiting on data" means — the market traded, the bars aren't out.
+      notes.push(`<b>Waiting on data.</b> ${d.pending.session_date} traded but no ` +
+                 "source has finished publishing it — the page backfills it " +
+                 "automatically.");
+    }
     if (st.rate_limited) {
       notes.push("<b>Rate limited.</b> Yahoo throttled the last run, so these " +
                  "results are incomplete — try again in a few minutes.");
@@ -426,13 +448,15 @@ const Movers = {
     scanBtn.disabled = true;
     forceBtn.hidden = true;
     scanBtn.textContent = "Starting…";
+    const sessionDate = sessionDateInput.value || null;
     try {
       const r = await fetch("/api/movers/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ market: this.market, force }),
+        body: JSON.stringify({ market: this.market, force, session_date: sessionDate }),
       });
       if (r.status === 409) banner.textContent = "A scan is already running for this market.";
+      if (r.ok && sessionDate) sessionDateInput.value = "";   // one-shot backfill
     } catch (e) { /* the reload below surfaces the real state */ }
     scanBtn.textContent = "Run scan";
     if (!this.poll) this.poll = setInterval(() => this.load(), POLL_MS);

@@ -17,6 +17,7 @@ import tempfile
 import time
 import types
 import unittest
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -25,7 +26,8 @@ from market_scan.domain import (Hit, HitAnalysis, Market, PriceSeries,
                                 ScanCriteria, ScanResult, UniverseEntry)
 from market_scan.feed import FeedError, _to_series
 from market_scan.scanner import MarketScanner
-from market_scan.session import SessionSelector
+from market_scan.service import ScanService
+from market_scan.session import SessionSelector, target_session
 from market_scan.store import ScanStore, hits_from_stored
 from market_scan.universe import (BAKED_DIR, MARKETS, UniverseRepository,
                                   UniverseUnavailable, parse_market_cap,
@@ -40,11 +42,13 @@ NO_FLOOR = Market("test", "Test Market", "test.csv", lambda raw: [], "USD", 0.0)
 
 
 def series(volumes, closes=None, meta=None, start=1_700_000_000):
-    """A PriceSeries with one bar per day, oldest first."""
+    """A PriceSeries with one bar per day, oldest first. A None close is a
+    publication-lag bar and is preserved, matching the feed's new contract."""
     n = len(volumes)
-    closes = closes if closes is not None else [100.0] * n
+    if closes is None:
+        closes = [100.0] * n
     return PriceSeries("TEST", tuple(start + i * DAY for i in range(n)),
-                       tuple(float(c) for c in closes),
+                       tuple(float(c) if c is not None else None for c in closes),
                        tuple(float(v) for v in volumes), meta or {})
 
 
@@ -127,6 +131,16 @@ class TestSpikeDetector(unittest.TestCase):
     def test_zero_volume_baseline_is_rejected(self):
         vols = [0.0] * 20 + [5000.0]
         closes = [100.0] * 20 + [120.0]
+        self.assertIsNone(self.evaluate(vols, closes))
+
+    def test_a_null_close_is_not_a_hit_or_a_crash(self):
+        # Publication-lag bar: the session exists but the close hasn't been
+        # published yet. The detector must say "not ready" (None), not raise
+        # TypeError from comparing None — the guard predates the feed's
+        # float | None closes type.
+        vols, closes = flat(21, volume=1000.0)
+        vols[-1] = 10_000.0
+        closes[-1] = None
         self.assertIsNone(self.evaluate(vols, closes))
 
     def test_turnover_floor_drops_illiquid_names(self):
@@ -229,6 +243,20 @@ class TestSessionSelector(unittest.TestCase):
         self.assertFalse(self.sel.last_bar_in_progress(s, now=now))
         self.assertEqual(self.sel.target_index(s, now=now), len(s) - 1)
 
+    def test_a_pending_bar_is_still_the_target(self):
+        # Selection is by timestamp, so a publication-lag bar (timestamp +
+        # volume, null close) IS the current session. The pending bar must be
+        # chosen, not the completed one before it — dropping it here is what
+        # let "up to date" report Friday while Monday was in the payload.
+        s = series([1000.0] * 5, closes=[100.0] * 4 + [None],
+                   start=self.open_ts - 4 * DAY)
+        s = PriceSeries(s.symbol, s.timestamps, s.closes, s.volumes,
+                        {"currentTradingPeriod": {"regular": {
+                            "start": self.open_ts, "end": self.close_ts}},
+                         "gmtoffset": 0})
+        now = self.close_ts + 6 * 3600       # well after the close
+        self.assertEqual(self.sel.target_index(s, now=now), len(s) - 1)
+
     def test_illiquid_name_whose_last_trade_preceded_the_bell(self):
         # The bug. Last trade 8 seconds before the close, checked hours later:
         # the session is over and the bar must count.
@@ -263,6 +291,80 @@ class TestSessionSelector(unittest.TestCase):
 
     def test_empty_series_has_no_target(self):
         self.assertIsNone(self.sel.target_index(series([])))
+
+
+# --- the calendar target -----------------------------------------------------
+
+class TestTargetSession(unittest.TestCase):
+    """`target_session`: which session a scan is about, resolved from the
+    calendar — weekends, holidays and the session window — independently of
+    what Yahoo has published. Load-bearing dates: 2026-08-03 is a Monday,
+    so 2026-07-31 is the Friday before it and 2026-06-19 is a Friday."""
+
+    def market(self, tz="UTC", holidays=()):
+        return Market("t", "T", "t.csv", lambda raw: [], "USD", 0.0,
+                      tz_name=tz, holidays=frozenset(holidays))
+
+    def ts(self, y, m, d, h=12):
+        return datetime(y, m, d, h, tzinfo=timezone.utc).timestamp()
+
+    def test_weekday_walk_returns_yesterday(self):
+        # Monday, no window: the most recent completed trading day is Friday.
+        self.assertEqual(target_session(self.market(), now=self.ts(2026, 8, 3)),
+                         "2026-07-31")
+
+    def test_weekend_skip(self):
+        # Sunday walks back over Saturday to Friday.
+        self.assertEqual(target_session(self.market(), now=self.ts(2026, 8, 2)),
+                         "2026-07-31")
+
+    def test_holiday_skip(self):
+        # Juneteenth 2026-06-19 (a Friday) is in the market's holiday list, so
+        # the walk steps past it to Thursday.
+        m = self.market(holidays=["06-19"])
+        self.assertEqual(target_session(m, now=self.ts(2026, 6, 20)),
+                         "2026-06-18")
+
+    def test_an_open_session_targets_yesterday(self):
+        # The probe's window says today's session hasn't ended: targeting it
+        # would evaluate a half-day bar against a full-day baseline, so the
+        # resolver stays on the last completed day.
+        open_ts = datetime(2026, 8, 3, 13, 30, tzinfo=timezone.utc).timestamp()
+        end_ts = open_ts + 6.5 * 3600
+        now = open_ts + 2 * 3600          # mid-session
+        self.assertEqual(
+            target_session(self.market(), now=now, window=(open_ts, end_ts),
+                           gmtoffset_sec=-4 * 3600),
+            "2026-07-31")
+
+    def test_a_finished_session_is_the_target(self):
+        open_ts = datetime(2026, 8, 3, 13, 30, tzinfo=timezone.utc).timestamp()
+        end_ts = open_ts + 6.5 * 3600
+        now = end_ts + 3600              # after the close
+        self.assertEqual(
+            target_session(self.market(), now=now, window=(open_ts, end_ts),
+                           gmtoffset_sec=-4 * 3600),
+            "2026-08-03")
+
+    def test_utc_midnight_edge(self):
+        # 01:00 UTC Monday is still Sunday evening in New York (-4h EDT): the
+        # walk starts from Sunday and lands on Friday, not on Monday.
+        self.assertEqual(
+            target_session(self.market(), now=self.ts(2026, 8, 3, 1),
+                           gmtoffset_sec=-4 * 3600),
+            "2026-07-31")
+
+    def test_tz_name_fallback_skips_weekend(self):
+        # Without a probe offset the per-market IANA zone supplies the local
+        # date; a Sunday evening in New York resolves to Friday.
+        try:
+            import zoneinfo
+            zoneinfo.ZoneInfo("America/New_York")
+        except Exception:
+            self.skipTest("tzdata not available")
+        m = self.market(tz="America/New_York")
+        self.assertEqual(target_session(m, now=self.ts(2026, 8, 2, 23)),
+                         "2026-07-31")
 
 
 # --- universe parsing -------------------------------------------------------
@@ -469,14 +571,29 @@ class TestFeedPayload(unittest.TestCase):
             "timestamp": stamps, "meta": meta or {},
             "indicators": {"quote": [{"close": closes, "volume": volumes}]}}]}}
 
-    def test_null_bars_are_dropped(self):
-        # Yahoo pads holidays and halts with nulls. Left in, a "20-day average"
-        # would silently be computed over fewer real sessions.
+    def test_null_volume_bars_are_dropped(self):
+        # Yahoo pads holidays and halts with all-null bars. Left in, a "20-day
+        # average" would silently be computed over fewer real sessions. The
+        # drop rule is "no timestamp or no volume" — a null CLOSE is a real
+        # session (publication lag) and survives, as the next test shows.
         s = _to_series("X", self.payload([1, 2, 3, 4],
                                          [10.0, None, 12.0, 13.0],
                                          [100.0, 200.0, None, 400.0]))
-        self.assertEqual(s.timestamps, (1, 4))
-        self.assertEqual(s.closes, (10.0, 13.0))
+        self.assertEqual(s.timestamps, (1, 2, 4))
+        self.assertEqual(s.closes, (10.0, None, 13.0))
+
+    def test_a_null_close_with_volume_is_kept(self):
+        # The publication-lag bar: the session exists (timestamp + volume) but
+        # Yahoo has not served the close yet — measured live, NVDA's 08-03 bar
+        # served volume 127.5M with close=null. Dropping it is what made the
+        # page report "nothing newer than Friday" while Monday's bar was
+        # sitting in the payload.
+        s = _to_series("X", self.payload([1, 2, 3],
+                                         [10.0, None, 12.0],
+                                         [100.0, 200.0, 300.0]))
+        self.assertEqual(s.timestamps, (1, 2, 3))
+        self.assertEqual(s.closes, (10.0, None, 12.0))
+        self.assertEqual(s.volumes, (100.0, 200.0, 300.0))
 
     def test_meta_is_carried_through(self):
         s = _to_series("X", self.payload([1], [10.0], [100.0],
@@ -496,16 +613,88 @@ class TestFeedPayload(unittest.TestCase):
             _to_series("X", self.payload([1, 2], [None, None], [None, None]))
 
 
+# --- the meta-quote fill -----------------------------------------------------
+
+class TestFillPendingClose(unittest.TestCase):
+    """The provisional close from the chart meta: when the target bar is null
+    but `regularMarketTime` is at the bell and `regularMarketPrice` is present,
+    the price IS the close (verified live: NVDA 08-03, 206.64 at the bell).
+    Zero extra requests — it is in the payload the scan already fetched."""
+
+    END = 1_700_000_000
+
+    def build(self, closes, *, rmp, rmt_offset=0, prev=None):
+        n = len(closes)
+        s = series([1000.0] * n, closes=closes, start=self.END - (n - 1) * DAY)
+        meta = {"currentTradingPeriod": {"regular": {
+                    "start": self.END - 6 * 3600, "end": self.END}},
+                "regularMarketTime": self.END + rmt_offset,
+                "regularMarketPrice": rmp}
+        if prev is not None:
+            meta["chartPreviousClose"] = prev
+        return PriceSeries(s.symbol, s.timestamps, s.closes, s.volumes, meta)
+
+    def test_fills_a_close_at_the_bell(self):
+        from market_scan.scanner import _fill_pending_close
+        s = self.build([100.0, 100.0, 100.0, 100.0, None],
+                       rmp=206.64, prev=200.75)
+        filled, ok = _fill_pending_close(s, len(s) - 1)
+        self.assertTrue(ok)
+        self.assertEqual(filled.closes[-1], 206.64)
+        # The official close will land later; this is a provisional fill.
+        self.assertEqual(s.closes[-1], None)    # original untouched
+
+    def test_an_intraday_price_is_not_a_close(self):
+        # Last trade ten minutes before the bell: that is an intraday print,
+        # not the close. Outside the 300s epsilon, so no fill.
+        from market_scan.scanner import _fill_pending_close
+        s = self.build([100.0, 100.0, 100.0, 100.0, None],
+                       rmp=206.64, rmt_offset=-600)
+        filled, ok = _fill_pending_close(s, len(s) - 1)
+        self.assertFalse(ok)
+        self.assertEqual(filled.closes[-1], None)
+
+    def test_a_previous_close_is_filled_from_chart_previous_close(self):
+        # The baseline bar is also null (the whole day is lagging), so the
+        # fill supplies chartPreviousClose for it — the change then computes
+        # against the right reference.
+        from market_scan.scanner import _fill_pending_close
+        s = self.build([100.0, 100.0, 100.0, None, None],
+                       rmp=206.64, prev=200.75)
+        filled, ok = _fill_pending_close(s, len(s) - 1)
+        self.assertTrue(ok)
+        self.assertEqual(filled.closes[-2], 200.75)
+        self.assertEqual(filled.closes[-1], 206.64)
+
+    def test_missing_meta_price_means_no_fill(self):
+        from market_scan.scanner import _fill_pending_close
+        s = self.build([100.0, 100.0, 100.0, 100.0, None], rmp=None)
+        filled, ok = _fill_pending_close(s, len(s) - 1)
+        self.assertFalse(ok)
+        self.assertEqual(filled.closes[-1], None)
+
+    def test_an_already_closed_bar_is_untouched(self):
+        from market_scan.scanner import _fill_pending_close
+        s = self.build([100.0, 100.0, 100.0, 100.0, 120.0], rmp=206.64)
+        filled, ok = _fill_pending_close(s, len(s) - 1)
+        self.assertFalse(ok)
+        self.assertEqual(filled.closes[-1], 120.0)
+
+
 # --- the scanner's failure isolation ---------------------------------------
 
 class StubFeed:
     """A feed whose behaviour is chosen per symbol, so the scanner's handling of
     each outcome is directly assertable."""
 
-    def __init__(self, good=(), missing=(), broken=(), stale=(), meta=None):
+    def __init__(self, good=(), missing=(), broken=(), stale=(), meta=None,
+                 null_close=False):
         self.good, self.missing = set(good), set(missing)
         self.broken, self.stale = set(broken), set(stale)
         self.meta = meta or {}
+        # Publication-lag mode: every name's last bar carries timestamp +
+        # volume but a null close, like Yahoo mid-publish.
+        self.null_close = null_close
 
     def fetch(self, symbol):
         if symbol in self.missing:
@@ -517,6 +706,8 @@ class StubFeed:
         # failure isolation rather than accidentally testing the liquidity rule.
         vols = [5_000.0] * 20 + [200_000.0]
         closes = [100.0] * 20 + [120.0]
+        if self.null_close:
+            closes[-1] = None
         s = series(vols, closes, meta=self.meta, start=start)
         return PriceSeries(symbol, s.timestamps, s.closes, s.volumes, s.meta)
 
@@ -611,6 +802,53 @@ class TestScanner(unittest.TestCase):
         result = build(StubFeed(), ["S1"], universe_stale=True).scan("nasdaq")
         self.assertTrue(result.universe_stale)
 
+    def test_target_date_pins_the_session(self):
+        # With target_date the run's session IS that date — no majority-date
+        # voting, no drifting onto whatever Yahoo happens to report.
+        symbols = [f"S{i}" for i in range(9)]
+        result = build(StubFeed(), symbols).scan("nasdaq", target_date=STUB_SESSION)
+        self.assertEqual(result.session_date, STUB_SESSION)
+        self.assertEqual(len(result.hits), 9)
+
+    def test_target_date_missing_names_are_no_data_not_stale(self):
+        # A name whose series has no bar for the target (halted, dormant,
+        # delisted) is no_data — never a stale hit from an older session.
+        symbols = [f"S{i}" for i in range(9)]
+        result = build(StubFeed(stale=symbols[:3]), symbols).scan(
+            "nasdaq", target_date=STUB_SESSION)
+        self.assertEqual(result.stats["no_data"], 3)
+        self.assertEqual(result.stats["stale"], 0)
+        self.assertEqual(len(result.hits), 6)
+
+    def test_a_null_close_target_is_pending_completion(self):
+        # Publication lag: every name's target bar has timestamp + volume but
+        # a null close. The run must flag pending_completion — the service
+        # then refuses to persist a zero-mover day — rather than report
+        # "nothing moved".
+        symbols = [f"S{i}" for i in range(9)]
+        result = build(StubFeed(null_close=True), symbols).scan(
+            "nasdaq", target_date=STUB_SESSION)
+        self.assertTrue(result.pending_completion)
+        self.assertEqual(len(result.hits), 0)
+        self.assertEqual(result.stats["target_reported"], 9)
+        self.assertEqual(result.stats["target_pending"], 9)
+
+    def test_a_meta_filled_target_is_not_pending(self):
+        # The meta-quote fill: the target bar is null but the payload proves
+        # the session closed (regularMarketTime at the bell), so the fill
+        # provides the close and the day is complete, marked filled_from_quote.
+        meta = {"currentTradingPeriod": {"regular": {
+                    "start": 1_700_000_000 - 6 * 3600, "end": 1_700_000_000}},
+                "regularMarketTime": 1_700_000_000,
+                "regularMarketPrice": 120.0,
+                "chartPreviousClose": 100.0}
+        symbols = [f"S{i}" for i in range(9)]
+        result = build(StubFeed(null_close=True, meta=meta), symbols).scan(
+            "nasdaq", target_date=STUB_SESSION)
+        self.assertFalse(result.pending_completion)
+        self.assertTrue(result.filled_from_quote)
+        self.assertEqual(len(result.hits), 9)
+
 
 def _stub_date(offset_days: int) -> str:
     """The session date StubFeed's last bar lands on. Derived, not typed in, so
@@ -675,11 +913,13 @@ class TestSessionProbe(unittest.TestCase):
 
 # --- persistence ------------------------------------------------------------
 
-def make_result(market="nasdaq", session="2026-07-24", tickers=("AAA",)):
+def make_result(market="nasdaq", session="2026-07-24", tickers=("AAA",),
+                filled=False):
     hits = tuple(
         Hit(t, f"{t} Ltd", 8.0, 9.0, 100.0, 5000.0, 600.0, 500_000.0, "USD", session)
         for t in tickers)
-    return ScanResult(market, session, hits, ScanCriteria(), {"total": 1})
+    return ScanResult(market, session, hits, ScanCriteria(), {"total": 1},
+                      filled_from_quote=filled)
 
 
 class TestScanStore(unittest.TestCase):
@@ -831,6 +1071,43 @@ class TestScanStore(unittest.TestCase):
         hits = hits_from_stored({"hits": [{"no_ticker": 1},
                                           {"ticker": "OK", "name": "Ok"}]})
         self.assertEqual([h.ticker for h in hits], ["OK"])
+
+    def test_pending_marker_lifecycle(self):
+        # A traded-but-unpublished day is a marker, never a completed run: a
+        # zero-hit completed file would read as "nothing moved" and skip the
+        # day forever.
+        self.assertIsNone(self.store.pending("nasdaq"))
+        self.store.save_pending("nasdaq", "2026-08-03")
+        p = self.store.pending("nasdaq")
+        self.assertEqual(p["session_date"], "2026-08-03")
+        self.assertEqual(p["attempts"], 0)
+        # Not a run: list_runs must not see it.
+        self.assertEqual(self.store.list_runs("nasdaq"), [])
+        # Bumping counts attempts; a completed run for the date clears it.
+        self.assertEqual(self.store.bump_pending("nasdaq", "2026-08-03"), 1)
+        self.store.save(make_result(session="2026-08-03"))
+        self.assertIsNone(self.store.pending("nasdaq"))
+        self.assertEqual(self.store.list_runs("nasdaq"), ["2026-08-03"])
+
+    def test_pending_markers_are_kept_separate_per_market_and_date(self):
+        self.store.save_pending("nasdaq", "2026-08-03")
+        self.store.save_pending("nyse", "2026-08-03")
+        self.store.save_pending("nasdaq", "2026-08-04")
+        self.assertEqual(self.store.pending("nasdaq")["session_date"], "2026-08-04")
+        self.assertEqual(self.store.pending("nyse")["session_date"], "2026-08-03")
+        self.store.clear_pending("nasdaq", "2026-08-04")
+        self.assertEqual(self.store.pending("nasdaq")["session_date"], "2026-08-03")
+
+    def test_old_runs_without_filled_from_quote_still_load(self):
+        # Back-compat: a run written before the flag existed has no key;
+        # readers must treat that as False (via .get), not crash.
+        payload = make_result().to_dict()
+        del payload["filled_from_quote"]
+        with open(self.store._path("nasdaq", "2026-07-24"), "w") as f:
+            json.dump(payload, f)
+        data = self.store.latest("nasdaq")
+        self.assertEqual(data["session_date"], "2026-07-24")
+        self.assertFalse(data.get("filled_from_quote"))
 
 
 # --- the analyst ------------------------------------------------------------
@@ -993,6 +1270,209 @@ class TestEnrich(unittest.TestCase):
         with fake_yfinance({"sector": "Energy"}):
             self.assertIsInstance(self.run_enrich(ExplodingStore(), [self.hit()]),
                                   int)
+
+
+# --- the service: pending path, held semantics, retry watcher ---------------
+
+class FakeScanner:
+    """A scanner the service drives, with the pending/completion probe
+    controllable so the pending path and the retry watcher are testable
+    without Yahoo."""
+
+    def __init__(self, mode="complete", complete=False):
+        self.mode = mode              # "complete" | "pending" | "missing"
+        self.complete = complete      # target_complete() answer
+        self.scans = []               # (market, target_date) per scan()
+        self.probes = 0
+
+    def exchange_window(self, market):
+        return None
+
+    def target_complete(self, market, target_date):
+        self.probes += 1
+        return self.complete
+
+    def scan(self, market, target_date=None, progress_cb=None, stop_event=None):
+        self.scans.append((market, target_date))
+        target = target_date or "2026-07-31"
+        if self.mode == "pending":
+            # Traded, but the majority of closes are still null.
+            return ScanResult(market, target, (), ScanCriteria(),
+                              {"target_reported": 9, "target_pending": 9},
+                              pending_completion=True)
+        if self.mode == "missing":
+            # Traded, and no name has a bar at all (a dropped session).
+            return ScanResult(market, target, (), ScanCriteria(),
+                              {"target_reported": 0})
+        hits = (Hit("AAA", "AAA Ltd", 8.0, 9.0, 100.0, 5000.0, 600.0,
+                    500_000.0, "USD", target),)
+        return ScanResult(market, target, hits, ScanCriteria(),
+                          {"target_reported": 9, "target_pending": 0})
+
+
+class NoopAnalyseService(ScanService):
+    """ScanService with note-writing stubbed out — the notes are an enrichment
+    step (and a billable API call); these tests cover the scan lifecycle."""
+
+    def _analyse(self, market, session_date, label):
+        return 0
+
+
+class TestScanService(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
+
+    def make_service(self, scanner, store=None, retry_intervals=(1,)):
+        store = store or ScanStore(self.dir)
+        svc = NoopAnalyseService(store, self.dir, ScanCriteria(),
+                                 api_key_fn=lambda: "key", model="m/model",
+                                 scanner=scanner,
+                                 retry_intervals=retry_intervals,
+                                 retry_daily_s=60)
+        return svc, store
+
+    # --- the three message states -------------------------------------------
+
+    def test_a_pending_run_is_a_marker_not_a_completed_run(self):
+        # revya's gotcha: a pending day persisted as a zero-hit completed run
+        # would make _held_session skip it forever. The marker is the only
+        # trace, and the message is honest: traded, waiting on data.
+        scanner = FakeScanner(mode="pending")
+        svc, store = self.make_service(scanner)
+        svc._run("nasdaq", session_date="2026-08-03")
+        self.assertEqual(store.list_runs("nasdaq"), [])
+        self.assertEqual(store.pending("nasdaq")["session_date"], "2026-08-03")
+        state = svc.state("nasdaq")
+        self.assertIn("no source has finished publishing", state["message"])
+        self.assertFalse(state["running"])
+        store.clear_pending("nasdaq", "2026-08-03")   # stop the watcher
+
+    def test_a_dropped_session_reports_honestly(self):
+        # State 3: the calendar says the market traded, no name has a bar
+        # anywhere. Never a false "nothing newer" — and still not a completed
+        # run, so a later backfill can land on the day.
+        scanner = FakeScanner(mode="missing")
+        svc, store = self.make_service(scanner)
+        svc._run("nasdaq", session_date="2026-08-03")
+        self.assertEqual(store.list_runs("nasdaq"), [])
+        state = svc.state("nasdaq")
+        self.assertIn("Yahoo dropped this session", state["message"])
+        self.assertIn("2026-08-03", state["message"])
+        store.clear_pending("nasdaq", "2026-08-03")
+
+    def test_a_completed_run_is_saved_and_reported(self):
+        scanner = FakeScanner(mode="complete")
+        svc, store = self.make_service(scanner)
+        with fake_yfinance():
+            svc._run("nasdaq", session_date="2026-08-03")
+        self.assertEqual(store.list_runs("nasdaq"), ["2026-08-03"])
+        state = svc.state("nasdaq")
+        self.assertIn("Scan complete", state["message"])
+        self.assertFalse(state["running"])
+
+    def test_up_to_date_only_when_stored_matches_target(self):
+        # State 1: the calendar target is already stored and complete — no
+        # re-scan, no marker, an honest "last closed on".
+        store = ScanStore(self.dir)
+        store.save(make_result(session="2026-08-03"))
+        scanner = FakeScanner(mode="complete")
+        svc, store = self.make_service(scanner, store=store)
+        with fake_yfinance():
+            svc._run("nasdaq", session_date="2026-08-03")
+        state = svc.state("nasdaq")
+        self.assertIn("Already up to date", state["message"])
+        self.assertIn("2026-08-03", state["message"])
+        self.assertTrue(state["up_to_date"])
+        self.assertEqual(scanner.scans, [])          # nothing was re-bought
+
+    def test_a_filled_from_quote_run_is_rescanned_not_held(self):
+        # A run whose closes came from the meta fill is provisional: the
+        # official bar has since landed, so it must be re-scanned, not held.
+        store = ScanStore(self.dir)
+        store.save(make_result(session="2026-08-03", filled=True))
+        scanner = FakeScanner(mode="complete")
+        svc, store = self.make_service(scanner, store=store)
+        with fake_yfinance():
+            svc._run("nasdaq", session_date="2026-08-03")
+        self.assertEqual(scanner.scans, [("nasdaq", "2026-08-03")])
+        self.assertNotIn("Already up to date", svc.state("nasdaq")["message"])
+
+    def test_an_old_run_without_the_flag_is_held(self):
+        # Back-compat: a run written before filled_from_quote existed reads as
+        # False, so it IS held like any complete run.
+        store = ScanStore(self.dir)
+        store.save(make_result(session="2026-08-03"))
+        with open(store._path("nasdaq", "2026-08-03")) as f:
+            payload = json.load(f)
+        del payload["filled_from_quote"]
+        with open(store._path("nasdaq", "2026-08-03"), "w") as f:
+            json.dump(payload, f)
+        scanner = FakeScanner(mode="complete")
+        svc, store = self.make_service(scanner, store=store)
+        with fake_yfinance():
+            svc._run("nasdaq", session_date="2026-08-03")
+        self.assertEqual(scanner.scans, [])
+        self.assertTrue(svc.state("nasdaq")["up_to_date"])
+
+    # --- force semantics -----------------------------------------------------
+
+    def test_force_resolves_the_same_target_as_a_normal_run(self):
+        # The Friday footgun: force used to re-scan whatever Yahoo's probe
+        # reported (often the last published day) instead of the calendar
+        # target. Now both paths resolve the target identically — force only
+        # skips the "already stored" check.
+        scanner = FakeScanner(mode="complete")
+        svc, store = self.make_service(scanner)
+        resolved = []
+        svc._target_session = lambda market: resolved.append(1) or "2026-08-03"
+        with fake_yfinance():
+            svc._run("nasdaq", force=False)
+            svc._run("nasdaq", force=True)
+        self.assertEqual(len(resolved), 2)
+        self.assertEqual([s[1] for s in scanner.scans], ["2026-08-03", "2026-08-03"])
+
+    # --- the retry watcher ---------------------------------------------------
+
+    def test_the_watcher_finishes_a_pending_session(self):
+        # Phase 3b: once a pending day's bars land, the watcher fires a full
+        # scan with no one asking; the completed run clears the marker, and
+        # the marker's disappearance stops the watcher.
+        scanner = FakeScanner(mode="pending", complete=False)
+        svc, store = self.make_service(scanner, retry_intervals=(1,))
+        svc._run("nasdaq", session_date="2026-08-03")
+        self.assertIsNotNone(store.pending("nasdaq"))
+        # The pending run itself is the only scan so far — the watcher must
+        # not fire while the probe still says the day is incomplete.
+        self.assertEqual(len(scanner.scans), 1)
+        # The bars land: the probe flips, the watcher re-scans, run completes.
+        scanner.complete = True
+        scanner.mode = "complete"
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            if store.pending("nasdaq") is None and scanner.scans:
+                break
+            time.sleep(0.05)
+        self.assertIsNone(store.pending("nasdaq"))       # marker cleared
+        self.assertIn(("nasdaq", "2026-08-03"), scanner.scans)
+        self.assertGreater(scanner.probes, 0)
+
+    def test_a_user_backfill_stops_the_watcher(self):
+        # A manual backfill that completes the day is the same outcome as the
+        # watcher's own run: save() clears the marker and the watcher exits.
+        scanner = FakeScanner(mode="pending", complete=False)
+        svc, store = self.make_service(scanner, retry_intervals=(1,))
+        svc._run("nasdaq", session_date="2026-08-03")
+        self.assertIsNotNone(store.pending("nasdaq"))
+        # The user scans the day by hand; it completes and clears the marker.
+        scanner.mode = "complete"
+        with fake_yfinance():
+            svc._run("nasdaq", session_date="2026-08-03", force=True)
+        self.assertIsNone(store.pending("nasdaq"))
+        # The watcher's next round sees no marker and stops without re-firing
+        # (complete stays False, so it can never fire a scan of its own).
+        time.sleep(1.5)
+        self.assertEqual(len(scanner.scans), 2)   # the manual one only
 
 
 if __name__ == "__main__":

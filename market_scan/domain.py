@@ -35,6 +35,15 @@ class Market:
     # brand new in production and the staleness warning would never fire.
     # Update this when you replace the CSV.
     exported_on: str = ""
+    # Exchange-local IANA timezone, the fallback for the calendar-session
+    # resolver when the probe's gmtoffset isn't available (session.py). The
+    # probe offset is preferred because it is DST-correct for right now.
+    tz_name: str = "UTC"
+    # Recurring fixed-date closures, "MM-DD". Best-effort by design: a missed
+    # holiday costs a cheap, harmless scan attempt, never a wrong "up to date"
+    # (a wrong "up to date" needs a stored run for the target, and a target is
+    # only skipped when the walk-back wrongly treats a traded day as closed).
+    holidays: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -54,7 +63,14 @@ class UniverseEntry:
 
 @dataclass(frozen=True)
 class PriceSeries:
-    """Daily bars for one symbol, nulls already dropped.
+    """Daily bars for one symbol.
+
+    A close of None is a *publication-lag* bar — the session exists (it has a
+    timestamp and a volume) but Yahoo has not served the price yet. Session
+    selection treats it as the current session; the detector refuses it; the
+    scanner may fill it from the chart meta (see scanner._fill_pending_close).
+    All-null bars (holidays, halts) are dropped by the feed, so a None here
+    never means "no session".
 
     `meta` is Yahoo's chart `meta` block carried through verbatim: session.py
     reads `currentTradingPeriod` from it to spot an in-progress bar, and the
@@ -63,7 +79,7 @@ class PriceSeries:
     """
     symbol: str
     timestamps: tuple[int, ...]
-    closes: tuple[float, ...]
+    closes: tuple[float | None, ...]
     volumes: tuple[float, ...]
     meta: dict = field(default_factory=dict, compare=False)
 
@@ -160,6 +176,15 @@ class ScanResult:
     degraded: bool = False
     universe_stale: bool = False
     stopped: bool = False
+    # The target session traded (bars exist) but most closes are still null —
+    # Yahoo has not published the day yet. The service must NOT persist this as
+    # a completed run: a zero-hit completed file would read as "nothing moved"
+    # and _held_session would skip the day forever.
+    pending_completion: bool = False
+    # The run used provisional closes from the chart meta (regularMarketPrice
+    # at the closing bell) for the target session. Saved runs carry it so a
+    # later scan knows to re-fetch once the official bar lands.
+    filled_from_quote: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -168,6 +193,8 @@ class ScanResult:
             "criteria": self.criteria.to_dict(), "stats": self.stats,
             "degraded": self.degraded, "universe_stale": self.universe_stale,
             "stopped": self.stopped,
+            "pending_completion": self.pending_completion,
+            "filled_from_quote": self.filled_from_quote,
         }
 
 

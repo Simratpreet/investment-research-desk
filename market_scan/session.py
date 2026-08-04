@@ -1,4 +1,4 @@
-"""Picking the last *completed* session.
+"""Picking the last *completed* session, and resolving the intended one.
 
 This is the correctness detail a manually-run scanner can ignore and a scheduled
 one cannot. During market hours Yahoo returns a partial, in-progress bar as the
@@ -32,12 +32,69 @@ that still reads as "before the end". Using it would mark a finished session as
 in-progress for precisely the illiquid names most likely to show a volume spike,
 silently scanning yesterday for them and today for everyone else. `now` is
 injectable so this stays unit-testable without freezing time globally.
+
+`target_session` answers *which* session a scan is about, independently of Yahoo:
+the most recent scheduled trading day whose session has ended (the calendar
+walk). Session selection above then picks that day's bar out of the series.
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from .domain import PriceSeries
+from .domain import Market, PriceSeries
+
+
+def _market_offset(market: Market) -> int:
+    """The exchange's UTC offset in seconds, used for the calendar walk.
+
+    The probe's `meta.gmtoffset` is preferred by the caller (it is DST-correct
+    for right now); this is the fallback when no probe is available. An IANA
+    zone is used where the host ships tzdata; on a bare image it degrades to
+    UTC, which for the walk-back is never worse than off-by-a-few-hours around
+    midnight — and only when the probe failed too.
+    """
+    if market.tz_name:
+        try:
+            import zoneinfo
+            tz = zoneinfo.ZoneInfo(market.tz_name)
+            return int(datetime.now(tz).utcoffset().total_seconds())
+        except Exception:
+            pass
+    return 0
+
+
+def target_session(market: Market, now: float | None = None,
+                   window: tuple[float, float] | None = None,
+                   gmtoffset_sec: int | None = None) -> str:
+    """The most recent *completed* scheduled trading day for `market`.
+
+    "Yesterday" is a calendar concept, not a Yahoo-publication artifact: the
+    target is the newest trading day (walking back over weekends and the
+    market's holiday list) whose session has actually ended. `window` is the
+    (start, end) of Yahoo's current/next session from a probe sample; when its
+    date is today and `now` is before its end, today's session is still open
+    and the walk starts from yesterday. Without a window the same conservative
+    choice is made, because targeting a session that has not closed yet would
+    evaluate a half-day bar against a full-day baseline.
+    """
+    now = time.time() if now is None else now
+    offset = gmtoffset_sec if gmtoffset_sec is not None else _market_offset(market)
+    day = datetime.fromtimestamp(now + offset, tz=timezone.utc)
+    today = day.date()
+    if window is not None:
+        start, end = window
+        period_date = datetime.fromtimestamp(start + offset,
+                                             tz=timezone.utc).date()
+        today_ended = not (period_date == today and now < end)
+    else:
+        today_ended = False
+    if not today_ended:
+        day -= timedelta(days=1)
+    holidays = market.holidays or frozenset()
+    while True:
+        if day.weekday() < 5 and day.strftime("%m-%d") not in holidays:
+            return day.strftime("%Y-%m-%d")
+        day -= timedelta(days=1)
 
 
 class SessionSelector:

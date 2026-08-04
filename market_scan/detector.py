@@ -37,6 +37,11 @@ class SpikeDetector:
         volume = series.volumes[index]
         close = series.closes[index]
         prev_close = series.closes[index - 1]
+        if close is None or prev_close is None:
+            # Publication-lag bar: the session exists (timestamp + volume) but
+            # Yahoo has not served the close yet, so there is nothing to
+            # evaluate a move against. Not an error, just not ready.
+            return None
         if close <= 0 or prev_close <= 0 or volume <= 0:
             return None
 

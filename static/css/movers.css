@@ -34,6 +34,11 @@ body {
   background:var(--surface); border:1px solid var(--border); border-radius:11px;
   padding:.6rem .9rem; font-size:.85rem; font-weight:550; color:var(--text); min-width:190px;
 }
+.date-picker input {
+  background:var(--surface); border:1px solid var(--border); border-radius:11px;
+  padding:.55rem .7rem; font-size:.85rem; font-weight:550; color:var(--text);
+  font-family:inherit; color-scheme:dark;
+}
 .scan-meta { color:var(--text-muted); font-size:.8rem; margin-left:auto; text-align:right; }
 .scan-meta b { color:var(--text-secondary); font-weight:650; }
 

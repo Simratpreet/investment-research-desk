@@ -194,9 +194,12 @@ class YahooPriceFeed:
 def _to_series(symbol: str, payload: dict) -> PriceSeries:
     """Turn a chart response into a PriceSeries with the null bars removed.
 
-    Yahoo pads holidays and halts with nulls. Left in, they'd silently shorten
-    the lookback window — a "20-day average" computed over 14 real sessions and
-    6 zeros. Dropping them here keeps the detector honest about what it saw.
+    A bar is real iff it has a timestamp AND a volume. A null close survives:
+    Yahoo pads holidays and halts with all-null bars (still dropped here), but
+    a publication-lag bar carries real volume with the close still pending —
+    measured live, NVDA's 08-03 bar served volume 127,547,828 with close=null.
+    Such bars only occur at the series end (Yahoo publishes a session's bars in
+    order), so keeping them never shortens a lookback window.
     """
     chart = (payload or {}).get("chart") or {}
     results = chart.get("result") or []
@@ -212,10 +215,10 @@ def _to_series(symbol: str, payload: dict) -> PriceSeries:
 
     ts, cl, vol = [], [], []
     for t, c, v in zip(stamps, closes, volumes):
-        if t is None or c is None or v is None:
+        if t is None or v is None:
             continue
         ts.append(int(t))
-        cl.append(float(c))
+        cl.append(float(c) if c is not None else None)
         vol.append(float(v))
     if not ts:
         raise ValueError("no usable bars")

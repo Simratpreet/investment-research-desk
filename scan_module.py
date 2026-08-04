@@ -12,13 +12,15 @@ same way todo_module defers to todo_store.
 """
 
 import os
+from datetime import datetime
 
 from flask import Blueprint, jsonify, render_template, request
 
 from config import (MARKET_SCAN_DIR, MOVERS_ANALYSIS_CONCURRENCY,
                     MOVERS_ANALYSIS_MAX, MOVERS_LOOKBACK, MOVERS_MAX_WORKERS,
                     MOVERS_MIN_CHANGE_PCT, MOVERS_MIN_RVOL, MOVERS_MODEL,
-                    MOVERS_RETAIN_SESSIONS, MOVERS_UNIVERSE_MAX_AGE_DAYS)
+                    MOVERS_RETAIN_SESSIONS, MOVERS_RETRY_DAILY_S,
+                    MOVERS_RETRY_INTERVALS, MOVERS_UNIVERSE_MAX_AGE_DAYS)
 from market_scan.domain import ScanCriteria
 from market_scan.service import ScanService
 from market_scan.store import ScanStore
@@ -44,7 +46,9 @@ service = ScanService(store, UNIVERSE_DIR, CRITERIA,
                       analysis_max=MOVERS_ANALYSIS_MAX,
                       analysis_concurrency=MOVERS_ANALYSIS_CONCURRENCY,
                       retain_sessions=MOVERS_RETAIN_SESSIONS,
-                      universe_max_age_days=MOVERS_UNIVERSE_MAX_AGE_DAYS)
+                      universe_max_age_days=MOVERS_UNIVERSE_MAX_AGE_DAYS,
+                      retry_intervals=MOVERS_RETRY_INTERVALS,
+                      retry_daily_s=MOVERS_RETRY_DAILY_S)
 
 
 def _market(data) -> str | None:
@@ -55,6 +59,21 @@ def _market(data) -> str | None:
     """
     key = (data.get("market") or "").strip().lower()
     return key if key in MARKETS else None
+
+
+def _session_date(data) -> str | None:
+    """An explicit backfill date, or None. Strictly validated so a garbage
+    string can never reach a filename — the store builds
+    `<market>_<session_date>.json` from it.
+    """
+    raw = (data.get("session_date") or "").strip()
+    if not raw:
+        return None
+    try:
+        datetime.strptime(raw, "%Y-%m-%d")
+    except ValueError:
+        return None
+    return raw
 
 
 @scan_bp.route("/movers")
@@ -77,6 +96,9 @@ def get_markets():
             "scan": states.get(key),
             "last_session": runs[0] if runs else None,
             "runs": len(runs),
+            # A traded-but-unpublished day, shown so the page can say "waiting
+            # on data" instead of implying the market is quiet.
+            "pending": store.pending(key),
         })
     return jsonify({"markets": out, "criteria": CRITERIA.to_dict()})
 
@@ -129,21 +151,34 @@ def get_movers():
         "universe_stale": latest.get("universe_stale", False),
         "criteria": latest.get("criteria") or CRITERIA.to_dict(),
         "scan": service.state(key),
+        # The newest day this market traded that no source has published yet.
+        # The page shows "traded, waiting on data" while this exists and there
+        # is no completed run for the same date.
+        "pending": store.pending(key),
     })
 
 
 @scan_bp.route("/api/movers/scan", methods=["POST"])
 def start_scan():
-    """Kick off a scan in the background. Returns immediately; poll /api/movers."""
+    """Kick off a scan in the background. Returns immediately; poll /api/movers.
+
+    `session_date` (YYYY-MM-DD) backfills that specific session — a day Yahoo
+    never published, or a day that predates the page — instead of the market's
+    calendar target. `force` re-scans the target even when already stored.
+    """
     if not rate_limit_ok(f"movers:{client_ip(request)}", 10, 300):
         return jsonify({"error": "Too many scans — wait a few minutes."}), 429
     body = request.get_json(silent=True) or {}
     key = _market(body)
     if key is None:
         return jsonify({"error": "unknown market"}), 400
+    session_date = _session_date(body)
+    if (body.get("session_date") or "").strip() and session_date is None:
+        return jsonify({"error": "session_date must be YYYY-MM-DD"}), 400
     # Without `force` the run checks first and stops if the exchange has
     # published nothing newer than the session already stored.
-    started, message = service.start(key, force=bool(body.get("force")))
+    started, message = service.start(key, force=bool(body.get("force")),
+                                     session_date=session_date)
     if not started:
         # Matches the News/Announcements contract: a second scan is a 409.
         return jsonify({"message": message, "scan": service.state(key)}), 409
