@@ -10,7 +10,7 @@ Layered so each concern is testable on its own:
     scanner     runs a universe through feed + detector, isolating failures
     store       runs persisted on the volume
     enrich      best-effort sector/market cap for hits
-    analyst     the per-stock note from Kimi K3
+    analyst     the per-stock note from DeepSeek V4 Flash
     service     orchestration, single-flight, live progress
 
 Nothing reaches across a boundary except through the constructor arguments

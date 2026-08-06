@@ -152,7 +152,7 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
 - **News scanner:** `DEFAULT_MODEL=z-ai/glm-5.2`, **overridden by `OPENROUTER_MODEL`
   env** — so the secret governs news. **Announcements scanner:** `x-ai/grok-4.5`,
   **hardcoded, ignores the env**. (Inconsistency, see below.)
-- **Movers notes:** `MOVERS_MODEL`, default `moonshotai/kimi-k3:online` (web search
+- **Movers notes:** `MOVERS_MODEL`, default `deepseek/deepseek-v4-flash-0731:online` (web search
   matters — the note has to find what actually happened). The prompt is in
   `market_scan/analyst.py`: measured facts (RVOL, change, turnover, session) plus
   the standing question about growth acceleration / margin expansion / deleveraging

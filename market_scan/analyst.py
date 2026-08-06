@@ -1,4 +1,4 @@
-"""The per-stock note, written by Kimi K3 with web search.
+"""The per-stock note, written by DeepSeek V4 Flash with web search.
 
 A row on the Movers page says a stock traded five times its usual volume and
 closed up seven percent. That is the question, not the answer. The note is what

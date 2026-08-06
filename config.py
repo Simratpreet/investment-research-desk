@@ -68,11 +68,11 @@ MOVERS_LOOKBACK       = int(os.getenv("MOVERS_LOOKBACK", "20"))
 # Concurrency against Yahoo's chart endpoint. The feed paces itself globally
 # (see market_scan/feed.py), so this bounds threads, not request rate.
 MOVERS_MAX_WORKERS    = int(os.getenv("MOVERS_MAX_WORKERS", "8"))
-# Kimi K3 with OpenRouter's web-search plugin (":online"), so notes can cite
-# what actually happened. ANALYSIS_MAX is the cost guard: notes are the only
-# per-run spend, and this prompt asks for a business model plus a thesis, so
-# they are not short.
-MOVERS_MODEL          = os.getenv("MOVERS_MODEL", "moonshotai/kimi-k3:online")
+# DeepSeek V4 Flash with OpenRouter's web-search plugin (":online"), so notes
+# can cite what actually happened. ANALYSIS_MAX is the cost guard: notes are the
+# only per-run spend, and this prompt asks for a business model plus a thesis,
+# so they are not short.
+MOVERS_MODEL          = os.getenv("MOVERS_MODEL", "deepseek/deepseek-v4-flash-0731:online")
 MOVERS_ANALYSIS_MAX   = int(os.getenv("MOVERS_ANALYSIS_MAX", "40"))
 # Notes run concurrently: each is a web-search call taking most of a minute, so
 # a serial pass over a busy day would leave the page half-written for half an
