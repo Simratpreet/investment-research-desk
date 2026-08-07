@@ -1,6 +1,7 @@
 """Voice research module — ask a company's filings out loud, hear the answer.
 
-Pipeline (all via OpenRouter, one key):
+Pipeline (OpenRouter, one key — except DeepSeek V4 Flash, which uses the native
+DeepSeek Responses API with its own key):
   mic audio --> gpt-4o-transcribe (STT)
             --> gemini-3.6-flash, high reasoning, grounded in local .txt filings
             --> gemini-3.1 TTS --> spoken answer
@@ -111,6 +112,17 @@ def _sweep_jobs():
         _jobs.pop(jid, None)
 
 OR_URL = "https://openrouter.ai/api/v1"
+# Direct-API chat models: allowlist id -> (base_url, native_model, api_kind).
+# These run on the vendor's own API with their own key, not OpenRouter.
+# Currently only DeepSeek V4 Flash (product decision 2026-08-07). The `:online`
+# web-search suffix is OpenRouter-only; native web search is provided by the
+# DeepSeek Responses API (`api_kind="responses"`), which runs a server-side
+# `web_search` tool — verified live 2026-08-07.
+DEEPSEEK_API_URL = "https://api.deepseek.com"        # OpenAI-compatible; /v1 also works
+DEEPSEEK_MODEL   = "deepseek-v4-flash"               # CONFIRMED via GET /models (2026-08-07)
+DIRECT_API_MODELS = {
+    "deepseek/deepseek-v4-flash-0731:online": (DEEPSEEK_API_URL, DEEPSEEK_MODEL, "responses"),
+}
 STT_MODEL = "openai/gpt-4o-transcribe"
 # usd per 1M tokens for STT_MODEL, measured from actual billed transcriptions
 # (usage.cost / token counts, see tests/test_usage_cost.py + cost spec v2 §3.1).
@@ -135,11 +147,15 @@ REASON_MODEL_IDS = {m["id"] for m in REASON_MODELS}
 # REASON_MODEL = "google/gemini-3.1-pro-preview:online"
 REASON_MODEL = REASON_MODELS[0]["id"]   # default when none is chosen
 
-# usd per 1M tokens, per model id, from OpenRouter /api/v1/models pricing.*
-# Kept in step with REASON_MODELS, but these are placeholders — the real values
-# are a maintenance task (see the cost spec §9). Because the primary source is
-# OpenRouter's own usage.cost, small drift here only affects the token-math
-# fallback and is non-fatal.
+# usd per 1M tokens, per model id. OpenRouter entries are 2-tuples (in, out)
+# from OpenRouter /api/v1/models pricing; the DeepSeek entry is a 3-tuple
+# (in_miss, in_hit, out) pricing the NATIVE direct API (see usage_cost for how
+# prompt_cache_hit_tokens are weighted). Kept in step with REASON_MODELS, but
+# these are placeholders — the real values are a maintenance task (see the cost
+# spec §9). For OpenRouter models the primary source is OpenRouter's own
+# usage.cost, so drift there only affects the token-math fallback and is
+# non-fatal; for DeepSeek the table IS the primary source (native usage has no
+# cost field).
 MODEL_COSTS = {
     # (in, out) usd per 1M tokens, matching DEFAULT_MODEL_COST's tuple shape.
     "x-ai/grok-4.5:online":              (3.00, 15.00),
@@ -148,7 +164,12 @@ MODEL_COSTS = {
     "anthropic/claude-opus-5:online":    (5.00, 25.00),
     "anthropic/claude-sonnet-5:online":  (3.00, 15.00),
     "z-ai/glm-5.2:online":               (0.80, 0.80),
-    "deepseek/deepseek-v4-flash-0731:online": (0.25, 1.25),
+    # DeepSeek V4 Flash, direct API (not OpenRouter): 3-tuple (in_miss, in_hit,
+    # out) — 0.14 in (cache miss) / 0.0028 in (cache hit) / 0.28 out per 1M,
+    # read from DeepSeek's Models & Pricing page 2026-08-07. NOTE: DeepSeek
+    # warns of a significant price increase soon — re-verify before relying on
+    # displayed $ long-term.
+    "deepseek/deepseek-v4-flash-0731:online": (0.14, 0.0028, 0.28),
 }
 DEFAULT_MODEL_COST = (1.00, 5.00)   # sane default for any unlisted id
 
@@ -156,10 +177,16 @@ DEFAULT_MODEL_COST = (1.00, 5.00)   # sane default for any unlisted id
 def usage_cost(usage: dict | None, model_id: str) -> tuple[float | None, int | None]:
     """Return (cost_usd, total_tokens) for a completed call. NEVER raises.
 
-    Prefers OpenRouter's own usage.cost (captures the `:online` web-search spend
-    that token math can't). Falls back to MODEL_COSTS x token counts. Returns
-    (None, None) when the usage block is missing or unconsumable — the UI shows
-    nothing for these, never a wrong number.
+    Prefers the provider's own usage.cost (OpenRouter's captures the `:online`
+    web-search spend that token math can't). Falls back to MODEL_COSTS x token
+    counts. Entries may be 2-tuples (in, out) — flat rate — or 3-tuples
+    (in_miss, in_hit, out) — cache-hit-weighted input (the DeepSeek direct API
+    has a ~50x hit/miss spread, so ignoring cache hits would materially
+    overprice long conversations). A 3-tuple entry reads
+    usage["prompt_cache_hit_tokens"] and weights it at in_hit; 2-tuple entries
+    and absent cache fields price flat at in_miss. Returns (None, None) when
+    the usage block is missing or unconsumable — the UI shows nothing for
+    these, never a wrong number.
     """
     if not usage:
         return None, None
@@ -180,8 +207,18 @@ def usage_cost(usage: dict | None, model_id: str) -> tuple[float | None, int | N
     if not isinstance(cost, (int, float)):
         cost = None
     if cost is None and isinstance(prompt, int) and isinstance(comp, int):
-        p, o = MODEL_COSTS.get(model_id, DEFAULT_MODEL_COST)
-        cost = (prompt / 1e6 * p) + (comp / 1e6 * o)
+        entry = MODEL_COSTS.get(model_id, DEFAULT_MODEL_COST)
+        if len(entry) == 3:
+            in_miss, in_hit, out = entry
+            cached = usage.get("prompt_cache_hit_tokens")
+            if not isinstance(cached, int):
+                cached = 0
+            cached = max(0, min(cached, prompt))   # a sane cache can't exceed input
+            cost = (in_miss * (prompt - cached) + in_hit * cached) / 1e6 \
+                   + out * comp / 1e6
+        else:
+            p, o = entry
+            cost = (prompt / 1e6 * p) + (comp / 1e6 * o)
     return (round(cost, 6) if cost is not None else None), total
 
 
@@ -215,6 +252,15 @@ def stt_cost(usage: dict | None) -> float | None:
 def stt_is_estimate(usage: dict | None) -> bool:
     """True when the STT figure is a fallback estimate, i.e. the transcription
     JSON had no exact usage.cost to read. NEVER raises."""
+    return not (usage and usage.get("cost") is not None)
+
+
+def reason_is_estimate(usage: dict | None) -> bool:
+    """True when the reasoning figure is a table-derived estimate, i.e. the
+    provider usage had no exact `cost` field. OpenRouter usage carries cost
+    (exact → False); the DeepSeek direct route's normalized usage has none
+    (table price → True, rendered `~$` in the UI). Mirrors stt_is_estimate.
+    NEVER raises."""
     return not (usage and usage.get("cost") is not None)
 
 
@@ -340,16 +386,27 @@ CONTEXT_DIRS = [
 voice_bp = Blueprint("voice", __name__)
 
 
-def _api_key() -> str:
-    key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not key:  # fall back to the sibling .env
+def _env_or_dotenv(name: str) -> str:
+    """Env var, falling back to a sibling `.env` line `NAME=value`. The .env
+    fallback is local-dev only — .dockerignore excludes .env from the image,
+    so prod keys must be real env vars (Fly secrets)."""
+    key = os.environ.get(name, "").strip()
+    if not key:
         envp = Path(__file__).resolve().parent / ".env"
         if envp.exists():
             for line in envp.read_text().splitlines():
-                if line.startswith("OPENROUTER_API_KEY="):
+                if line.startswith(name + "="):
                     key = line.split("=", 1)[1].strip().strip("'\"")
                     break
     return key
+
+
+def _api_key() -> str:
+    return _env_or_dotenv("OPENROUTER_API_KEY")
+
+
+def _deepseek_api_key() -> str:
+    return _env_or_dotenv("DEEPSEEK_API_KEY")
 
 
 def _load_context_s3(sym: str):
@@ -614,10 +671,21 @@ def reason(question: str, context: str, symbol: str, history=None, model=None) -
     """`context` is pre-assembled labelled blocks (filings and/or uploaded
     documents) built by voice_ask — it may be empty in free conversation.
 
-    Returns `(answer, usage)`: `usage` is the OpenRouter `usage` dict (which
-    carries OpenRouter's own computed `cost`, capturing the `:online` web-search
-    spend that token math can't) or None when absent. Cost is computed once
-    here and persisted by the caller."""
+    Returns `(answer, usage)`. For OpenRouter models `usage` is the provider
+    dict carrying OpenRouter's own computed `cost` (capturing the `:online`
+    web-search spend that token math can't). For the DeepSeek direct route it
+    is the normalized Responses usage (token counts only, no `cost` — see
+    usage_cost). Cost is computed once by the caller via usage_cost."""
+    resolved = resolve_model(model)
+    if resolved in DIRECT_API_MODELS and not _deepseek_api_key():
+        # Defensive guard (the boundary check in voice_ask returns a clean
+        # 400): a keyless direct-API question must fail loudly here, never
+        # silently fall back to OpenRouter. _run_ask's generic handler turns
+        # this into the job error for future callers.
+        raise RuntimeError(
+            "DeepSeek API key not configured — set DEEPSEEK_API_KEY "
+            "(env or .env), then try again."
+        )
     if symbol:
         system = (
             f"You are an expert equity-research analyst answering a spoken question about {symbol.upper()}. "
@@ -654,23 +722,95 @@ def reason(question: str, context: str, symbol: str, history=None, model=None) -
         if role in ("user", "assistant") and content:
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": question})
-    resp = requests.post(
-        f"{OR_URL}/chat/completions",
-        headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
-        json={
-            "model": resolve_model(model),
-            "reasoning": {"effort": "high"},
-            "messages": messages,
-        },
-        timeout=300,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    # content can be null on a refusal or reasoning-only turn — coalesce, don't .strip(None).
-    msg = (data.get("choices") or [{}])[0].get("message") or {}
-    usage = data.get("usage") or None
+    direct = DIRECT_API_MODELS.get(resolved)
+    if direct:
+        base_url, native_model, api_kind = direct
+        if api_kind == "responses":
+            # DeepSeek Responses API: the ONLY native endpoint with web search.
+            # Request shape differs from chat completions: `instructions` is the
+            # system prompt, `input` is the message list, `reasoning.effort` is
+            # accepted (verified live), and `tools: [{type: "web_search"}]` runs a
+            # server-side search. Simrat: reasoning effort high + web search.
+            resp = requests.post(
+                f"{base_url}/responses",
+                headers={"Authorization": f"Bearer {_deepseek_api_key()}",
+                         "Content-Type": "application/json"},
+                json={
+                    "model": native_model,
+                    "instructions": system,          # system prompt
+                    "input": [m for m in messages if m["role"] != "system"],
+                    "reasoning": {"effort": "high"},
+                    "tools": [{"type": "web_search"}],
+                    "tool_choice": {"type": "web_search"},   # force search (matches :online)
+                },
+                timeout=300,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            # Responses output is an item list: `message` items carry output_text,
+            # `reasoning` items carry chain-of-thought (never surface),
+            # `web_search_call` items are diagnostics. Status may be "failed"
+            # with an `error` body — surface it like a non-2xx.
+            if data.get("status") not in ("completed", "incomplete"):
+                raise requests.HTTPError(
+                    f"DeepSeek responses status {data.get('status')}",
+                    response=resp)
+            parts = [
+                c.get("text", "")
+                for item in data.get("output") or []
+                if item.get("type") == "message"
+                for c in item.get("content") or []
+                if c.get("type") == "output_text"
+            ]
+            content = "\n".join(parts).strip()
+            usage = data.get("usage") or None
+            if usage:
+                # Normalize Responses usage (input_tokens/output_tokens) into the
+                # shape usage_cost() reads (prompt_tokens/completion_tokens) and
+                # carry the cache-hit count so cache-hit pricing survives (revya
+                # required edit 2). Tokens ONLY — no cost math here; usage_cost()
+                # is the single place the money runs.
+                usage = {
+                    "prompt_tokens": usage.get("input_tokens"),
+                    "completion_tokens": usage.get("output_tokens"),
+                    "total_tokens": usage.get("total_tokens"),
+                    "cost": None,
+                    "prompt_cache_hit_tokens":
+                        (usage.get("input_tokens_details") or {}).get("cached_tokens", 0),
+                }
+        else:
+            resp = requests.post(
+                f"{base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {_deepseek_api_key()}",
+                         "Content-Type": "application/json"},
+                json={"model": native_model, "messages": messages,
+                      "reasoning": {"effort": "high"}},
+                timeout=300,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            msg = (data.get("choices") or [{}])[0].get("message") or {}
+            content = (msg.get("content") or "").strip()
+            usage = data.get("usage") or None
+    else:
+        resp = requests.post(
+            f"{OR_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
+            json={
+                "model": resolved,
+                "reasoning": {"effort": "high"},
+                "messages": messages,
+            },
+            timeout=300,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        # content can be null on a refusal or reasoning-only turn — coalesce, don't .strip(None).
+        msg = (data.get("choices") or [{}])[0].get("message") or {}
+        content = (msg.get("content") or "").strip()
+        usage = data.get("usage") or None
     # Sanitise here so the displayed text and the TTS input are the same string.
-    answer = _clean_answer((msg.get("content") or "").strip())
+    answer = _clean_answer(content)
     return answer, usage
 
 
@@ -1048,6 +1188,13 @@ def voice_ask():
     model = resolve_model(request.form.get("model"))
     tts_cfg = resolve_tts_model(request.form.get("tts_model"))
 
+    # Fail loudly at the boundary when the chosen direct-API model has no key:
+    # never silently fall back to OpenRouter, and don't spend a job + worker
+    # on a question that's guaranteed to fail upstream.
+    if model in DIRECT_API_MODELS and not _deepseek_api_key():
+        return jsonify({"error": "DeepSeek API key not configured — "
+                                 "set DEEPSEEK_API_KEY (env or .env), then try again."}), 400
+
     # TTS-off per message: "0" skips the answer's speech synthesis. Anything
     # else (or absent) keeps current behavior. Lenient parse — a bad value or
     # a missing field must never fail the ask.
@@ -1167,9 +1314,15 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             # defend anyway in case that guarantee is broken later.
             cost = tokens = voice_cost = stt_amt = None
             stt_est = True
+            reason_est = True
             tts_chars = 0
             try:
                 cost, tokens = usage_cost(usage, model)
+                # reason_est mirrors stt_est: True only when there was no exact
+                # usage.cost to read. OpenRouter usage carries cost (exact);
+                # the DeepSeek direct route's normalized usage has none, so its
+                # table-derived price renders `~$` (an estimate) in the UI.
+                reason_est = reason_is_estimate(usage)
                 stt_amt = stt_cost(stt_usage)
                 # stt_est means "the figure is genuinely an estimate" — True
                 # only when there was no exact usage.cost to read. An STT that
@@ -1204,6 +1357,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
                     "voice_cost": voice_cost, "voice_chars": tts_chars,
                     "stt_cost": stt_amt,
                     "stt_est": stt_est, "voice_est": True,
+                    "reason_est": reason_est,
                     "ts": datetime.now(timezone.utc).isoformat(),
                 }
                 # A replay key is recorded only when the render is stably in S3
@@ -1227,6 +1381,7 @@ def _run_ask(job_id, typed, audio_b64, fmt, context, sources, symbol, history, m
             "voice_cost": voice_cost, "voice_chars": tts_chars,
             "stt_cost": stt_amt,
             "stt_est": stt_est, "voice_est": True,
+            "reason_est": reason_est,
             "conversation_id": conv_id,
         }
         # Only attach audio when it was produced (TTS-off turns omit it so the

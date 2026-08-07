@@ -269,6 +269,7 @@ const Conversations = {
       addEntry({ question: t.question, answer: t.answer, symbol: t.symbol,
                  model: t.model, sources: t.sources, cost: t.cost, tokens: t.tokens,
                  voice_cost: t.voice_cost, stt_cost: t.stt_cost, stt_est: t.stt_est,
+                 reason_est: t.reason_est,
                  audio: t.audio_url || undefined },
                { historical: true });
       history.push({ role: "user", content: t.question });
@@ -502,10 +503,13 @@ async function pollSynth(btn, jobId, started) {
 // before, which read as two unrelated objects rather than a single turn.
 // opts.historical: a turn loaded from saved history. Persistence is text-only,
 // so there's no audio to play — render without a player and don't autoplay.
-function fmtCost(cost, tokens) {
+function fmtCost(cost, tokens, est) {
   if (cost == null && tokens == null) return null;   // historical/unmeasurable
   const parts = [];
-  if (cost != null) parts.push("$" + cost.toFixed(4));
+  // `est` marks a table-derived estimate (DeepSeek direct API, no usage.cost):
+  // rendered as `~$` like the voice/speech lines. Exact provider costs render
+  // plain `$`. Defaults to false — pre-flag historical turns were exact.
+  if (cost != null) parts.push((est ? "~$" : "$") + cost.toFixed(4));
   if (tokens != null) parts.push(tokens.toLocaleString() + " tokens");
   return parts.join(" · ");
 }
@@ -556,8 +560,10 @@ function addEntry(j, opts = {}) {
 
   // Cost of producing this answer (and the token spend that drove it). Shown
   // only when the server recorded it; absent for pre-cost historical turns and
-  // unmeasurable refusals — never a fabricated $0.00.
-  const spendLine = fmtCost(j.cost, j.tokens);
+  // unmeasurable refusals — never a fabricated $0.00. `reason_est` defaults to
+  // false for pre-flag historical turns (they were OpenRouter-exact).
+  const reasonEst = j.reason_est === undefined ? false : j.reason_est;
+  const spendLine = fmtCost(j.cost, j.tokens, reasonEst);
   if (spendLine) {
     const spend = document.createElement("div");
     spend.className = "entry-cost";

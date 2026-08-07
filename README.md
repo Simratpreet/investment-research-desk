@@ -84,7 +84,8 @@ and summarizes via OpenRouter GLM-5.2 into append-only digests.
   session `Cookie` header copied from a logged-in browser. When it expires the
   scripts log a clear "refresh cookie" error.
 - The OpenRouter key comes from the shared `.env` (`OPENROUTER_API_KEY`); a local
-  `openrouter_key.txt` is an optional fallback.
+  `openrouter_key.txt` is an optional fallback. The Chat page's DeepSeek V4 Flash
+  routes direct to DeepSeek instead (own key `DEEPSEEK_API_KEY`, same shared `.env`).
 - State is per-script (`seen.json`, `annual_reports_seen.json`) so nothing is
   re-summarized across runs.
 - **Dashboard integration:** the **Announcements** tab drives `scan.py` from the

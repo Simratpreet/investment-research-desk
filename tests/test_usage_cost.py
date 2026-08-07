@@ -10,14 +10,16 @@ import sys
 import unittest
 from unittest import mock
 
+import requests
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import voice_module
 import mp3_repair
 from voice_module import (DEFAULT_MODEL_COST, PROMPT_PRESETS, STT_COST_PER_M,
-                          STT_OUT_COST_PER_M, TTS_MODELS, reason, stt_cost,
-                          stt_is_estimate, transcribe, tts_cost, usage_cost,
-                          voice_bp)
+                          STT_OUT_COST_PER_M, TTS_MODELS, reason,
+                          reason_is_estimate, stt_cost, stt_is_estimate,
+                          transcribe, tts_cost, usage_cost, voice_bp)
 from flask import Flask, request
 
 
@@ -83,6 +85,49 @@ class TestUsageCost(unittest.TestCase):
         # Reviewer blocker #2: no real token count -> total is None, never "0 tokens".
         cost, tokens = usage_cost({"total_tokens": 100}, "x")
         self.assertEqual((cost, tokens), (None, None))
+
+    # --- DeepSeek direct-API pricing (revya required: cache-hit weighting) ---
+
+    DEEPSEEK = "deepseek/deepseek-v4-flash-0731:online"
+
+    def test_3tuple_cache_weighted_pricing(self):
+        # 3-tuple (in_miss, in_hit, out) = (0.14, 0.0028, 0.28); cached input
+        # priced at the hit rate, the rest at miss — NOT everything at miss.
+        usage = {"prompt_tokens": 1_000_000, "completion_tokens": 500_000,
+                 "prompt_cache_hit_tokens": 600_000}
+        cost, tokens = usage_cost(usage, self.DEEPSEEK)
+        expected = (0.0028 * 600_000 + 0.14 * 400_000 + 0.28 * 500_000) / 1e6
+        self.assertAlmostEqual(cost, expected)
+        self.assertEqual(tokens, 1_500_000)
+
+    def test_3tuple_absent_cache_field_flat_rate(self):
+        # No cache field -> degrade to in_hit = in_miss (today's flat rate).
+        usage = {"prompt_tokens": 1_000_000, "completion_tokens": 0}
+        cost, _ = usage_cost(usage, self.DEEPSEEK)
+        self.assertAlmostEqual(cost, 0.14)
+
+    def test_cache_clamped_to_prompt(self):
+        # A cache count can never exceed the input it came from.
+        usage = {"prompt_tokens": 1_000_000, "completion_tokens": 0,
+                 "prompt_cache_hit_tokens": 5_000_000}
+        cost, _ = usage_cost(usage, self.DEEPSEEK)
+        self.assertAlmostEqual(cost, 0.0028)   # all input cached, clamped
+
+    def test_2tuple_backward_compat(self):
+        # A 2-tuple entry (default/Grok) still unpacks and prices flat — no
+        # regression for the other six models or DEFAULT_MODEL_COST.
+        usage = {"prompt_tokens": 1_000_000, "completion_tokens": 500_000}
+        cost, tokens = usage_cost(usage, "x-ai/grok-4.5:online")
+        self.assertEqual(tokens, 1_500_000)
+        self.assertAlmostEqual(cost, 3.0 + 7.5)   # in 3.00, out 15.00
+
+    def test_total_tokens_passthrough_normalized(self):
+        # Normalized Responses usage (tokens, no cost) -> total passes through.
+        usage = {"prompt_tokens": 10, "completion_tokens": 5,
+                 "total_tokens": 15, "cost": None, "prompt_cache_hit_tokens": 2}
+        cost, tokens = usage_cost(usage, self.DEEPSEEK)
+        self.assertEqual(tokens, 15)
+        self.assertIsNotNone(cost)   # table fallback priced it
 
 
 class TestSttCost(unittest.TestCase):
@@ -176,6 +221,131 @@ class TestReasonAndTranscribeTuples(unittest.TestCase):
             text, usage = transcribe("b64", "webm")
         self.assertEqual(text, "How are margins trending?")
         self.assertAlmostEqual(usage["cost"], 0.0001)
+
+
+class TestReasonIsEstimate(unittest.TestCase):
+    """reason_is_estimate mirrors stt_is_estimate: True only when the provider
+    usage carried no exact `cost` (DeepSeek's normalized Responses usage), so
+    the UI renders `~$` on the table-derived figure."""
+
+    def test_exact_when_usage_cost_present(self):
+        self.assertFalse(reason_is_estimate({"prompt_tokens": 5, "cost": 0.001}))
+
+    def test_estimate_when_cost_absent(self):
+        self.assertTrue(reason_is_estimate({"prompt_tokens": 5}))
+
+    def test_estimate_when_usage_none(self):
+        self.assertTrue(reason_is_estimate(None))
+
+    def test_deepseek_normalized_usage_is_estimate(self):
+        usage = {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2,
+                 "cost": None, "prompt_cache_hit_tokens": 0}
+        self.assertTrue(reason_is_estimate(usage))
+
+
+class TestDeepSeekDirectRoute(unittest.TestCase):
+    """The DeepSeek V4 Flash dropdown entry routes DIRECT to
+    api.deepseek.com/responses (the only native endpoint with web search) with
+    its own key; OpenRouter is never touched for it, and a keyless selection
+    fails loudly instead of falling back."""
+
+    DEEPSEEK = "deepseek/deepseek-v4-flash-0731:online"
+
+    def _responses_fake(self):
+        return {
+            "status": "completed",
+            "output": [
+                {"type": "reasoning", "summary": ["think step by step"]},
+                {"type": "web_search_call",
+                 "action": {"type": "search", "query": "current price"}},
+                {"type": "message",
+                 "content": [{"type": "output_text", "text": "First part."}]},
+                {"type": "message",
+                 "content": [{"type": "output_text", "text": "Second part."}]},
+            ],
+            "usage": {"input_tokens": 100, "output_tokens": 50,
+                      "total_tokens": 150,
+                      "input_tokens_details": {"cached_tokens": 40},
+                      "output_tokens_details": {"reasoning_tokens": 30}},
+        }
+
+    def test_responses_routing_and_body_shape(self):
+        fake = self._responses_fake()
+        with mock.patch("voice_module.requests.post", return_value=_FakeResp(fake)) as post, \
+             mock.patch.object(voice_module, "_deepseek_api_key",
+                               return_value="sk-deepseek-test"):
+            answer, usage = reason("What is the price?", "", "", model=self.DEEPSEEK)
+        self.assertTrue(answer)
+        call = post.call_args
+        self.assertEqual(call.args[0], "https://api.deepseek.com/responses")
+        self.assertEqual(call.kwargs["headers"]["Authorization"],
+                         "Bearer sk-deepseek-test")
+        body = call.kwargs["json"]
+        self.assertEqual(body["model"], "deepseek-v4-flash")   # no :online
+        self.assertNotIn(":online", body["model"])
+        self.assertEqual(body["reasoning"], {"effort": "high"})
+        self.assertEqual(body["tools"], [{"type": "web_search"}])
+        self.assertEqual(body["tool_choice"], {"type": "web_search"})
+        # instructions = system prompt; input = non-system messages only.
+        self.assertIn("use web search if asked", body["instructions"])
+        self.assertEqual(body["input"][-1],
+                         {"role": "user", "content": "What is the price?"})
+        self.assertTrue(all(m["role"] != "system" for m in body["input"]))
+        self.assertNotIn("messages", body)
+
+    def test_responses_output_parsing_and_usage_normalization(self):
+        fake = self._responses_fake()
+        with mock.patch("voice_module.requests.post", return_value=_FakeResp(fake)) as post, \
+             mock.patch.object(voice_module, "_deepseek_api_key",
+                               return_value="sk-deepseek-test"):
+            answer, usage = reason("Q", "", "", model=self.DEEPSEEK)
+        # output_text from message items joined; reasoning/web_search_call items
+        # never surface.
+        self.assertEqual(answer, "First part.\nSecond part.")
+        # Normalized usage: input/output -> prompt/completion, cached_tokens
+        # preserved, cost explicitly None (reason_est -> `~$` in the UI).
+        self.assertEqual(usage["prompt_tokens"], 100)
+        self.assertEqual(usage["completion_tokens"], 50)
+        self.assertEqual(usage["total_tokens"], 150)
+        self.assertEqual(usage["prompt_cache_hit_tokens"], 40)
+        self.assertIsNone(usage["cost"])
+        self.assertTrue(reason_is_estimate(usage))
+
+    def test_responses_non_completed_status_raises(self):
+        fake = {"status": "failed", "error": {"message": "rate limited"}}
+        with mock.patch("voice_module.requests.post", return_value=_FakeResp(fake)), \
+             mock.patch.object(voice_module, "_deepseek_api_key",
+                               return_value="sk-deepseek-test"):
+            with self.assertRaises(requests.HTTPError):
+                reason("Q", "", "", model=self.DEEPSEEK)
+
+    def test_deepseek_missing_key_raises(self):
+        # Keyless direct-API selection must fail loudly (never OpenRouter).
+        with mock.patch("voice_module.requests.post") as post, \
+             mock.patch.object(voice_module, "_deepseek_api_key", return_value=""):
+            with self.assertRaises(RuntimeError):
+                reason("Q", "", "", model=self.DEEPSEEK)
+        post.assert_not_called()
+
+    def test_openrouter_path_unchanged(self):
+        fake = {"choices": [{"message": {"content": "  Hello world.  "}}],
+                "usage": {"prompt_tokens": 5, "completion_tokens": 7,
+                          "total_tokens": 12, "cost": 0.000123}}
+        with mock.patch("voice_module.requests.post", return_value=_FakeResp(fake)) as post, \
+             mock.patch.object(voice_module, "_api_key",
+                               return_value="sk-openrouter-test"):
+            answer, usage = reason("Q", "", "", model="x-ai/grok-4.5:online")
+        self.assertEqual(answer, "Hello world.")
+        call = post.call_args
+        self.assertEqual(call.args[0], "https://openrouter.ai/api/v1/chat/completions")
+        self.assertEqual(call.kwargs["headers"]["Authorization"],
+                         "Bearer sk-openrouter-test")
+        body = call.kwargs["json"]
+        self.assertEqual(body["model"], "x-ai/grok-4.5:online")
+        self.assertEqual(body["reasoning"], {"effort": "high"})
+        self.assertIn("messages", body)          # OpenRouter keeps `messages`
+        self.assertNotIn("instructions", body)
+        self.assertEqual(usage["cost"], 0.000123)   # exact cost -> no `~`
 
 
 class TestSynthesizeAudioCachedFlag(unittest.TestCase):

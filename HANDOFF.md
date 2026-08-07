@@ -15,7 +15,8 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   zero. `POST /scrape {symbol}` (bearer `SCRAPER_TOKEN`) → screener.in → pypdf →
   uploads `<SYMBOL>/*.txt` to S3. The main app proxies to it via `POST /api/scrape`.
 - **Secrets** (main app, set via `fly secrets set`): `APP_PASSWORD`, `SECRET_KEY`,
-  `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `TELEGRAM_*`, `AWS_ACCESS_KEY_ID/SECRET`,
+  `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `DEEPSEEK_API_KEY` (Chat page DeepSeek
+  V4 Flash — direct DeepSeek API, see Models), `TELEGRAM_*`, `AWS_ACCESS_KEY_ID/SECRET`,
   `VOICE_S3_BUCKET=simrat-company-docs`, `SCRAPER_URL`, `SCRAPER_TOKEN`, `SCREENER_COOKIE`.
   `fly secrets list` shows digests only. Rotation helper: `./rotate_secrets.sh`.
 
@@ -64,7 +65,12 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
   text-only, 7-day retention). Custom audio player (±15s, speed, sticky). On-demand
   re-synthesis of old answers. STT reviewed in the textbox before sending.
   **Reasoning-model dropdown** (allowlist `REASON_MODELS`) and **voice/TTS-model
-  dropdown** (allowlist `TTS_MODELS`).
+  dropdown** (allowlist `TTS_MODELS`). DeepSeek V4 Flash routes **direct** via the
+  DeepSeek Responses API (`api.deepseek.com/responses`) with its own
+  `DEEPSEEK_API_KEY` — web search is native there (`tools: [{type: web_search}]`,
+  forced via `tool_choice`), reasoning effort high, and the `~$` cost line marks
+  the table-derived estimate (no `usage.cost` on the native API). All other
+  dropdown models go through OpenRouter as before.
 - **To-do** (`/todos`, `todos.html` + `todos.js`, `todo_store.py` + `todo_module.py`):
   weekly board (Prioritise/Done/Rejected), resets each Monday (implicit — keyed by
   week's Monday). Current + future weeks editable; past weeks read-only. Add tasks to
@@ -135,10 +141,14 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
     (comma-separated), which registers a daily APScheduler job in `main.py`.
 - **Notes** (the "Research"→"Notes" tab): per-ticker markdown research notes.
 
-## Models (all via OpenRouter, one key)
+## Models (OpenRouter + one direct DeepSeek route)
 
 - **Chat reasoning:** dropdown `REASON_MODELS` (Grok 4.5 default, Kimi K3, GPT-5.6
-  Sol, Claude Opus 5, Claude Sonnet 5, GLM-5.2 — all `:online`). Allowlisted server-side.
+  Sol, Claude Opus 5, Claude Sonnet 5, GLM-5.2, **DeepSeek V4 Flash** — all `:online`
+  ids). Allowlisted server-side. DeepSeek V4 Flash is the exception: it runs on
+  **DeepSeek's own API** (`/responses`, web search + reasoning high, `DEEPSEEK_API_KEY`)
+  instead of OpenRouter — the `:online` suffix is OpenRouter-only, so the id stays
+  stable while the wire route changes server-side.
 - **Chat TTS:** dropdown `TTS_MODELS` — Gemini Flash (Charon, PCM, chunk pipeline),
   Grok Voice (`eve`, MP3 passthrough), Kokoro (`af_heart`, MP3). Per-model config
   (voice/format/pipeline). `microsoft/mai-voice-2-flash` omitted — no working voice found.
