@@ -347,8 +347,8 @@ function fmtTime(s) {
 }
 
 // Playback speed cycles through these. Remembered across answers so a long
-// session doesn't reset to 1× every turn.
-const SPEEDS = [1, 1.25, 1.5, 2];
+// session doesn't reset to 1× every turn. 0.9×/1.1× added per Simrat 2026-08-08.
+const SPEEDS = [0.9, 1, 1.1, 1.25, 1.5, 2];
 function loadSpeed() {
   const v = parseFloat(localStorage.getItem("chatSpeed"));
   return SPEEDS.includes(v) ? v : 1;
