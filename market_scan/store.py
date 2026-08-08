@@ -100,6 +100,11 @@ class ScanStore:
         with self._lock:
             return self._read(market, runs[0])
 
+    def get(self, market: str, session_date: str) -> dict | None:
+        """A specific stored session, or None (session not on disk)."""
+        with self._lock:
+            return self._read(market, session_date)
+
     def recent(self, market: str, sessions: int) -> list[dict]:
         """The last `sessions` stored runs for a market, newest session first.
 

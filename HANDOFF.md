@@ -118,7 +118,10 @@ Formerly "stock-watchlist" / "Signalbook"; the UI brand is now **Research Desk**
     market, counted by session date** — not by file age, which would wipe a
     market scanned weekly and would be reset anyway by a redeploy restamping
     every file's mtime. Notes are namespaced `session|ticker` in the API, since
-    the same ticker can spike on more than one retained day.
+    the same ticker can spike on more than one retained day. Manual backfill of
+    an older date is limited to this window: a date outside it is rejected at
+    the API with a clear message, because its run file would be pruned before
+    notes could be written.
   - **Re-running is cheap.** An exchange publishes a session's bars hours after
     the close — Yahoo serves the timestamp with null OHLCV meanwhile, which the
     feed drops — so a scan run too early legitimately reports yesterday and gets

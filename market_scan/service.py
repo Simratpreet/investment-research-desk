@@ -312,8 +312,12 @@ class ScanService:
         leave the page half-written for half an hour. Concurrency is bounded —
         by the pool here and by the analyst's own semaphore — because the point
         is to overlap the waiting, not to open forty billable calls at once.
+
+        Reads the session it was asked to analyse, not the newest stored run:
+        a manual backfill of an older date would otherwise match zero hits and
+        never call the model (the fix for the backfill-no-notes bug).
         """
-        stored = self._store.latest(market) or {}
+        stored = self._store.get(market, session_date) or {}
         hits = hits_from_stored(stored)     # re-read so notes see enriched sectors
         hits = [h for h in hits if h.session_date == session_date]
 

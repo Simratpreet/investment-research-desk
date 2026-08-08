@@ -456,6 +456,10 @@ const Movers = {
         body: JSON.stringify({ market: this.market, force, session_date: sessionDate }),
       });
       if (r.status === 409) banner.textContent = "A scan is already running for this market.";
+      else if (r.status === 400) {
+        const j = await r.json().catch(() => ({}));
+        banner.textContent = j.error || "Could not start the scan.";
+      }
       if (r.ok && sessionDate) sessionDateInput.value = "";   // one-shot backfill
     } catch (e) { /* the reload below surfaces the real state */ }
     scanBtn.textContent = "Run scan";

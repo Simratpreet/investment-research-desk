@@ -17,10 +17,12 @@ import tempfile
 import time
 import types
 import unittest
+from unittest import mock
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from market_scan.analyst import OpenRouterAnalyst
 from market_scan.detector import SpikeDetector
 from market_scan.domain import (Hit, HitAnalysis, Market, PriceSeries,
                                 ScanCriteria, ScanResult, UniverseEntry)
@@ -957,6 +959,19 @@ class TestScanStore(unittest.TestCase):
         self.assertEqual(self.store.list_runs("nasdaq"),
                          ["2026-07-24", "2026-07-20"])
 
+    def test_get_reads_a_specific_session(self):
+        self.store.save(make_result(session="2026-07-20"))
+        self.store.save(make_result(session="2026-07-24"))
+        self.assertEqual(self.store.get("nasdaq", "2026-07-20")["session_date"],
+                         "2026-07-20")
+        self.assertEqual(self.store.get("nasdaq", "2026-07-24")["session_date"],
+                         "2026-07-24")
+
+    def test_get_a_missing_session_is_none(self):
+        self.store.save(make_result(session="2026-07-24"))
+        self.assertIsNone(self.store.get("nasdaq", "2026-07-20"))
+        self.assertIsNone(self.store.get("nyse", "2026-07-24"))
+
     def test_markets_are_kept_separate(self):
         self.store.save(make_result(market="nasdaq"))
         self.store.save(make_result(market="nasdaq", tickers=("BBB",)))
@@ -1386,6 +1401,35 @@ class TestScanService(unittest.TestCase):
         self.assertIn("Scan complete", state["message"])
         self.assertFalse(state["running"])
 
+    def test_a_backfilled_old_date_gets_its_notes(self):
+        # The bug: a manual backfill of an older date read the *newest* stored
+        # run, matched zero hits, and never called the model — so no notes,
+        # while the page still reported "Scan complete". _analyse must read
+        # the session it was asked to analyse.
+        store = ScanStore(self.dir)
+        store.save(make_result(session="2026-07-25"))     # newer session on disk
+        scanner = FakeScanner(mode="complete")
+        svc = ScanService(store, self.dir, ScanCriteria(),
+                          api_key_fn=lambda: "key", model="m/model",
+                          scanner=scanner, retry_intervals=(1,),
+                          retry_daily_s=60)
+        calls = []
+
+        class RecordingAnalyst(OpenRouterAnalyst):
+            def explain(self, hit):
+                calls.append((hit.ticker, hit.session_date))
+                return HitAnalysis(hit.ticker, summary="note", status="ok")
+
+        with mock.patch("market_scan.service.OpenRouterAnalyst",
+                        RecordingAnalyst), fake_yfinance():
+            svc._run("nasdaq", session_date="2026-07-24")
+        old = store.get("nasdaq", "2026-07-24")
+        newer = store.get("nasdaq", "2026-07-25")
+        self.assertEqual(calls, [("AAA", "2026-07-24")])   # old hits only
+        self.assertEqual(old["analyses"]["AAA"]["summary"], "note")
+        self.assertEqual(old["analyses"]["AAA"]["status"], "ok")
+        self.assertEqual(newer["analyses"], {})            # newer file untouched
+
     def test_up_to_date_only_when_stored_matches_target(self):
         # State 1: the calendar target is already stored and complete — no
         # re-scan, no marker, an honest "last closed on".
@@ -1488,6 +1532,46 @@ class TestScanService(unittest.TestCase):
         # (complete stays False, so it can never fire a scan of its own).
         time.sleep(1.5)
         self.assertEqual(len(scanner.scans), 2)   # the manual one only
+
+
+class TestBackfillWindow(unittest.TestCase):
+    """`_backfill_rejected` — a manual backfill outside the retention window
+    must be rejected loudly (its run file would be pruned before notes could be
+    written), not silently accepted like the original bug."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
+        import scan_module
+        self.real_store = scan_module.store
+        self.store = ScanStore(self.dir)
+        scan_module.store = self.store
+        self.addCleanup(setattr, scan_module, "store", self.real_store)
+
+    def rejected(self, market, session_date):
+        import scan_module
+        return scan_module._backfill_rejected(market, session_date)
+
+    def test_rejected_when_five_newer_runs_exist(self):
+        for day in range(23, 28):
+            self.store.save(make_result(session=f"2026-07-{day}"))
+        msg = self.rejected("nasdaq", "2026-07-22")
+        self.assertIsNotNone(msg)
+        self.assertIn("outside the retained window", msg)
+        self.assertIn("2026-07-22", msg)
+
+    def test_allowed_with_four_newer_runs(self):
+        for day in range(24, 28):
+            self.store.save(make_result(session=f"2026-07-{day}"))
+        self.assertIsNone(self.rejected("nasdaq", "2026-07-23"))
+
+    def test_an_already_retained_date_is_allowed(self):
+        for day in range(23, 28):
+            self.store.save(make_result(session=f"2026-07-{day}"))
+        self.assertIsNone(self.rejected("nasdaq", "2026-07-25"))
+
+    def test_no_session_date_is_allowed(self):
+        self.assertIsNone(self.rejected("nasdaq", ""))
 
 
 if __name__ == "__main__":

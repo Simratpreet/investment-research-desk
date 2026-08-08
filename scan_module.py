@@ -76,6 +76,21 @@ def _session_date(data) -> str | None:
     return raw
 
 
+def _backfill_rejected(market: str, session_date: str) -> str | None:
+    """Error message when a manual backfill target sits outside the retained
+    window (its run file would be pruned before notes could be written), else
+    None."""
+    if not session_date:
+        return None
+    newer = [d for d in store.list_runs(market) if d > session_date]
+    if len(newer) >= MOVERS_RETAIN_SESSIONS:
+        return (f"{session_date} is outside the retained window — only the "
+                f"newest {MOVERS_RETAIN_SESSIONS} sessions per market are kept, "
+                "so its results would be pruned before notes could be written. "
+                "Backfill within the retention window.")
+    return None
+
+
 @scan_bp.route("/movers")
 def movers_page():
     return render_template("movers.html")
@@ -175,6 +190,9 @@ def start_scan():
     session_date = _session_date(body)
     if (body.get("session_date") or "").strip() and session_date is None:
         return jsonify({"error": "session_date must be YYYY-MM-DD"}), 400
+    rejected = _backfill_rejected(key, session_date)
+    if rejected:
+        return jsonify({"error": rejected}), 400
     # Without `force` the run checks first and stops if the exchange has
     # published nothing newer than the session already stored.
     started, message = service.start(key, force=bool(body.get("force")),
